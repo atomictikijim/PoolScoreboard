@@ -76,13 +76,38 @@ dotnet clean
 
 **Dependencies:** CommunityToolkit.Mvvm 8.4.2 for MVVM pattern support.
 
-**Design approach (when implementing):**
+**Application Flow (Multi-Step Setup):**
 
-- Follow MVVM pattern — ViewModels handle all game logic coordination, bind UI to state
-- Create ViewModels that subscribe to `GameManager.GameStateChanged` events
-- Use data binding for all real-time display (scores, current break holder, game status)
-- Keyboard input (numeric keys for score, arrow keys for break) and Stream Deck integration TBD
-- Future: full match history, player management (name/rating input), real-time scoreboard display for projection
+1. **Match Setup View** — Initialization phase
+   - League selector (APA, USAPL, BCA, TAP)
+   - Game Type selector (8-Ball, 9-Ball, 10-Ball)
+   - Optional match title (e.g., "Week 13 Tournament")
+   - Accent color selector for overlay branding (cyan, pink, purple, orange, green, blue)
+   - Creates `GameManager` with selected league/game type
+
+2. **Player Setup View** — Team/player entry phase
+   - Two-column layout (HOME and AWAY)
+   - Per-player input: Team Name, Player Name, Skill Level (1-9)
+   - Race To auto-calculated from Skill Level (via RaceRules)
+   - Game/Match score counters with +/- buttons
+   - Break holder toggle button ("At Table" / "Set Shooting")
+   - Calls `GameManager.InitializeGame()` when players are set
+
+3. **Active Game View** — Live scoreboard during play (optional, same as #2 or expanded)
+   - Real-time score display
+   - Break holder indicator
+   - Game status (in progress, winner)
+   - Keyboard shortcuts for score input, undo, reset
+
+**Design approach:**
+
+- Follow MVVM pattern — ViewModels for each view (MatchSetupViewModel, PlayerSetupViewModel, GameViewModel)
+- Use `GameManager` as the central orchestrator; ViewModels subscribe to `GameStateChanged` events
+- Data binding for all real-time display (scores, break holder, game status)
+- Dark navy theme (#1a2332) with cyan accents (#00d4ff) for active/highlighted states
+- Keyboard shortcuts: numeric keys for skill level, +/- for scores, Space to toggle break
+- Stream Deck integration (Phase 5) will mirror keyboard input logic
+- Future: match history logging, player database integration, tournament support
 
 ### PoolScoreboard.Overlay (ASP.NET Core Server)
 
