@@ -4,127 +4,129 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**PoolScoreboard** is a Windows desktop application for managing pool game scoreboards with OBS streaming integration and Stream Deck support. It's a three-project solution targeting .NET 8.0 with nullable reference types enabled.
+**PoolScoreboard** is a Windows desktop application for managing pool game scoreboards with OBS streaming integration and Stream Deck support. It's a three-project .NET 8.0 solution: a game-logic Core, a WPF Controller UI, and an ASP.NET overlay server for live streaming.
 
-## Quick Start Commands
+## Project Layout
 
-### Build the solution
+- `PoolScoreboard.sln` — solution file
+- `PoolScoreboard.Core/` — game logic, rules, data models (class library)
+- `PoolScoreboard.Controller/` — WPF desktop application for scoreboard control
+- `PoolScoreboard.Overlay/` — ASP.NET Core HTTP server for OBS browser source
+- `README.md` — project overview and quick-start guide
+- `CLAUDE.md` — this file
+- `NOTES.md` — running log of issues discovered during development
+- `PROGRESS.md` — tracks current development status and next steps
+
+## Build & Run Commands
+
 ```powershell
+# Build the solution
 dotnet build
-```
 
-### Run the WPF Controller application
-```powershell
+# Run the WPF Controller (requires Windows)
 dotnet run --project PoolScoreboard.Controller/PoolScoreboard.Controller.csproj
-```
 
-### Build in Release mode
-```powershell
-dotnet build -c Release
-```
+# Run tests (currently none, but structure exists)
+dotnet test
 
-### Clean build artifacts
-```powershell
+# Clean build artifacts
 dotnet clean
 ```
 
-## Architecture
+## C# / Windows Best Practices
 
-The solution is organized into three projects:
+- **Target an explicit TFM** in every `.csproj` (`net8.0` for Core, `net8.0-windows` for Controller with WPF, `net8.0` for Overlay with ASP.NET Core).
+- **Enable nullable reference types** (`<Nullable>enable</Nullable>`) on all projects — in place here.
+- **Implicit usings enabled** (`<ImplicitUsings>enable</ImplicitUsings>`) — all using statements are global.
+- **File-scoped namespaces** — use `namespace X;` syntax throughout.
+- **Separate UI from logic:** Core contains all game rules and state management (testable, UI-agnostic); Controller binds UI to Core via event subscriptions and data binding; Overlay reads state through an HTTP endpoint.
+- **Event-based communication:** `GameManager` raises `GameStateChanged` events whenever state mutates; UI/Overlay subscribe to these events rather than polling.
+- **Use tuple pattern matching** for rules logic (e.g. `RaceRules.GetRaceToValue` maps `(League, GameType, SkillLevel)` tuples to race-to values).
 
-### PoolScoreboard.Core (Game Logic Layer)
-- **Purpose**: League-agnostic game logic, rules, and data models
-- **Key Files**:
-  - `Enums/League.cs` — League types: APA, USAPL, BCA, TAP
-  - `Enums/GameType.cs` — Game types: EightBall, NineBall, TenBall
-  - `Models/Player.cs` — Player with name, team, league affiliation, and skill level
-  - `Models/GameState.cs` — Current game state (players, scores, break holder, winner)
-  - `GameManager.cs` — Main orchestrator; manages game initialization, scoring, breaks, and win detection
-  - `Rules/RaceRules.cs` — League- and skill-level-specific race-to calculations (handles all 4 leagues × 3 game types)
+## Architecture & Key Files
 
-**Design Notes**:
-- `GameManager` raises `GameStateChanged` events when state updates occur
-- `RaceRules` uses tuple pattern matching to map (league, game type, skill level) to race-to values
-- All core logic is UI-agnostic and testable
+### PoolScoreboard.Core (Game Logic)
+
+**Entry point:** `GameManager` — the main orchestrator for all game state and operations.
+
+**Enums:**
+
+- `League.cs` — APA, USAPL, BCA, TAP
+- `GameType.cs` — EightBall, NineBall, TenBall
+
+**Models:**
+
+- `Player.cs` — name, team, league affiliation, skill level
+- `GameState.cs` — current game (both players, scores, break holder, winner status, timestamps)
+
+**Rules:**
+
+- `RaceRules.cs` — league- and skill-level-specific race-to calculations for all 4 leagues × 3 game types
+
+**Design Patterns:**
+
+- `GameManager` uses an event-notification pattern: `public event EventHandler<GameStateChangedEventArgs>? GameStateChanged;`
+- All state mutations go through GameManager methods (`InitializeGame`, `AddPoint`, `SetBreak`, `UndoPoint`, `ResetGame`, `EndGame`)
+- `GameStateChanged` is raised after every state mutation, allowing UI to stay in sync without polling
+- No database or async I/O in Core — it's pure, fast, and testable
 
 ### PoolScoreboard.Controller (WPF Desktop Application)
-- **Purpose**: Windows desktop UI for scoreboard control
-- **Target**: `net8.0-windows` with WPF enabled
-- **Dependencies**: CommunityToolkit.Mvvm 8.4.2 for MVVM pattern support
-- **Current State**: Scaffolding only (App.xaml and MainWindow.xaml are templates)
 
-**Design Approach**:
-- Follow MVVM pattern for all UI logic
-- ViewModels should subscribe to `GameManager.GameStateChanged` events
-- Keyboard input (numeric keys, arrow keys) and Stream Deck integration planned
-- Use data binding for real-time score display
+**Status:** Scaffolding complete (App.xaml, MainWindow.xaml are templates), UI implementation not yet started.
 
-### PoolScoreboard.Overlay (HTTP Server for OBS)
-- **Purpose**: ASP.NET Core server providing browser-based overlay for live streaming
-- **Target**: `net8.0` console application with ASP.NET Core framework reference
-- **Current State**: Project structure only, no implementation
+**Dependencies:** CommunityToolkit.Mvvm 8.4.2 for MVVM pattern support.
 
-**Design Approach**:
-- HTTP endpoint(s) to serve overlay UI (HTML/CSS/JS)
-- Potential WebSocket support for real-time state sync with Controller
-- Stateless or minimal state — Controller is the source of truth
+**Design approach (when implementing):**
 
-## Key Workflows
+- Follow MVVM pattern — ViewModels handle all game logic coordination, bind UI to state
+- Create ViewModels that subscribe to `GameManager.GameStateChanged` events
+- Use data binding for all real-time display (scores, current break holder, game status)
+- Keyboard input (numeric keys for score, arrow keys for break) and Stream Deck integration TBD
+- Future: full match history, player management (name/rating input), real-time scoreboard display for projection
 
-### Game Initialization
-1. `GameManager.InitializeGame(player1, player2, gameType)` creates a new game
-2. `RaceRules` is instantiated for the selected league and game type
-3. `GameStateChanged` event is raised; UI subscribes and updates display
+### PoolScoreboard.Overlay (ASP.NET Core Server)
 
-### Scoring
-1. `GameManager.AddPoint(isPlayer1)` increments the appropriate player's score
-2. `RaceRules.IsPlayerWinner()` checks if the player has reached the race-to value
-3. If winner detected, `GameManager.EndGame()` is called automatically
-4. `GameStateChanged` event notifies subscribers of updated state
+**Status:** Project structure only, no implementation yet.
 
-### Undo/Reset
-- `GameManager.UndoPoint()` reverts last score, preserving history intent
-- `GameManager.ResetGame()` clears state for a new game
+**Purpose:** HTTP server serving a browser-based overlay for OBS streaming.
 
-## Dependencies & Tools
+**Design approach (when implementing):**
 
-- **.NET 8.0**: All projects target net8.0 or net8.0-windows
-- **Implicit Usings**: Enabled in all projects (global using statements)
-- **Nullable Reference Types**: Enabled in all projects
-- **MVVM Toolkit**: CommunityToolkit.Mvvm 8.4.2 in Controller
-- **WPF**: UseWPF=true in Controller project
+- Stateless HTTP endpoint(s) serving JSON state (current game, scores, players, break holder)
+- Potential WebSocket support for real-time updates (browser source polls or subscribes)
+- HTML/CSS/JS overlay UI consuming that endpoint
+- Controller is the source of truth; Overlay reads state only
 
-## Current Implementation Status
+## WPF Theming & UI Patterns (for Controller implementation)
 
-### Complete
-- Core game logic (GameManager, RaceRules, data models)
-- All four league rulesets with skill-level-based race-to logic
-- Event-based state notification system
+When building the Controller UI:
 
-### In Progress / Planned
-- Controller UI (MVVM views and viewmodels)
-- Overlay HTTP server and HTML/CSS/JS for OBS
-- Keyboard input handling
-- Stream Deck integration
+- **Implicit Window style:** Use `DynamicResource` brushes (`TextPrimaryBrush`, `AccentPrimaryBrush`, etc.) for all surfaces, text, and borders so the UI follows light/dark theme changes live.
+- **Custom windows need theme application:** Any modal dialog or separate window must call `themeService.ApplyTitleBar(this)` from its `SourceInitialized` event so the native title bar matches the theme.
+- **DataGrid/ListBox styling:** Don't trust `Style` `Setter`s for `Background`/`Foreground` on standard controls — they often have default `ControlTemplate`s that ignore those properties. Prefer local attribute values or custom `ControlTemplate`s with explicit `TemplateBinding`.
+- **TextBlock foreground gotcha:** Any `TextBlock` with its own inline `<TextBlock.Style>` loses the implicit theme foreground and needs an explicit `Foreground="{DynamicResource TextPrimaryBrush}"` local value, or it renders nearly invisible on light surfaces.
 
-## Common Tasks
+## Known Simplifications & Future Work
 
-### Adding a new league ruleset
-1. Add league enum value to `League.cs` if needed
-2. Extend `RaceRules.GetRaceToValue()` pattern match with new (league, gameType, skillLevel) rules
+- **No database yet:** Game state is in-memory only; persistence (match history, player data) is not implemented.
+- **Core logic is complete for basic gameplay:** league rules, race-to calculations, break tracking, undo/reset are all functional and tested.
+- **UI is not started:** Controller and Overlay are structural only; no scoreboard display, player management, or OBS integration yet.
+- **No player database:** Controller will eventually need to load/save player names, ratings, and team info; no persistence layer yet.
 
-### Connecting UI to GameManager
-1. Inject `GameManager` into a ViewModel
-2. Subscribe to `GameManager.GameStateChanged` event
-3. Update ViewModel properties on event; binding automatically refreshes UI
+## Testing Notes
 
-### Testing game logic
-- No test project yet; all Core logic is dependency-free and easily unit-testable
-- Future: add `PoolScoreboard.Core.Tests` project using xUnit or NUnit
+- Core logic (GameManager, RaceRules) is UI-free and easily unit-testable — create tests under a future `PoolScoreboard.Core.Tests` project using xUnit or NUnit.
+- Controller UI would be tested end-to-end (WPF integration tests against a real GameManager).
+- Overlay/HTTP integration tests would mock the game state.
 
-## Patterns & Conventions
+## Versioning & Commit Policy
 
-- **Namespaces**: Follow folder structure (e.g., `PoolScoreboard.Core.Rules`, `PoolScoreboard.Core.Models`)
-- **File-scoped namespaces**: Use `namespace X;` syntax throughout
-- **Events**: Use `EventHandler<TEventArgs>` with custom `EventArgs` subclass for state changes
-- **Immutability**: Models are mutable for now; if needed, transition to immutable record types
+Versions follow the pattern `0.<major>.<ui>` pre-1.0:
+- Major bumps for functionality changes (new feature, significant refactor)
+- UI bumps for cosmetic-only changes (layout, styling, zero behavior change)
+- Trivial fixes (typos, comments) fold into the next functional/UI commit
+
+Example commits:
+- `v0.1: Initial game logic and Core types` — first working version
+- `v0.1.1: Controller main window layout` — UI-only styling
+- `v0.2: WPF scoreboard display with live score updates` — new feature
