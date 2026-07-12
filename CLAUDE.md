@@ -93,10 +93,27 @@ dotnet clean
    - Break holder toggle button ("At Table" / "Set Shooting")
    - Calls `GameManager.InitializeGame()` when players are set
 
-3. **Active Game View** — Live scoreboard during play (optional, same as #2 or expanded)
+3. **Ball Display & Tracking** (Phase 2b)
+
+   - **8-Ball mode:** SOLIDS/STRIPES assignment buttons, balls split by player (1-7 solids, 9-15 stripes, 8-ball center)
+   - **9-Ball & 10-Ball mode:** Numbered balls (1-9 or 1-10) with clickable tracking for pocketed balls
+   - Visual feedback: Pocketed balls grayed out / off-table
+   - Reset button to clear ball state for new rack
+
+4. **Shot Clock & Match Controls** (Phase 2c)
+
+   - Countdown timer display (30s, 45s, 60s presets)
+   - Start/Reset timer controls
+   - Show/Hide toggle for clock visibility
+   - "New Rack" button to reset balls and increment game counter
+   - "Reset Entire Match" button (red warning style) to reset all scores
+
+5. **Active Game View** — Live scoreboard during play
+
    - Real-time score display
    - Break holder indicator
    - Game status (in progress, winner)
+   - Ball tracking and shot clock (when implemented)
    - Keyboard shortcuts for score input, undo, reset
 
 **Design approach:**

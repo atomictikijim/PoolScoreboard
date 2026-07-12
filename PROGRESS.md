@@ -17,7 +17,7 @@ the top of each section.
   - [ ] Win detection across all formats and skill levels
 - [ ] **Estimated:** ~30-40 unit tests to cover all core logic paths
 
-### Phase 2: WPF Controller UI
+### Phase 2a: Basic Scoreboard UI (MVP)
 
 **Design Reference:** Two-column layout with HOME/AWAY panels (dark navy theme, cyan accents for active state)
 
@@ -42,22 +42,73 @@ the top of each section.
 
 - [ ] Styling: Dark navy background (#1a2332), cyan accents (#00d4ff), rounded corners, subtle borders
 - [ ] Add keyboard shortcuts (1-9 for player skill, +/- for scores, Space to toggle break)
-- [ ] **Estimated:** ~1-2 weeks for basic playable scoreboard
+- [ ] **Estimated:** ~1 week for basic playable scoreboard (MVP)
 
-### Phase 3: Overlay (OBS Integration)
+### Phase 2b: Ball Assignment & Tracking
+
+**Features:** Game-specific ball display and tracking
+
+- [ ] Add GameState property tracking: `BallsPocketed` (list of ball numbers per player)
+- [ ] Implement ball display UI component (colored circles 1-15 + 8-ball center)
+- [ ] **8-Ball Mode:**
+
+  - [ ] Display SOLIDS/STRIPES assignment buttons above ball display
+  - [ ] Show stripes (9-15) under HOME player, solids (1-7) under AWAY player (configurable)
+  - [ ] Clicking a ball toggles its "pocketed" state (grayed out / off-table)
+  - [ ] Reset button to clear ball state and start new rack
+
+- [ ] **9-Ball & 10-Ball Mode:**
+
+  - [ ] Show all balls (1-9 or 1-10) in order
+  - [ ] Clicking a ball marks it as pocketed by current player (at table)
+  - [ ] Visual indicator (grayed out) for pocketed balls
+  - [ ] Reset button for new rack
+
+- [ ] Wire to GameManager:
+
+  - [ ] Expose `GameState.BallsPocketed` property
+  - [ ] Add methods: `GameManager.PocketBall(ballNumber)`, `GameManager.ResetBalls()`
+  - [ ] Update UI on GameStateChanged events
+
+- [ ] **Estimated:** ~4-5 days for ball tracking and visual feedback
+
+### Phase 2c: Shot Clock & Match Controls
+
+**Features:** Tournament-style shot timer and match management
+
+- [ ] Implement Shot Clock component:
+
+  - [ ] Large countdown display (seconds)
+  - [ ] Start/Reset buttons (green Start, dark Reset)
+  - [ ] Preset timer buttons (30s, 45s, 60s)
+  - [ ] Show/Hide toggle to display/hide clock during play
+  - [ ] Timer countdown with visual feedback (color change near timeout)
+
+- [ ] Implement Match Control buttons:
+
+  - [ ] "New Rack" button (resets BallsPocketed, increments game counter)
+  - [ ] "Reset Entire Match" button (red warning style, resets all scores and match state)
+
+- [ ] Wire timer to GameManager (optional: track shot time in GameState for analytics)
+- [ ] **Estimated:** ~3-4 days for timer UI and match controls
+
+### Phase 4: Overlay (OBS Integration)
+
 - [ ] Design HTTP endpoint(s) for game state (e.g. `/api/game/current`)
 - [ ] Implement minimal ASP.NET Core controller returning JSON
-- [ ] Build HTML/CSS/JS browser overlay (read-only display of scores, players, break)
+- [ ] Build HTML/CSS/JS browser overlay (read-only display of scores, players, break, ball state)
 - [ ] Consider WebSocket for real-time updates (vs. polling)
 - [ ] **Estimated:** ~1 week for basic streaming-overlay functionality
 
-### Phase 4: Player Management & Persistence
+### Phase 5: Player Management & Persistence
+
 - [ ] Add Entity Framework Core for local SQLite database
 - [ ] Create `Player` entity with name, league affiliation, skill levels (Fargo, APA, TAP, etc.)
 - [ ] Implement player loading/saving UI on Controller
 - [ ] Extend tournament features (multiple games, statistics)
 
-### Phase 5: Stream Deck Integration
+### Phase 6: Stream Deck Integration
+
 - [ ] Research Stream Deck HTTP API
 - [ ] Wire score increment/decrement buttons
 - [ ] Add game control buttons (start, reset, etc.)
@@ -71,12 +122,14 @@ the top of each section.
 - Solution builds cleanly with zero warnings
 
 ### In Progress / Planned
-- Core unit tests (30-40 tests for full coverage)
-- Controller UI (MVVM views and viewmodels)
-- Overlay HTTP server and HTML/CSS/JS for OBS
-- Keyboard input handling
-- Stream Deck integration
-- Player database with Entity Framework Core
+
+- **Phase 1:** Core unit tests (30-40 tests for full coverage)
+- **Phase 2a:** Basic Scoreboard UI (MVVM views, player setup, score management)
+- **Phase 2b:** Ball Assignment & Tracking (ball display, 8-ball solids/stripes, 9/10-ball pocketing)
+- **Phase 2c:** Shot Clock & Match Controls (timer, new rack, match reset)
+- **Phase 4:** Overlay HTTP server and HTML/CSS/JS for OBS
+- **Phase 5:** Player database with Entity Framework Core
+- **Phase 6:** Stream Deck integration
 
 ## Known Gaps & Simplifications
 
