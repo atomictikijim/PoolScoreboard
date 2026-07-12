@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using PoolScoreboard.Core;
 using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
@@ -30,6 +31,9 @@ public partial class GameViewModel : ObservableObject
     [ObservableProperty]
     private string accentColor = "#00d4ff";
 
+    [ObservableProperty]
+    private bool homeAtTable = true;
+
     public GameViewModel()
     {
         SelectedLeague = League.APA;
@@ -43,19 +47,21 @@ public partial class GameViewModel : ObservableObject
 
         _gameManager = new GameManager();
 
+        var skillLevel = HomePlayer.UsesSkillLevel ? HomePlayer.SkillLevel : (HomePlayer.FargoRating / 100);
         var homePlayerModel = new Player
         {
             Name = HomePlayer.PlayerName,
             TeamName = HomePlayer.TeamName,
-            SkillLevel = HomePlayer.SkillLevel,
+            SkillLevel = skillLevel,
             League = SelectedLeague
         };
 
+        skillLevel = AwayPlayer.UsesSkillLevel ? AwayPlayer.SkillLevel : (AwayPlayer.FargoRating / 100);
         var awayPlayerModel = new Player
         {
             Name = AwayPlayer.PlayerName,
             TeamName = AwayPlayer.TeamName,
-            SkillLevel = AwayPlayer.SkillLevel,
+            SkillLevel = skillLevel,
             League = SelectedLeague
         };
 
@@ -71,10 +77,15 @@ public partial class GameViewModel : ObservableObject
         {
             HomePlayer.GameScore = 0;
             AwayPlayer.GameScore = 0;
-            HomePlayer.IsAtTable = true;
-            AwayPlayer.IsAtTable = false;
+            HomeAtTable = true;
             InitializeGame();
         }
+    }
+
+    [RelayCommand]
+    public void ToggleAtTable()
+    {
+        HomeAtTable = !HomeAtTable;
     }
 
     private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e)

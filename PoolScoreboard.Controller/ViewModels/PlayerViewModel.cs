@@ -10,6 +10,7 @@ public partial class PlayerViewModel : ObservableObject
 {
     private readonly RaceRules _raceRules;
     private readonly Player _player;
+    private readonly League _league;
 
     [ObservableProperty]
     private string teamName = string.Empty;
@@ -21,6 +22,9 @@ public partial class PlayerViewModel : ObservableObject
     private int skillLevel = 5;
 
     [ObservableProperty]
+    private int fargoRating = 500;
+
+    [ObservableProperty]
     private int raceToValue = 5;
 
     [ObservableProperty]
@@ -29,11 +33,12 @@ public partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     private int matchScore = 0;
 
-    [ObservableProperty]
-    private bool isAtTable = false;
+    public bool UsesSkillLevel => _league == League.APA || _league == League.TAP;
+    public bool UsesFargoRating => _league == League.USAPL || _league == League.BCA;
 
     public PlayerViewModel(League league, GameType gameType)
     {
+        _league = league;
         _raceRules = new RaceRules(league, gameType);
         _player = new Player { Name = "", SkillLevel = 5, TeamName = "", League = league };
     }
@@ -41,6 +46,12 @@ public partial class PlayerViewModel : ObservableObject
     partial void OnSkillLevelChanged(int value)
     {
         _player.SkillLevel = value;
+        RaceToValue = _raceRules.GetRaceToValue(_player);
+    }
+
+    partial void OnFargoRatingChanged(int value)
+    {
+        _player.SkillLevel = (value / 100);
         RaceToValue = _raceRules.GetRaceToValue(_player);
     }
 
@@ -78,12 +89,6 @@ public partial class PlayerViewModel : ObservableObject
     {
         if (MatchScore > 0)
             MatchScore--;
-    }
-
-    [RelayCommand]
-    public void ToggleAtTable()
-    {
-        IsAtTable = !IsAtTable;
     }
 
     public Player GetPlayer() => _player;

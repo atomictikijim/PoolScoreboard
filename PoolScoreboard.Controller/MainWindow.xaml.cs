@@ -16,5 +16,17 @@ public partial class MainWindow : Window
         _viewModel.SetupPlayers(League.APA, GameType.NineBall);
 
         DataContext = _viewModel;
+
+        UpdateAtTableButton();
+        _viewModel.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(GameViewModel.HomeAtTable))
+                UpdateAtTableButton();
+        };
+    }
+
+    private void UpdateAtTableButton()
+    {
+        AtTableToggleButton.Content = _viewModel.HomeAtTable ? "HOME at Table" : "AWAY at Table";
     }
 }

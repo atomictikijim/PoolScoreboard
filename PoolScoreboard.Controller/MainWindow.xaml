@@ -15,16 +15,50 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- Header -->
-            <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">
-            <TextBlock Text="Match Setup" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
-        </StackPanel>
+            <!-- Header with League and Game Type -->
+            <Border Grid.Row="0" Padding="0,0,0,20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- League -->
+                    <TextBlock Grid.Column="0" Text="League" Style="{StaticResource LabelTextBlockStyle}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <ComboBox Grid.Column="1" SelectedValue="{Binding SelectedLeague}" Style="{StaticResource StandardComboBoxStyle}">
+                        <system:String>APA</system:String>
+                        <system:String>USAPL</system:String>
+                        <system:String>BCA</system:String>
+                        <system:String>TAP</system:String>
+                    </ComboBox>
+
+                    <!-- Game Type -->
+                    <TextBlock Grid.Column="2" Text="Game" Style="{StaticResource LabelTextBlockStyle}" VerticalAlignment="Center" Margin="20,0,8,0" />
+                    <ComboBox Grid.Column="3" SelectedValue="{Binding SelectedGameType}" Style="{StaticResource StandardComboBoxStyle}">
+                        <system:String>EightBall</system:String>
+                        <system:String>NineBall</system:String>
+                        <system:String>TenBall</system:String>
+                    </ComboBox>
+
+                    <!-- At Table Toggle -->
+                    <Button Grid.Column="5"
+                            x:Name="AtTableToggleButton"
+                            Style="{StaticResource ActiveButtonStyle}"
+                            Command="{Binding ToggleAtTableCommand}"
+                            Height="36" />
+                </Grid>
+            </Border>
 
             <!-- Main Content: Two Column Layout -->
-            <Grid Grid.Row="1">
+            <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="20" />
@@ -33,173 +67,185 @@
 
                 <!-- HOME Player Panel -->
                 <Border Grid.Column="0" Style="{StaticResource PlayerPanelStyle}">
-                <StackPanel>
-                    <TextBlock Text="HOME" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16" />
+                    <StackPanel>
+                        <TextBlock Text="HOME" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16" />
 
-                    <!-- At Table Button -->
-                    <Button Content="At Table"
-                            Style="{StaticResource ActiveButtonStyle}"
-                            Margin="0,0,0,16"
-                            Height="40"
-                            Command="{Binding HomePlayer.ToggleAtTableCommand}" />
+                        <!-- Team Name -->
+                        <TextBlock Text="Team Name" Style="{StaticResource LabelTextBlockStyle}" />
+                        <TextBox Text="{Binding HomePlayer.TeamName, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource StandardTextBoxStyle}" />
 
-                    <!-- Team Name -->
-                    <TextBlock Text="Team Name" Style="{StaticResource LabelTextBlockStyle}" />
-                    <TextBox Text="{Binding HomePlayer.TeamName, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource StandardTextBoxStyle}" />
+                        <!-- Player Name -->
+                        <TextBlock Text="Player Name" Style="{StaticResource LabelTextBlockStyle}" />
+                        <TextBox Text="{Binding HomePlayer.PlayerName, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource StandardTextBoxStyle}" />
 
-                    <!-- Player Name -->
-                    <TextBlock Text="Player Name" Style="{StaticResource LabelTextBlockStyle}" />
-                    <TextBox Text="{Binding HomePlayer.PlayerName, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource StandardTextBoxStyle}" />
+                        <!-- Skill Level (for APA/TAP) or Fargo Rating (for USAPL/BCA) -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
 
-                    <!-- Skill Level and Race To -->
-                    <Grid >
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
+                            <!-- Skill Level for APA/TAP -->
+                            <StackPanel Grid.Column="0" Visibility="{Binding HomePlayer.UsesSkillLevel, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock Text="Skill Level" Style="{StaticResource LabelTextBlockStyle}" />
+                                <ComboBox SelectedValue="{Binding HomePlayer.SkillLevel}"
+                                          Style="{StaticResource StandardComboBoxStyle}"
+                                          Width="100">
+                                    <system:Int32>1</system:Int32>
+                                    <system:Int32>2</system:Int32>
+                                    <system:Int32>3</system:Int32>
+                                    <system:Int32>4</system:Int32>
+                                    <system:Int32>5</system:Int32>
+                                    <system:Int32>6</system:Int32>
+                                    <system:Int32>7</system:Int32>
+                                    <system:Int32>8</system:Int32>
+                                    <system:Int32>9</system:Int32>
+                                </ComboBox>
+                            </StackPanel>
 
-                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                            <TextBlock Text="Skill Level" Style="{StaticResource LabelTextBlockStyle}" />
-                            <ComboBox SelectedValue="{Binding HomePlayer.SkillLevel}"
-                                      Style="{StaticResource StandardComboBoxStyle}">
-                                <system:Int32>1</system:Int32>
-                                <system:Int32>2</system:Int32>
-                                <system:Int32>3</system:Int32>
-                                <system:Int32>4</system:Int32>
-                                <system:Int32>5</system:Int32>
-                                <system:Int32>6</system:Int32>
-                                <system:Int32>7</system:Int32>
-                                <system:Int32>8</system:Int32>
-                                <system:Int32>9</system:Int32>
-                            </ComboBox>
-                        </StackPanel>
+                            <!-- Fargo Rating for USAPL/BCA -->
+                            <StackPanel Grid.Column="0" Visibility="{Binding HomePlayer.UsesFargoRating, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock Text="Fargo Rating" Style="{StaticResource LabelTextBlockStyle}" />
+                                <TextBox Text="{Binding HomePlayer.FargoRating, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource StandardTextBoxStyle}"
+                                         Width="100" />
+                            </StackPanel>
 
-                        <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                            <TextBlock Text="Race To" Style="{StaticResource LabelTextBlockStyle}" />
-                            <TextBlock Text="{Binding HomePlayer.RaceToValue}"
-                                       Style="{StaticResource ValueTextBlockStyle}"
-                                       Height="36"
-                                       VerticalAlignment="Center"
-                                       Padding="8,0"
-                                       Background="{StaticResource InputBackgroundBrush}"
-                                       Margin="0,0,0,12" />
-                        </StackPanel>
-                    </Grid>
+                            <!-- Race To -->
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Race To" Style="{StaticResource LabelTextBlockStyle}" />
+                                <TextBlock Text="{Binding HomePlayer.RaceToValue}"
+                                           Style="{StaticResource ValueTextBlockStyle}"
+                                           Height="36"
+                                           VerticalAlignment="Center"
+                                           Padding="8,0"
+                                           Background="{StaticResource InputBackgroundBrush}"
+                                           Margin="0,0,0,12"
+                                           Width="60" />
+                            </StackPanel>
+                        </Grid>
 
-                    <!-- Game and Match Counters -->
-                    <TextBlock Text="GAMES" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4" />
-                    <Grid >
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                        <!-- Game and Match Counters -->
+                        <TextBlock Text="GAMES" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding HomePlayer.DecrementGameScoreCommand}" Margin="0,0,4,0" />
-                        <TextBlock Grid.Column="1" Text="{Binding HomePlayer.GameScore}" Style="{StaticResource LargeValueTextBlockStyle}" />
-                        <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding HomePlayer.IncrementGameScoreCommand}" Margin="4,0,0,0" />
-                    </Grid>
+                            <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding HomePlayer.DecrementGameScoreCommand}" Margin="0,0,4,0" />
+                            <TextBlock Grid.Column="1" Text="{Binding HomePlayer.GameScore}" Style="{StaticResource LargeValueTextBlockStyle}" />
+                            <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding HomePlayer.IncrementGameScoreCommand}" Margin="4,0,0,0" />
+                        </Grid>
 
-                    <TextBlock Text="MATCH" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4" />
-                    <Grid >
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="MATCH" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding HomePlayer.DecrementMatchScoreCommand}" Margin="0,0,4,0" />
-                        <TextBlock Grid.Column="1" Text="{Binding HomePlayer.MatchScore}" Style="{StaticResource LargeValueTextBlockStyle}" />
-                        <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding HomePlayer.IncrementMatchScoreCommand}" Margin="4,0,0,0" />
-                    </Grid>
-                </StackPanel>
-            </Border>
+                            <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding HomePlayer.DecrementMatchScoreCommand}" Margin="0,0,4,0" />
+                            <TextBlock Grid.Column="1" Text="{Binding HomePlayer.MatchScore}" Style="{StaticResource LargeValueTextBlockStyle}" />
+                            <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding HomePlayer.IncrementMatchScoreCommand}" Margin="4,0,0,0" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
 
                 <!-- AWAY Player Panel -->
                 <Border Grid.Column="2" Style="{StaticResource PlayerPanelStyle}">
-                <StackPanel>
-                    <TextBlock Text="AWAY" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16" />
+                    <StackPanel>
+                        <TextBlock Text="AWAY" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16" />
 
-                    <!-- Set Shooting Button -->
-                    <Button Content="Set Shooting"
-                            Style="{StaticResource InactiveButtonStyle}"
-                            Margin="0,0,0,16"
-                            Height="40"
-                            Command="{Binding AwayPlayer.ToggleAtTableCommand}" />
+                        <!-- Team Name -->
+                        <TextBlock Text="Team Name" Style="{StaticResource LabelTextBlockStyle}" />
+                        <TextBox Text="{Binding AwayPlayer.TeamName, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource StandardTextBoxStyle}" />
 
-                    <!-- Team Name -->
-                    <TextBlock Text="Team Name" Style="{StaticResource LabelTextBlockStyle}" />
-                    <TextBox Text="{Binding AwayPlayer.TeamName, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource StandardTextBoxStyle}" />
+                        <!-- Player Name -->
+                        <TextBlock Text="Player Name" Style="{StaticResource LabelTextBlockStyle}" />
+                        <TextBox Text="{Binding AwayPlayer.PlayerName, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource StandardTextBoxStyle}" />
 
-                    <!-- Player Name -->
-                    <TextBlock Text="Player Name" Style="{StaticResource LabelTextBlockStyle}" />
-                    <TextBox Text="{Binding AwayPlayer.PlayerName, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource StandardTextBoxStyle}" />
+                        <!-- Skill Level (for APA/TAP) or Fargo Rating (for USAPL/BCA) -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
 
-                    <!-- Skill Level and Race To -->
-                    <Grid >
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
+                            <!-- Skill Level for APA/TAP -->
+                            <StackPanel Grid.Column="0" Visibility="{Binding AwayPlayer.UsesSkillLevel, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock Text="Skill Level" Style="{StaticResource LabelTextBlockStyle}" />
+                                <ComboBox SelectedValue="{Binding AwayPlayer.SkillLevel}"
+                                          Style="{StaticResource StandardComboBoxStyle}"
+                                          Width="100">
+                                    <system:Int32>1</system:Int32>
+                                    <system:Int32>2</system:Int32>
+                                    <system:Int32>3</system:Int32>
+                                    <system:Int32>4</system:Int32>
+                                    <system:Int32>5</system:Int32>
+                                    <system:Int32>6</system:Int32>
+                                    <system:Int32>7</system:Int32>
+                                    <system:Int32>8</system:Int32>
+                                    <system:Int32>9</system:Int32>
+                                </ComboBox>
+                            </StackPanel>
 
-                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                            <TextBlock Text="Skill Level" Style="{StaticResource LabelTextBlockStyle}" />
-                            <ComboBox SelectedValue="{Binding AwayPlayer.SkillLevel}"
-                                      Style="{StaticResource StandardComboBoxStyle}">
-                                <system:Int32>1</system:Int32>
-                                <system:Int32>2</system:Int32>
-                                <system:Int32>3</system:Int32>
-                                <system:Int32>4</system:Int32>
-                                <system:Int32>5</system:Int32>
-                                <system:Int32>6</system:Int32>
-                                <system:Int32>7</system:Int32>
-                                <system:Int32>8</system:Int32>
-                                <system:Int32>9</system:Int32>
-                            </ComboBox>
-                        </StackPanel>
+                            <!-- Fargo Rating for USAPL/BCA -->
+                            <StackPanel Grid.Column="0" Visibility="{Binding AwayPlayer.UsesFargoRating, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock Text="Fargo Rating" Style="{StaticResource LabelTextBlockStyle}" />
+                                <TextBox Text="{Binding AwayPlayer.FargoRating, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource StandardTextBoxStyle}"
+                                         Width="100" />
+                            </StackPanel>
 
-                        <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                            <TextBlock Text="Race To" Style="{StaticResource LabelTextBlockStyle}" />
-                            <TextBlock Text="{Binding AwayPlayer.RaceToValue}"
-                                       Style="{StaticResource ValueTextBlockStyle}"
-                                       Height="36"
-                                       VerticalAlignment="Center"
-                                       Padding="8,0"
-                                       Background="{StaticResource InputBackgroundBrush}"
-                                       Margin="0,0,0,12" />
-                        </StackPanel>
-                    </Grid>
+                            <!-- Race To -->
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Race To" Style="{StaticResource LabelTextBlockStyle}" />
+                                <TextBlock Text="{Binding AwayPlayer.RaceToValue}"
+                                           Style="{StaticResource ValueTextBlockStyle}"
+                                           Height="36"
+                                           VerticalAlignment="Center"
+                                           Padding="8,0"
+                                           Background="{StaticResource InputBackgroundBrush}"
+                                           Margin="0,0,0,12"
+                                           Width="60" />
+                            </StackPanel>
+                        </Grid>
 
-                    <!-- Game and Match Counters -->
-                    <TextBlock Text="GAMES" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4" />
-                    <Grid >
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                        <!-- Game and Match Counters -->
+                        <TextBlock Text="GAMES" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding AwayPlayer.DecrementGameScoreCommand}" Margin="0,0,4,0" />
-                        <TextBlock Grid.Column="1" Text="{Binding AwayPlayer.GameScore}" Style="{StaticResource LargeValueTextBlockStyle}" />
-                        <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding AwayPlayer.IncrementGameScoreCommand}" Margin="4,0,0,0" />
-                    </Grid>
+                            <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding AwayPlayer.DecrementGameScoreCommand}" Margin="0,0,4,0" />
+                            <TextBlock Grid.Column="1" Text="{Binding AwayPlayer.GameScore}" Style="{StaticResource LargeValueTextBlockStyle}" />
+                            <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding AwayPlayer.IncrementGameScoreCommand}" Margin="4,0,0,0" />
+                        </Grid>
 
-                    <TextBlock Text="MATCH" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4" />
-                    <Grid >
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="MATCH" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding AwayPlayer.DecrementMatchScoreCommand}" Margin="0,0,4,0" />
-                        <TextBlock Grid.Column="1" Text="{Binding AwayPlayer.MatchScore}" Style="{StaticResource LargeValueTextBlockStyle}" />
-                        <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding AwayPlayer.IncrementMatchScoreCommand}" Margin="4,0,0,0" />
-                    </Grid>
+                            <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding AwayPlayer.DecrementMatchScoreCommand}" Margin="0,0,4,0" />
+                            <TextBlock Grid.Column="1" Text="{Binding AwayPlayer.MatchScore}" Style="{StaticResource LargeValueTextBlockStyle}" />
+                            <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding AwayPlayer.IncrementMatchScoreCommand}" Margin="4,0,0,0" />
+                        </Grid>
                     </StackPanel>
                 </Border>
             </Grid>
