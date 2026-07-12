@@ -18,16 +18,30 @@ the top of each section.
 - [ ] **Estimated:** ~30-40 unit tests to cover all core logic paths
 
 ### Phase 2: WPF Controller UI
-- [ ] Implement MainWindow layout: scoreboard display, player input areas, game controls
-- [ ] Create ViewModels (`GameViewModel`, `PlayerSelectionViewModel`, `ScoreboardViewModel`)
-- [ ] Wire UI to GameManager via event subscriptions
-- [ ] Add keyboard input handling (numeric keys for score, arrow keys for break)
-- [ ] Display:
-  - [ ] Current players and their scores
-  - [ ] Current break holder
-  - [ ] Race-to value (calculated per league/skill level)
-  - [ ] Game status (not started, in progress, winner)
-  - [ ] Undo/reset buttons
+
+**Design Reference:** Two-column layout with HOME/AWAY panels (dark navy theme, cyan accents for active state)
+
+- [ ] Implement MainWindow XAML: Grid with 2 equal columns (HOME | AWAY)
+- [ ] Create player panels with:
+
+  - [ ] Team Name (TextBox, editable)
+  - [ ] Player Name (TextBox, editable)
+  - [ ] Skill Level (ComboBox, 1-9, triggers Race To recalculation)
+  - [ ] Race To (TextBlock, read-only, auto-calculated from RaceRules)
+  - [ ] Status button ("At Table" / "Set Shooting", cyan when active, gray when inactive)
+  - [ ] Game counter with +/- buttons (increments game score)
+  - [ ] Match counter with +/- buttons (increments match score)
+
+- [ ] Create ViewModels (`GameViewModel`, `PlayerViewModel` for HOME/AWAY)
+- [ ] Wire UI to GameManager:
+
+  - [ ] Skill Level change → recalculate Race To via RaceRules.GetRaceToValue()
+  - [ ] +/- buttons → GameManager.AddPoint() and GameManager.UndoPoint()
+  - [ ] Status button → GameManager.SetBreak()
+  - [ ] Subscribe to GameStateChanged events for live UI updates
+
+- [ ] Styling: Dark navy background (#1a2332), cyan accents (#00d4ff), rounded corners, subtle borders
+- [ ] Add keyboard shortcuts (1-9 for player skill, +/- for scores, Space to toggle break)
 - [ ] **Estimated:** ~1-2 weeks for basic playable scoreboard
 
 ### Phase 3: Overlay (OBS Integration)
