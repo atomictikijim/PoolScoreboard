@@ -117,17 +117,9 @@
                             <!-- Race To -->
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Race To" Style="{StaticResource LabelTextBlockStyle}" />
-                                <TextBlock Text="{Binding HomePlayerRaceToDisplay}"
-                                           Style="{StaticResource ValueTextBlockStyle}"
-                                           Height="Auto"
-                                           VerticalAlignment="Top"
-                                           Padding="8,4"
-                                           Background="{StaticResource InputBackgroundBrush}"
-                                           Margin="0,0,0,12"
-                                           Width="70"
-                                           TextAlignment="Center"
-                                           TextWrapping="Wrap"
-                                           FontSize="11" />
+                                <TextBox Text="{Binding HomePlayer.RaceToValue, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource StandardTextBoxStyle}"
+                                         Width="70" />
                             </StackPanel>
                         </Grid>
 
@@ -212,17 +204,9 @@
                             <!-- Race To -->
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Race To" Style="{StaticResource LabelTextBlockStyle}" />
-                                <TextBlock Text="{Binding AwayPlayerRaceToDisplay}"
-                                           Style="{StaticResource ValueTextBlockStyle}"
-                                           Height="Auto"
-                                           VerticalAlignment="Top"
-                                           Padding="8,4"
-                                           Background="{StaticResource InputBackgroundBrush}"
-                                           Margin="0,0,0,12"
-                                           Width="70"
-                                           TextAlignment="Center"
-                                           TextWrapping="Wrap"
-                                           FontSize="11" />
+                                <TextBox Text="{Binding AwayPlayer.RaceToValue, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource StandardTextBoxStyle}"
+                                         Width="70" />
                             </StackPanel>
                         </Grid>
 

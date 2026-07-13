@@ -45,27 +45,21 @@ public partial class GameViewModel : ObservableObject
     partial void OnSelectedLeagueChanged(League oldValue, League newValue)
     {
         // Update league without recreating players (preserves skill levels)
-        UpdatePlayersLeague(newValue, SelectedGameType);
+        if (HomePlayer != null && AwayPlayer != null)
+        {
+            HomePlayer.UpdateLeagueAndGameType(newValue, SelectedGameType);
+            AwayPlayer.UpdateLeagueAndGameType(newValue, SelectedGameType);
+        }
     }
 
     partial void OnSelectedGameTypeChanged(GameType oldValue, GameType newValue)
     {
         // Update game type without recreating players (preserves skill levels)
-        UpdatePlayersLeague(SelectedLeague, newValue);
-    }
-
-    private void UpdatePlayersLeague(League league, GameType gameType)
-    {
-        if (HomePlayer == null || AwayPlayer == null)
-            return;
-
-        // Update the RaceRules in each player without resetting skill levels
-        HomePlayer.UpdateLeagueAndGameType(league, gameType);
-        AwayPlayer.UpdateLeagueAndGameType(league, gameType);
-
-        // Trigger race-to display updates
-        OnPropertyChanged(nameof(HomePlayerRaceToDisplay));
-        OnPropertyChanged(nameof(AwayPlayerRaceToDisplay));
+        if (HomePlayer != null && AwayPlayer != null)
+        {
+            HomePlayer.UpdateLeagueAndGameType(SelectedLeague, newValue);
+            AwayPlayer.UpdateLeagueAndGameType(SelectedLeague, newValue);
+        }
     }
 
     public void InitializeGame()
@@ -116,39 +110,6 @@ public partial class GameViewModel : ObservableObject
         HomeAtTable = !HomeAtTable;
     }
 
-    public string HomePlayerRaceToDisplay
-    {
-        get
-        {
-            if (HomePlayer == null || AwayPlayer == null)
-                return "";
-
-            var raceRules = new RaceRules(SelectedLeague, SelectedGameType);
-            int homeRaceTo = raceRules.GetRaceToValueAgainstOpponent(HomePlayer.SkillLevel, AwayPlayer.SkillLevel);
-
-            string baseValue = homeRaceTo.ToString();
-            if (raceRules.IsRaceToOpponentDependent)
-                return $"{baseValue}\n(vs opponent)";
-            return baseValue;
-        }
-    }
-
-    public string AwayPlayerRaceToDisplay
-    {
-        get
-        {
-            if (HomePlayer == null || AwayPlayer == null)
-                return "";
-
-            var raceRules = new RaceRules(SelectedLeague, SelectedGameType);
-            int awayRaceTo = raceRules.GetRaceToValueAgainstOpponent(AwayPlayer.SkillLevel, HomePlayer.SkillLevel);
-
-            string baseValue = awayRaceTo.ToString();
-            if (raceRules.IsRaceToOpponentDependent)
-                return $"{baseValue}\n(vs opponent)";
-            return baseValue;
-        }
-    }
 
     private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e)
     {
@@ -158,29 +119,10 @@ public partial class GameViewModel : ObservableObject
 
     public void SetupPlayers(League league, GameType gameType)
     {
-        // Unsubscribe from old players if they exist
-        if (HomePlayer != null)
-            HomePlayer.PropertyChanged -= OnPlayerPropertyChanged;
-        if (AwayPlayer != null)
-            AwayPlayer.PropertyChanged -= OnPlayerPropertyChanged;
-
         SelectedLeague = league;
         SelectedGameType = gameType;
 
         HomePlayer = new PlayerViewModel(league, gameType);
         AwayPlayer = new PlayerViewModel(league, gameType);
-
-        // Subscribe to skill level changes to update race-to displays
-        HomePlayer.PropertyChanged += OnPlayerPropertyChanged;
-        AwayPlayer.PropertyChanged += OnPlayerPropertyChanged;
-    }
-
-    private void OnPlayerPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(PlayerViewModel.SkillLevel) || e.PropertyName == nameof(PlayerViewModel.FargoRating))
-        {
-            OnPropertyChanged(nameof(HomePlayerRaceToDisplay));
-            OnPropertyChanged(nameof(AwayPlayerRaceToDisplay));
-        }
     }
 }
