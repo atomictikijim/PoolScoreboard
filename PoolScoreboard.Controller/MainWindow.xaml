@@ -117,14 +117,17 @@
                             <!-- Race To -->
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Race To" Style="{StaticResource LabelTextBlockStyle}" />
-                                <TextBlock Text="{Binding HomePlayer.RaceToValue}"
+                                <TextBlock Text="{Binding HomePlayerRaceToDisplay}"
                                            Style="{StaticResource ValueTextBlockStyle}"
-                                           Height="36"
-                                           VerticalAlignment="Center"
-                                           Padding="8,0"
+                                           Height="Auto"
+                                           VerticalAlignment="Top"
+                                           Padding="8,4"
                                            Background="{StaticResource InputBackgroundBrush}"
                                            Margin="0,0,0,12"
-                                           Width="60" />
+                                           Width="70"
+                                           TextAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           FontSize="11" />
                             </StackPanel>
                         </Grid>
 
@@ -209,14 +212,17 @@
                             <!-- Race To -->
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Race To" Style="{StaticResource LabelTextBlockStyle}" />
-                                <TextBlock Text="{Binding AwayPlayer.RaceToValue}"
+                                <TextBlock Text="{Binding AwayPlayerRaceToDisplay}"
                                            Style="{StaticResource ValueTextBlockStyle}"
-                                           Height="36"
-                                           VerticalAlignment="Center"
-                                           Padding="8,0"
+                                           Height="Auto"
+                                           VerticalAlignment="Top"
+                                           Padding="8,4"
                                            Background="{StaticResource InputBackgroundBrush}"
                                            Margin="0,0,0,12"
-                                           Width="60" />
+                                           Width="70"
+                                           TextAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           FontSize="11" />
                             </StackPanel>
                         </Grid>
 

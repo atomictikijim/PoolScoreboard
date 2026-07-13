@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using PoolScoreboard.Core;
 using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
+using PoolScoreboard.Core.Rules;
 
 namespace PoolScoreboard.Controller.ViewModels;
 
@@ -38,6 +39,17 @@ public partial class GameViewModel : ObservableObject
     {
         SelectedLeague = League.APA;
         SelectedGameType = GameType.NineBall;
+        SetupPlayers(SelectedLeague, SelectedGameType);
+    }
+
+    partial void OnSelectedLeagueChanged(League oldValue, League newValue)
+    {
+        SetupPlayers(newValue, SelectedGameType);
+    }
+
+    partial void OnSelectedGameTypeChanged(GameType oldValue, GameType newValue)
+    {
+        SetupPlayers(SelectedLeague, newValue);
     }
 
     public void InitializeGame()
@@ -88,6 +100,40 @@ public partial class GameViewModel : ObservableObject
         HomeAtTable = !HomeAtTable;
     }
 
+    public string HomePlayerRaceToDisplay
+    {
+        get
+        {
+            if (HomePlayer == null || AwayPlayer == null)
+                return "";
+
+            var raceRules = new RaceRules(SelectedLeague, SelectedGameType);
+            int homeRaceTo = raceRules.GetRaceToValueAgainstOpponent(HomePlayer.SkillLevel, AwayPlayer.SkillLevel);
+
+            string baseValue = homeRaceTo.ToString();
+            if (raceRules.IsRaceToOpponentDependent)
+                return $"{baseValue}\n(vs opponent)";
+            return baseValue;
+        }
+    }
+
+    public string AwayPlayerRaceToDisplay
+    {
+        get
+        {
+            if (HomePlayer == null || AwayPlayer == null)
+                return "";
+
+            var raceRules = new RaceRules(SelectedLeague, SelectedGameType);
+            int awayRaceTo = raceRules.GetRaceToValueAgainstOpponent(AwayPlayer.SkillLevel, HomePlayer.SkillLevel);
+
+            string baseValue = awayRaceTo.ToString();
+            if (raceRules.IsRaceToOpponentDependent)
+                return $"{baseValue}\n(vs opponent)";
+            return baseValue;
+        }
+    }
+
     private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e)
     {
         // Update UI based on game state changes
@@ -96,10 +142,29 @@ public partial class GameViewModel : ObservableObject
 
     public void SetupPlayers(League league, GameType gameType)
     {
+        // Unsubscribe from old players if they exist
+        if (HomePlayer != null)
+            HomePlayer.PropertyChanged -= OnPlayerPropertyChanged;
+        if (AwayPlayer != null)
+            AwayPlayer.PropertyChanged -= OnPlayerPropertyChanged;
+
         SelectedLeague = league;
         SelectedGameType = gameType;
 
         HomePlayer = new PlayerViewModel(league, gameType);
         AwayPlayer = new PlayerViewModel(league, gameType);
+
+        // Subscribe to skill level changes to update race-to displays
+        HomePlayer.PropertyChanged += OnPlayerPropertyChanged;
+        AwayPlayer.PropertyChanged += OnPlayerPropertyChanged;
+    }
+
+    private void OnPlayerPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PlayerViewModel.SkillLevel) || e.PropertyName == nameof(PlayerViewModel.FargoRating))
+        {
+            OnPropertyChanged(nameof(HomePlayerRaceToDisplay));
+            OnPropertyChanged(nameof(AwayPlayerRaceToDisplay));
+        }
     }
 }

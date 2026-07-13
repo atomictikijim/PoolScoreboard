@@ -36,6 +36,17 @@ public partial class PlayerViewModel : ObservableObject
     public bool UsesSkillLevel => _league == League.APA || _league == League.TAP;
     public bool UsesFargoRating => _league == League.USAPL || _league == League.BCA;
 
+    public string RaceToDisplay
+    {
+        get
+        {
+            string baseValue = RaceToValue.ToString();
+            if (_raceRules.IsRaceToOpponentDependent)
+                return $"{baseValue}\n(Opponent-dependent)";
+            return baseValue;
+        }
+    }
+
     public PlayerViewModel(League league, GameType gameType)
     {
         _league = league;
@@ -53,6 +64,11 @@ public partial class PlayerViewModel : ObservableObject
     {
         _player.SkillLevel = (value / 100);
         RaceToValue = _raceRules.GetRaceToValue(_player);
+    }
+
+    partial void OnRaceToValueChanged(int oldValue, int newValue)
+    {
+        OnPropertyChanged(nameof(RaceToDisplay));
     }
 
     partial void OnTeamNameChanged(string value)

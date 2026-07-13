@@ -13,7 +13,6 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _viewModel = new GameViewModel();
-        _viewModel.SetupPlayers(League.APA, GameType.NineBall);
 
         DataContext = _viewModel;
 
