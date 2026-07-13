@@ -164,7 +164,7 @@ public class RaceRules
     /// <summary>
     /// Calculates the race-to value for a player against a specific opponent skill level.
     /// For opponent-dependent games (APA/TAP 8-Ball), this gives the accurate race-to.
-    /// Uses official APA 8-Ball Games Must Win matrix rules.
+    /// Uses official Games Must Win matrix rules specific to each league.
     /// </summary>
     public int GetRaceToValueAgainstOpponent(int playerSkillLevel, int opponentSkillLevel)
     {
@@ -174,6 +174,16 @@ public class RaceRules
         int lower = Math.Min(playerSkillLevel, opponentSkillLevel);
         int higher = Math.Max(playerSkillLevel, opponentSkillLevel);
 
+        if (_league == League.APA && _gameType == GameType.EightBall)
+            return GetAPA8BallRaceToValue(lower, higher, playerSkillLevel);
+        else if (_league == League.TAP)
+            return GetTAPRaceToValue(lower, higher, playerSkillLevel);
+
+        return 5; // Fallback
+    }
+
+    private int GetAPA8BallRaceToValue(int lower, int higher, int playerSkillLevel)
+    {
         // Calculate lower player's race-to
         int lowerPlayerRace;
         if (lower == 2)
@@ -208,6 +218,59 @@ public class RaceRules
         else
         {
             // Lower skill 4+, higher skill 4-5: standard reduction
+            higherPlayerRace = higher - 1;
+        }
+
+        return playerSkillLevel == lower ? lowerPlayerRace : higherPlayerRace;
+    }
+
+    private int GetTAPRaceToValue(int lower, int higher, int playerSkillLevel)
+    {
+        // TAP Games Must Win matrix (same for both 8-Ball and 9-Ball, different from APA)
+
+        // Calculate lower player's race-to
+        int lowerPlayerRace;
+        if (lower == 2)
+        {
+            lowerPlayerRace = 2;
+        }
+        else if (higher == 7)
+        {
+            // When playing against SL7: drops by 2 for SL4+, by 1 for SL3
+            if (lower >= 4)
+                lowerPlayerRace = lower - 2;
+            else
+                lowerPlayerRace = Math.Max(lower - 1, 2);
+        }
+        else if (lower == 3)
+        {
+            // SL3 drops to 2 when playing SL3+ (except vs SL2)
+            lowerPlayerRace = 2;
+        }
+        else
+        {
+            // SL4+: drops by 1 normally
+            lowerPlayerRace = Math.Max(lower - 1, 2);
+        }
+
+        // Calculate higher player's race-to
+        int higherPlayerRace;
+        if (lower == 2)
+        {
+            higherPlayerRace = higher;  // Lower is 2, higher races to their own level
+        }
+        else if (lower == 3)
+        {
+            higherPlayerRace = higher - 1;  // Lower is 3, higher races to their level - 1
+        }
+        else if (higher == 7)
+        {
+            // Special case: SL7 caps at 5 when playing SL4+
+            higherPlayerRace = 5;
+        }
+        else
+        {
+            // Lower skill 4+, higher skill 4-6: standard reduction
             higherPlayerRace = higher - 1;
         }
 
