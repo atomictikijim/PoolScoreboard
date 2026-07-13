@@ -8,9 +8,9 @@ namespace PoolScoreboard.Controller.ViewModels;
 
 public partial class PlayerViewModel : ObservableObject
 {
-    private readonly RaceRules _raceRules;
+    private RaceRules _raceRules;
     private readonly Player _player;
-    private readonly League _league;
+    private League _league;
 
     [ObservableProperty]
     private string teamName = string.Empty;
@@ -105,6 +105,15 @@ public partial class PlayerViewModel : ObservableObject
     {
         if (MatchScore > 0)
             MatchScore--;
+    }
+
+    public void UpdateLeagueAndGameType(League league, GameType gameType)
+    {
+        _league = league;
+        _raceRules = new RaceRules(league, gameType);
+
+        // Recalculate race-to with new rules (Player.League is already set in constructor)
+        RaceToValue = _raceRules.GetRaceToValue(_player);
     }
 
     public Player GetPlayer() => _player;

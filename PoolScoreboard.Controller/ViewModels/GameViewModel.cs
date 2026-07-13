@@ -44,12 +44,28 @@ public partial class GameViewModel : ObservableObject
 
     partial void OnSelectedLeagueChanged(League oldValue, League newValue)
     {
-        SetupPlayers(newValue, SelectedGameType);
+        // Update league without recreating players (preserves skill levels)
+        UpdatePlayersLeague(newValue, SelectedGameType);
     }
 
     partial void OnSelectedGameTypeChanged(GameType oldValue, GameType newValue)
     {
-        SetupPlayers(SelectedLeague, newValue);
+        // Update game type without recreating players (preserves skill levels)
+        UpdatePlayersLeague(SelectedLeague, newValue);
+    }
+
+    private void UpdatePlayersLeague(League league, GameType gameType)
+    {
+        if (HomePlayer == null || AwayPlayer == null)
+            return;
+
+        // Update the RaceRules in each player without resetting skill levels
+        HomePlayer.UpdateLeagueAndGameType(league, gameType);
+        AwayPlayer.UpdateLeagueAndGameType(league, gameType);
+
+        // Trigger race-to display updates
+        OnPropertyChanged(nameof(HomePlayerRaceToDisplay));
+        OnPropertyChanged(nameof(AwayPlayerRaceToDisplay));
     }
 
     public void InitializeGame()
