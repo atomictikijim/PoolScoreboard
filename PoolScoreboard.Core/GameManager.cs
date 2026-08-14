@@ -130,6 +130,12 @@ public class GameManager
         RaiseGameStateChanged();
     }
 
+    public void SetColorTheme(ColorTheme theme)
+    {
+        _currentGame.ColorTheme = theme;
+        RaiseGameStateChanged();
+    }
+
     private void EndGame(Player winner)
     {
         _currentGame.Winner = winner;

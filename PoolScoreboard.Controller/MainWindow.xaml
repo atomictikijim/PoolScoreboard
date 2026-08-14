@@ -7,166 +7,265 @@
         xmlns:system="clr-namespace:System;assembly=System.Runtime"
         mc:Ignorable="d"
         Title="PoolScoreboard Controller"
-        Height="700"
+        Height="780"
         Width="1200"
         Background="{StaticResource BackgroundBrush}"
         WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <DataTemplate x:Key="BallItemTemplate">
+            <Button Style="{StaticResource BallButtonStyle}"
+                    Content="{Binding Number}"
+                    Command="{Binding DataContext.TogglePocketedCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="{Binding}" />
+        </DataTemplate>
+    </Window.Resources>
     <Border Padding="20">
         <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
+            <!-- ================= MATCH SETUP ================= -->
+            <Grid Visibility="{Binding GameInitialized, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="20" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-            <!-- Header with Game Type and Race-To Mode -->
-            <Border Grid.Row="0" Padding="0,0,0,20">
-                <Grid>
+                <TextBlock Grid.Row="0" Text="MATCH SETUP" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+
+                <Grid Grid.Row="2">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="200" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="24" />
+                        <ColumnDefinition Width="1.4*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Game config + color theme -->
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Game" Style="{StaticResource LabelTextBlockStyle}" />
+                        <ComboBox SelectedValue="{Binding SelectedGameType}" Style="{StaticResource StandardComboBoxStyle}">
+                            <system:String>EightBall</system:String>
+                            <system:String>NineBall</system:String>
+                            <system:String>TenBall</system:String>
+                        </ComboBox>
+
+                        <TextBlock Text="Race-To Mode" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4" />
+                        <ComboBox SelectedValue="{Binding SelectedRaceToMode}" Style="{StaticResource StandardComboBoxStyle}">
+                            <system:String>Single</system:String>
+                            <system:String>Split</system:String>
+                        </ComboBox>
+
+                        <TextBlock Text="COLOR THEME" Style="{StaticResource LabelTextBlockStyle}" Margin="0,20,0,8" />
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="90" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="24" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Background" VerticalAlignment="Center" Style="{StaticResource ValueTextBlockStyle}" />
+                            <TextBox Grid.Column="2" Text="{Binding BackgroundColor, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" Margin="0" />
+                            <Border Grid.Column="4" Width="24" Height="24" CornerRadius="4" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1"
+                                    Background="{Binding BackgroundColor, Converter={StaticResource HexColorToBrushConverter}}" />
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="90" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="24" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Accent" VerticalAlignment="Center" Style="{StaticResource ValueTextBlockStyle}" />
+                            <TextBox Grid.Column="2" Text="{Binding AccentColor, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" Margin="0" />
+                            <Border Grid.Column="4" Width="24" Height="24" CornerRadius="4" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1"
+                                    Background="{Binding AccentColor, Converter={StaticResource HexColorToBrushConverter}}" />
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="90" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="24" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Text" VerticalAlignment="Center" Style="{StaticResource ValueTextBlockStyle}" />
+                            <TextBox Grid.Column="2" Text="{Binding TextColor, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" Margin="0" />
+                            <Border Grid.Column="4" Width="24" Height="24" CornerRadius="4" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1"
+                                    Background="{Binding TextColor, Converter={StaticResource HexColorToBrushConverter}}" />
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Player setup -->
+                    <Grid Grid.Column="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="HOME" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12" />
+                            <TextBlock Text="Team Name" Style="{StaticResource LabelTextBlockStyle}" />
+                            <TextBox Text="{Binding HomePlayer.TeamName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" />
+                            <TextBlock Text="Player Name" Style="{StaticResource LabelTextBlockStyle}" />
+                            <TextBox Text="{Binding HomePlayer.PlayerName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" />
+                            <TextBlock Text="Race To" Style="{StaticResource LabelTextBlockStyle}" />
+                            <TextBox Text="{Binding HomePlayer.RaceToTarget, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" Width="70" HorizontalAlignment="Left" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="AWAY" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12" />
+                            <TextBlock Text="Team Name" Style="{StaticResource LabelTextBlockStyle}" />
+                            <TextBox Text="{Binding AwayPlayer.TeamName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" />
+                            <TextBlock Text="Player Name" Style="{StaticResource LabelTextBlockStyle}" />
+                            <TextBox Text="{Binding AwayPlayer.PlayerName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" />
+                            <TextBlock Text="Race To" Style="{StaticResource LabelTextBlockStyle}" />
+                            <TextBox Text="{Binding AwayPlayer.RaceToTarget, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" Width="70" HorizontalAlignment="Left"
+                                     IsEnabled="{Binding IsSplitRaceTo}" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+
+                <Button Grid.Row="3" Content="START MATCH" Style="{StaticResource ActiveButtonStyle}" Command="{Binding StartMatchCommand}"
+                        HorizontalAlignment="Right" Padding="24,10" Margin="0,16,0,0" />
+            </Grid>
+
+            <!-- ================= LIVE VIEW ================= -->
+            <Grid Visibility="{Binding GameInitialized, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="20" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="16" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Header: winner banner + shooter toggle -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-
-                    <!-- Game Type -->
-                    <TextBlock Grid.Column="0" Text="Game" Style="{StaticResource LabelTextBlockStyle}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <ComboBox Grid.Column="1" SelectedValue="{Binding SelectedGameType}" Style="{StaticResource StandardComboBoxStyle}">
-                        <system:String>EightBall</system:String>
-                        <system:String>NineBall</system:String>
-                        <system:String>TenBall</system:String>
-                    </ComboBox>
-
-                    <!-- Race-To Mode -->
-                    <TextBlock Grid.Column="2" Text="Race To" Style="{StaticResource LabelTextBlockStyle}" VerticalAlignment="Center" Margin="20,0,8,0" />
-                    <ComboBox Grid.Column="3" SelectedValue="{Binding SelectedRaceToMode}" Style="{StaticResource StandardComboBoxStyle}">
-                        <system:String>Single</system:String>
-                        <system:String>Split</system:String>
-                    </ComboBox>
-
-                    <!-- Current Shooter Toggle -->
-                    <Button Grid.Column="5"
-                            x:Name="CurrentShooterToggleButton"
-                            Style="{StaticResource ActiveButtonStyle}"
-                            Command="{Binding ToggleCurrentShooterCommand}"
-                            Height="36" />
+                    <TextBlock Grid.Column="0" Text="{Binding WinnerAnnouncement}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" x:Name="CurrentShooterToggleButton" Style="{StaticResource ActiveButtonStyle}" Command="{Binding ToggleCurrentShooterCommand}" Height="36" />
                 </Grid>
-            </Border>
 
-            <!-- Main Content: Two Column Layout -->
-            <Grid Grid.Row="2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="20" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+                <!-- Player panels -->
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
 
-                <!-- HOME Player Panel -->
-                <Border Grid.Column="0" Style="{StaticResource PlayerPanelStyle}">
-                    <StackPanel>
-                        <TextBlock Text="HOME" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16" />
+                    <!-- HOME -->
+                    <Border Grid.Column="0" Style="{StaticResource PlayerPanelStyle}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding HomePlayer.PlayerName}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16" />
 
-                        <!-- Team Name -->
-                        <TextBlock Text="Team Name" Style="{StaticResource LabelTextBlockStyle}" />
-                        <TextBox Text="{Binding HomePlayer.TeamName, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource StandardTextBoxStyle}" />
-
-                        <!-- Player Name -->
-                        <TextBlock Text="Player Name" Style="{StaticResource LabelTextBlockStyle}" />
-                        <TextBox Text="{Binding HomePlayer.PlayerName, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource StandardTextBoxStyle}" />
-
-                        <!-- Race To -->
-                        <TextBlock Text="Race To" Style="{StaticResource LabelTextBlockStyle}" />
-                        <TextBox Text="{Binding HomePlayer.RaceToTarget, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource StandardTextBoxStyle}"
-                                 Width="70"
-                                 HorizontalAlignment="Left" />
-
-                        <!-- Ball Group (8-ball only) -->
-                        <StackPanel Visibility="{Binding IsEightBall, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,4,0,0">
-                            <TextBlock Text="Ball Group" Style="{StaticResource LabelTextBlockStyle}" />
+                            <TextBlock Text="SCORE" Style="{StaticResource LabelTextBlockStyle}" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="8" />
-                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Content="Solids" Style="{StaticResource InactiveButtonStyle}" Command="{Binding AssignHomeSolidsCommand}" />
-                                <Button Grid.Column="2" Content="Stripes" Style="{StaticResource InactiveButtonStyle}" Command="{Binding AssignHomeStripesCommand}" />
+                                <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding UndoLastPointCommand}" Margin="0,0,4,0" />
+                                <TextBlock Grid.Column="1" Text="{Binding HomeScore}" Style="{StaticResource LargeValueTextBlockStyle}" />
+                                <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding AddHomePointCommand}" Margin="4,0,0,0" />
                             </Grid>
+
+                            <StackPanel Visibility="{Binding IsEightBall, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,16,0,0">
+                                <TextBlock Text="Ball Group" Style="{StaticResource LabelTextBlockStyle}" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="Solids" Style="{StaticResource InactiveButtonStyle}" Command="{Binding AssignHomeSolidsCommand}" />
+                                    <Button Grid.Column="2" Content="Stripes" Style="{StaticResource InactiveButtonStyle}" Command="{Binding AssignHomeStripesCommand}" />
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding HomeGroupBalls}" ItemTemplate="{StaticResource BallItemTemplate}" Margin="0,12,0,0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </StackPanel>
                         </StackPanel>
+                    </Border>
 
-                        <!-- Score -->
-                        <TextBlock Text="SCORE" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
+                    <!-- AWAY -->
+                    <Border Grid.Column="2" Style="{StaticResource PlayerPanelStyle}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding AwayPlayer.PlayerName}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16" />
 
-                            <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding HomePlayer.DecrementScoreCommand}" Margin="0,0,4,0" />
-                            <TextBlock Grid.Column="1" Text="{Binding HomePlayer.Score}" Style="{StaticResource LargeValueTextBlockStyle}" />
-                            <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding HomePlayer.IncrementScoreCommand}" Margin="4,0,0,0" />
-                        </Grid>
-                    </StackPanel>
-                </Border>
-
-                <!-- AWAY Player Panel -->
-                <Border Grid.Column="2" Style="{StaticResource PlayerPanelStyle}">
-                    <StackPanel>
-                        <TextBlock Text="AWAY" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16" />
-
-                        <!-- Team Name -->
-                        <TextBlock Text="Team Name" Style="{StaticResource LabelTextBlockStyle}" />
-                        <TextBox Text="{Binding AwayPlayer.TeamName, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource StandardTextBoxStyle}" />
-
-                        <!-- Player Name -->
-                        <TextBlock Text="Player Name" Style="{StaticResource LabelTextBlockStyle}" />
-                        <TextBox Text="{Binding AwayPlayer.PlayerName, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource StandardTextBoxStyle}" />
-
-                        <!-- Race To (only editable in Split mode; mirrors Home in Single mode) -->
-                        <TextBlock Text="Race To" Style="{StaticResource LabelTextBlockStyle}" />
-                        <TextBox Text="{Binding AwayPlayer.RaceToTarget, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource StandardTextBoxStyle}"
-                                 Width="70"
-                                 HorizontalAlignment="Left"
-                                 IsEnabled="{Binding IsSplitRaceTo}" />
-
-                        <!-- Ball Group (8-ball only) -->
-                        <StackPanel Visibility="{Binding IsEightBall, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,4,0,0">
-                            <TextBlock Text="Ball Group" Style="{StaticResource LabelTextBlockStyle}" />
+                            <TextBlock Text="SCORE" Style="{StaticResource LabelTextBlockStyle}" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="8" />
-                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Content="Solids" Style="{StaticResource InactiveButtonStyle}" Command="{Binding AssignAwaySolidsCommand}" />
-                                <Button Grid.Column="2" Content="Stripes" Style="{StaticResource InactiveButtonStyle}" Command="{Binding AssignAwayStripesCommand}" />
+                                <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding UndoLastPointCommand}" Margin="0,0,4,0" />
+                                <TextBlock Grid.Column="1" Text="{Binding AwayScore}" Style="{StaticResource LargeValueTextBlockStyle}" />
+                                <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding AddAwayPointCommand}" Margin="4,0,0,0" />
                             </Grid>
+
+                            <StackPanel Visibility="{Binding IsEightBall, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,16,0,0">
+                                <TextBlock Text="Ball Group" Style="{StaticResource LabelTextBlockStyle}" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="Solids" Style="{StaticResource InactiveButtonStyle}" Command="{Binding AssignAwaySolidsCommand}" />
+                                    <Button Grid.Column="2" Content="Stripes" Style="{StaticResource InactiveButtonStyle}" Command="{Binding AssignAwayStripesCommand}" />
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding AwayGroupBalls}" ItemTemplate="{StaticResource BallItemTemplate}" Margin="0,12,0,0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </StackPanel>
                         </StackPanel>
+                    </Border>
+                </Grid>
 
-                        <!-- Score -->
-                        <TextBlock Text="SCORE" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
+                <!-- Shared ball display: 8-ball center / 9-10 ball numeric row -->
+                <StackPanel Grid.Row="3" HorizontalAlignment="Center">
+                    <ItemsControl ItemsSource="{Binding EightBallItems}" ItemTemplate="{StaticResource BallItemTemplate}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel HorizontalAlignment="Center" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
 
-                            <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding AwayPlayer.DecrementScoreCommand}" Margin="0,0,4,0" />
-                            <TextBlock Grid.Column="1" Text="{Binding AwayPlayer.Score}" Style="{StaticResource LargeValueTextBlockStyle}" />
-                            <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding AwayPlayer.IncrementScoreCommand}" Margin="4,0,0,0" />
-                        </Grid>
-                    </StackPanel>
-                </Border>
+                    <ItemsControl ItemsSource="{Binding NumericRowBalls}" ItemTemplate="{StaticResource BallItemTemplate}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel HorizontalAlignment="Center" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- New rack / reset match controls -->
+                <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="NEW RACK" Style="{StaticResource InactiveButtonStyle}" Command="{Binding NewRackCommand}" Padding="16,8" Margin="0,0,12,0" />
+                    <Button Content="RESET MATCH" Style="{StaticResource InactiveButtonStyle}" Command="{Binding ResetMatchCommand}" Padding="16,8" />
+                </StackPanel>
             </Grid>
         </Grid>
     </Border>

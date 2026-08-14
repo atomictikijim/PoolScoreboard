@@ -11,4 +11,8 @@
     <ProjectReference Include="..\PoolScoreboard.Core\PoolScoreboard.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\Scoreboard\*" />
+  </ItemGroup>
+
 </Project>

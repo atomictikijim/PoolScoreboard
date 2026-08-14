@@ -132,9 +132,26 @@ dotnet clean
 
 The developer wants the scoreboard's styling to draw on the World Nine Ball Tour (WNT /
 Matchroom Pool) broadcast scoreboard as an additional visual reference, alongside the
-overlays.uno Billiards Scoreboard already noted in README.md. As of 2026-08-13 this hasn't
-been translated into concrete style choices yet — see NOTES.md ("WNT visual reference —
-capability limits") for why, and PROGRESS.md for the pending research task.
+overlays.uno Billiards Scoreboard already noted in README.md. As of 2026-08-13, one WNT
+screenshot (the score bar only — no shooter-highlight or ball-tracker shot yet) has been
+reviewed; see NOTES.md ("WNT visual reference — style cues extracted") for the concrete design
+tokens to use for the `/overlay/scoreboard` page in Phase 3:
+
+- A single glossy "pill"-shaped bar, capsule-rounded ends, subtle top-lit gradient.
+- Deep violet/indigo bar fill (`ColorTheme.Background`), white bold sans-serif text
+  (`ColorTheme.Text`).
+- White rounded-rect score badges with dark, high-contrast numbers, sitting inside the bar
+  next to each player's name.
+- A slightly darker center segment holding "Race to N" in smaller white text, separating the
+  two player halves without a hard divider line.
+- Small circular end-cap badges (flag/team-sponsor mark) on black rounded caps at each end.
+- `ColorTheme.Accent` maps naturally to the score-badge/center-segment treatment.
+
+Not yet covered by a reference: how a current-shooter indicator or the ball tracker should
+look — those still need a screenshot before Phase 3 finalizes them; reasonable defaults will
+be used in the interim and can be revised later. This only informs the Overlay's own pages —
+the Controller's WPF operator console keeps its existing dark theme (CLAUDE.md's "consistent
+with the overlay's theme" is a soft aesthetic alignment, not a pixel match).
 
 ## Known Simplifications & Future Work
 

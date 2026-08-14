@@ -1,10 +1,13 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
 
 namespace PoolScoreboard.Controller.ViewModels;
 
+/// <summary>
+/// Match-setup fields for one player. Live-game state (score, ball group, current shooter)
+/// lives on <see cref="GameViewModel"/>, mirrored from the authoritative GameManager once the
+/// match starts.
+/// </summary>
 public partial class PlayerViewModel : ObservableObject
 {
     private readonly Player _player;
@@ -18,12 +21,6 @@ public partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     private int raceToTarget = 5;
 
-    [ObservableProperty]
-    private BallGroup ballGroup = BallGroup.Unassigned;
-
-    [ObservableProperty]
-    private int score = 0;
-
     public PlayerViewModel()
     {
         _player = new Player();
@@ -34,21 +31,6 @@ public partial class PlayerViewModel : ObservableObject
     partial void OnPlayerNameChanged(string value) => _player.Name = value;
 
     partial void OnRaceToTargetChanged(int value) => _player.RaceToTarget = value;
-
-    partial void OnBallGroupChanged(BallGroup value) => _player.BallGroup = value;
-
-    [RelayCommand]
-    public void IncrementScore()
-    {
-        Score++;
-    }
-
-    [RelayCommand]
-    public void DecrementScore()
-    {
-        if (Score > 0)
-            Score--;
-    }
 
     public Player GetPlayer() => _player;
 }

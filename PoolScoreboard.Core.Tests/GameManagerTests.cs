@@ -249,6 +249,18 @@ public class GameManagerTests
     }
 
     [Fact]
+    public void SetColorTheme_UpdatesGameStateColorTheme()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var theme = new ColorTheme { Background = "#000000", Accent = "#ff0000", Text = "#ffffff" };
+
+        manager.SetColorTheme(theme);
+
+        Assert.Same(theme, manager.GetCurrentGameState().ColorTheme);
+    }
+
+    [Fact]
     public void ResetBalls_ClearsPocketedBalls()
     {
         var manager = new GameManager();

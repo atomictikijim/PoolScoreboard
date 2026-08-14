@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PoolScoreboard.Core\PoolScoreboard.Core.csproj" />
+    <ProjectReference Include="..\PoolScoreboard.Overlay\PoolScoreboard.Overlay.csproj" />
   </ItemGroup>
 
 </Project>

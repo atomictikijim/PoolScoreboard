@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>PoolScoreboard Overlay</title>
+<link rel="stylesheet" href="/overlay/scoreboard/style.css" />
+</head>
+<body>
+  <div class="scoreboard">
+    <div class="pill">
+      <div class="cap cap-home"><div class="cap-dot"></div></div>
+
+      <div class="side side-home" id="sideHome">
+        <span class="name" id="homeName">HOME</span>
+        <span class="score-badge" id="homeScore">0</span>
+      </div>
+
+      <div class="center">
+        <span class="center-label" id="raceToLabel">RACE TO 5</span>
+      </div>
+
+      <div class="side side-away" id="sideAway">
+        <span class="score-badge" id="awayScore">0</span>
+        <span class="name" id="awayName">AWAY</span>
+      </div>
+
+      <div class="cap cap-away"><div class="cap-dot"></div></div>
+    </div>
+
+    <div class="winner-banner" id="winnerBanner"></div>
+
+    <div class="ball-tracker" id="ballTracker"></div>
+  </div>
+
+  <script src="/overlay/scoreboard/app.js"></script>
+</body>
+</html>

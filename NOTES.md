@@ -3,6 +3,50 @@
 Running log of issues discovered during development and the fixes used.
 Newest entries at the top.
 
+## 2026-08-13 — Phase 3 overlay: SSE over polling, embedded assets over wwwroot
+
+**Decision:** For `/overlay/scoreboard` live updates, used Server-Sent Events (native
+`EventSource` in JS, no library) instead of polling — CLAUDE.md's "avoid a hard requirement on
+JS libraries pulled from a CDN" plus the desire for instant updates on every operator action
+(not just on a poll tick) both pointed at SSE. Each SSE connection subscribes to
+`GameManager.GameStateChanged` and relays through a per-connection `Channel<string>`, since the
+event fires from whatever thread called into `GameManager` (the WPF UI thread) and writing
+straight to the `HttpResponse` stream from that thread would race with the SSE loop's own
+writes.
+
+**Decision:** The scoreboard HTML/CSS/JS are `<EmbeddedResource>`s in `PoolScoreboard.Overlay`,
+read via `Assembly.GetManifestResourceStream`, rather than physical files under `wwwroot` served
+by `UseStaticFiles`. Reasoning: the Overlay project is hosted in-process by the Controller (not
+run from its own project directory) and Phase 6 wants a single-file, self-contained publish —
+embedding avoids figuring out `WebRootPath`/content-root relative to wherever the Controller's
+executable ends up, and avoids extra `CopyToOutputDirectory` bookkeeping for the publish step.
+
+**Why keep this entry instead of deleting old ones below:** NOTES.md is append-only by
+convention — old entries stay as a record of what was tried, even when the direction changes.
+
+## 2026-08-13 — WNT visual reference: style cues extracted from developer screenshot
+
+**Input:** Developer supplied one screenshot of a WNT broadcast score bar (players "Duong Quoc
+Hoang" vs. "Chang Tzu Chien", "Race to 10"). It shows only the static score bar — no
+current-shooter highlight and no ball-tracker graphic — and the developer confirmed this is
+all they have for now; more may follow later.
+
+**Extracted design tokens** (see CLAUDE.md "Visual Reference" for the canonical copy):
+
+- Single glossy "pill"-shaped bar, capsule-rounded ends, subtle top-lit gradient.
+- Deep violet/indigo bar fill, bold white sans-serif text.
+- White rounded-rect score badges, dark high-contrast numbers, inside the bar next to each
+  player's name.
+- Darker center segment holding "Race to N" in smaller white text — separates the two player
+  halves without a hard divider line.
+- Small circular end-cap badges (flag/team-sponsor mark) on black rounded caps at each end.
+
+**Decision:** Recorded as reference only for now (per developer's choice) — not yet applied to
+any code. It's earmarked for the `/overlay/scoreboard` page in Phase 3; the Controller's own
+WPF console is unaffected. Current-shooter-indicator and ball-tracker treatment remain open
+questions pending more screenshots; Phase 3 will need reasonable defaults for those in the
+interim.
+
 ## 2026-08-13 — WNT visual reference: capability limits on watching YouTube video
 
 **Ask:** Developer wants the scoreboard styled with additional cues from the World Nine Ball
