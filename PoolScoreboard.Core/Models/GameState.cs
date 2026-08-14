@@ -8,10 +8,13 @@ public class GameState
     public Player Player1 { get; set; } = new();
     public Player Player2 { get; set; } = new();
     public GameType GameType { get; set; }
+    public RaceToMode RaceToMode { get; set; }
     public int Player1Score { get; set; }
     public int Player2Score { get; set; }
-    public Player? CurrentBreak { get; set; }
+    public Player? CurrentShooter { get; set; }
     public bool IsGameActive { get; set; }
     public DateTime StartTime { get; set; }
     public Player? Winner { get; set; }
+    public ColorTheme ColorTheme { get; set; } = new();
+    public HashSet<int> PocketedBalls { get; set; } = new();
 }

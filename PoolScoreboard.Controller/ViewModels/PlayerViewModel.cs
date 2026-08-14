@@ -1,16 +1,13 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using PoolScoreboard.Core.Models;
-using PoolScoreboard.Core.Rules;
 using PoolScoreboard.Core.Enums;
+using PoolScoreboard.Core.Models;
 
 namespace PoolScoreboard.Controller.ViewModels;
 
 public partial class PlayerViewModel : ObservableObject
 {
-    private RaceRules _raceRules;
     private readonly Player _player;
-    private League _league;
 
     [ObservableProperty]
     private string teamName = string.Empty;
@@ -19,85 +16,38 @@ public partial class PlayerViewModel : ObservableObject
     private string playerName = string.Empty;
 
     [ObservableProperty]
-    private int skillLevel = 5;
+    private int raceToTarget = 5;
 
     [ObservableProperty]
-    private int fargoRating = 500;
+    private BallGroup ballGroup = BallGroup.Unassigned;
 
     [ObservableProperty]
-    private int raceToValue = 5;
+    private int score = 0;
 
-    [ObservableProperty]
-    private int gameScore = 0;
-
-    [ObservableProperty]
-    private int matchScore = 0;
-
-    public bool UsesSkillLevel => _league == League.APA || _league == League.TAP;
-    public bool UsesFargoRating => _league == League.USAPL || _league == League.BCA;
-
-    public PlayerViewModel(League league, GameType gameType)
+    public PlayerViewModel()
     {
-        _league = league;
-        _raceRules = new RaceRules(league, gameType);
-        _player = new Player { Name = "", SkillLevel = 5, TeamName = "", League = league };
+        _player = new Player();
     }
 
-    partial void OnSkillLevelChanged(int value)
-    {
-        _player.SkillLevel = value;
-        RaceToValue = _raceRules.GetRaceToValue(_player);
-    }
+    partial void OnTeamNameChanged(string value) => _player.TeamName = value;
 
-    partial void OnFargoRatingChanged(int value)
-    {
-        _player.SkillLevel = (value / 100);
-        RaceToValue = _raceRules.GetRaceToValue(_player);
-    }
+    partial void OnPlayerNameChanged(string value) => _player.Name = value;
 
-    partial void OnTeamNameChanged(string value)
-    {
-        _player.TeamName = value;
-    }
+    partial void OnRaceToTargetChanged(int value) => _player.RaceToTarget = value;
 
-    partial void OnPlayerNameChanged(string value)
+    partial void OnBallGroupChanged(BallGroup value) => _player.BallGroup = value;
+
+    [RelayCommand]
+    public void IncrementScore()
     {
-        _player.Name = value;
+        Score++;
     }
 
     [RelayCommand]
-    public void IncrementGameScore()
+    public void DecrementScore()
     {
-        GameScore++;
-    }
-
-    [RelayCommand]
-    public void DecrementGameScore()
-    {
-        if (GameScore > 0)
-            GameScore--;
-    }
-
-    [RelayCommand]
-    public void IncrementMatchScore()
-    {
-        MatchScore++;
-    }
-
-    [RelayCommand]
-    public void DecrementMatchScore()
-    {
-        if (MatchScore > 0)
-            MatchScore--;
-    }
-
-    public void UpdateLeagueAndGameType(League league, GameType gameType)
-    {
-        _league = league;
-        _raceRules = new RaceRules(league, gameType);
-
-        // Recalculate race-to with new rules (Player.League is already set in constructor)
-        RaceToValue = _raceRules.GetRaceToValue(_player);
+        if (Score > 0)
+            Score--;
     }
 
     public Player GetPlayer() => _player;

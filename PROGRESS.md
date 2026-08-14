@@ -5,146 +5,158 @@ the top of each section.
 
 ## Current Status
 
-**v0.0 (Project Setup Complete):** The PoolScoreboard project is initialized with a three-project solution structure (Core, Controller, Overlay) and foundational game logic. The Core project contains complete, working implementations of game state management (`GameManager`), all four league rulesets (APA, USAPL, BCA, TAP) with skill-level-based race-to calculations (`RaceRules`), and essential data models (Player, GameState). The initial compilation issue in `RaceRules`' pattern matching (invalid `and` syntax on tuple relational patterns) was identified and fixed during setup — the solution now builds clean with `dotnet build`. A `.gitignore` for .NET projects and comprehensive project documentation (CLAUDE.md, NOTES.md, PROGRESS.md, README.md) are in place. The Controller (WPF) and Overlay (ASP.NET Core) projects are structural scaffolding only, with no UI or HTTP implementation yet.
+**Scope reset (2026-08-13):** This project is being redirected away from its original
+league-based design (APA/USAPL/BCA/TAP with skill-level/Fargo-rating-driven auto Race-To) to
+a general-purpose scoreboard: operator-set Race-To (single or split), operator-assigned 8-ball
+solids/stripes groups, a current-shooter indicator, a customizable color scheme, OBS overlay +
+Stream Deck control, and a separate cue-ball spin-dot overlay — all fully offline. See NOTES.md
+("2026-08-13 — Project scope reset") for why, and CLAUDE.md for the target domain model.
+
+**Phase 0 is complete (2026-08-13).** The league system is gone and the domain model matches
+CLAUDE.md:
+
+- `PoolScoreboard.Core`: `GameManager`, `GameState`, `Player`, `GameType`, `RaceToMode`,
+  `BallGroup`, `ColorTheme` — no league/skill-level/Fargo-rating anywhere. `GameManager` wins
+  are decided by comparing each player's score to their own `RaceToTarget`; it also exposes
+  `AssignBallGroup`, `SetCurrentShooter`, and `PocketBall`/`UnpocketBall`/`ResetBalls`.
+- `PoolScoreboard.Controller`: `GameViewModel`/`PlayerViewModel` rebuilt around game type,
+  Race-To mode (single/split, with single-mode syncing Home's target to Away), 8-ball
+  ball-group assignment buttons, and a current-shooter toggle. `MainWindow.xaml`/`.xaml.cs`
+  updated to match.
+- `PoolScoreboard.Overlay`: `PoolScoreboard.Overlay.csproj` fixed — `Microsoft.NET.Sdk.Web`
+  with `OutputType=Library` (no `Main`; it's hosted in-process by the Controller, not run as
+  its own exe) and a `ProjectReference` to Core. No overlay pages or control API exist yet —
+  that's Phase 3.
+- `dotnet build` is clean across all three projects (0 warnings, 0 errors).
+- No `streamdeck/` profile documentation yet.
 
 ## Next Steps
 
-### Phase 1: Core Logic Completion & Testing (CURRENT)
-- [x] **v0.0 complete:** Project scaffolding and game logic (GameManager, RaceRules)
-- [ ] Create `PoolScoreboard.Core.Tests` (xUnit or NUnit) with comprehensive tests for:
-  - [ ] `GameManager` initialization, scoring, break changes, undo/reset
-  - [ ] `RaceRules` for all leagues and game types (verify race-to calculations)
-  - [ ] Win detection across all formats and skill levels
-- [ ] **Estimated:** ~30-40 unit tests to cover all core logic paths
+### Phase 0: Scope reset — remove the league system, fix the broken Overlay project (DONE)
 
-### Phase 2a: Basic Scoreboard UI (MVP)
+- [x] Delete `Enums/League.cs` and `Rules/RaceRules.cs` from Core.
+- [x] Add `RaceToMode` (Single/Split) and `BallGroup` (Unassigned/Solids/Stripes) enums to Core.
+- [x] Rework `Player`: drop `League`/`SkillLevel`; add `RaceToTarget` and `BallGroup`.
+- [x] Rework `GameState`: add `RaceToMode`, `CurrentShooter` (rename from `CurrentBreak`),
+      `ColorTheme`.
+- [x] Rework `GameManager`: drop `RaceRules` dependency; win detection compares score to each
+      player's own `RaceToTarget` directly. Add `AssignBallGroup(player, group)` (8-ball only,
+      the other player's group auto-flips to the complementary one),
+      `SetCurrentShooter(player)`, and `PocketBall`/`UnpocketBall`/`ResetBalls` for the
+      pocketed-balls set (see Phase 2).
+- [x] Rework `GameViewModel`/`PlayerViewModel`: drop league/game-type-driven skill fields;
+      add Race-To mode toggle (single/split) with the corresponding input field(s), and 8-ball
+      group-assignment buttons.
+- [x] Fix `PoolScoreboard.Overlay.csproj`: restore a working ASP.NET Core project, but
+      structured to be hosted **in-process** by the Controller (see CLAUDE.md architecture)
+      rather than run as its own executable.
+- [x] Confirm `dotnet build` is clean across all three projects before moving to Phase 1.
 
-**Design Reference:** Two-column layout with HOME/AWAY panels (dark navy theme, cyan accents for active state)
+### Phase 1: Core Tests (DONE)
 
-- [ ] Implement MainWindow XAML: Grid with 2 equal columns (HOME | AWAY)
-- [ ] Create player panels with:
+- [x] Create `PoolScoreboard.Core.Tests` (xUnit) covering:
+  - [x] `GameManager` init, scoring, undo/reset, win detection under both Race-To modes
+  - [x] Ball-group assignment (assigning one player auto-flips the other; 8-ball excluded)
+  - [x] Current-shooter toggling
 
-  - [ ] Team Name (TextBox, editable)
-  - [ ] Player Name (TextBox, editable)
-  - [ ] Skill Level (ComboBox, 1-9, triggers Race To recalculation)
-  - [ ] Race To (TextBlock, read-only, auto-calculated from RaceRules)
-  - [ ] Status button ("At Table" / "Set Shooting", cyan when active, gray when inactive)
-  - [ ] Game counter with +/- buttons (increments game score)
-  - [ ] Match counter with +/- buttons (increments match score)
+### Phase 2: Scoreboard UI (Controller)
 
-- [ ] Create ViewModels (`GameViewModel`, `PlayerViewModel` for HOME/AWAY)
-- [ ] Wire UI to GameManager:
+- [ ] Match setup screen: game type, Race-To mode + value(s), color theme picker
+  (background/accent/text).
+- [ ] Live view: score +/- per player, current-shooter toggle/indicator, ball display
+  (8-ball group-assignment buttons + fixed center 8-ball; numeric 1-9/1-10 row for 9/10-ball),
+  new-rack and reset-match controls.
+- [ ] Pocketed-ball tracking: clicking a ball toggles it pocketed/live; pocketed balls render
+  **greyed out** in place (not removed from layout) in both the 8-ball and 9/10-ball displays.
+  Independent of 8-ball group assignment (group = which player it's shown under; pocketed =
+  is it still on the table).
+- [ ] Keyboard shortcuts for score +/-, shooter toggle, new rack.
 
-  - [ ] Skill Level change → recalculate Race To via RaceRules.GetRaceToValue()
-  - [ ] +/- buttons → GameManager.AddPoint() and GameManager.UndoPoint()
-  - [ ] Status button → GameManager.SetBreak()
-  - [ ] Subscribe to GameStateChanged events for live UI updates
+### Pending: WNT visual reference
 
-- [ ] Styling: Dark navy background (#1a2332), cyan accents (#00d4ff), rounded corners, subtle borders
-- [ ] Add keyboard shortcuts (1-9 for player skill, +/- for scores, Space to toggle break)
-- [ ] **Estimated:** ~1 week for basic playable scoreboard (MVP)
+- [ ] Get screenshots from the developer of WNT (World Nine Ball Tour / Matchroom Pool)
+  broadcast footage — Claude Code cannot watch YouTube video directly (see NOTES.md, "WNT
+  visual reference — capability limits"), so this needs actual images to work from.
+- [ ] Once screenshots are available, extract concrete style cues (color palette, ball-tracker
+  treatment, typography/layout patterns) and fold them into the Phase 2/3 UI and overlay work
+  alongside the overlays.uno reference already in README.md.
 
-### Phase 2b: Ball Assignment & Tracking
+### Phase 3: Overlay (OBS Integration)
 
-**Features:** Game-specific ball display and tracking
+- [ ] Host the Overlay's Kestrel server in-process from the Controller on startup, bound to
+  `localhost` only, sharing the same `GameManager` instance as the UI.
+- [ ] `/overlay/scoreboard` page: scores, Race-To, shooter indicator, ball display, operator
+  colors — no external CSS/JS/font references (must render offline).
+- [ ] Live updates via polling or SSE/WebSocket (avoid a hard requirement on JS libraries
+  pulled from a CDN).
 
-- [ ] Add GameState property tracking: `BallsPocketed` (list of ball numbers per player)
-- [ ] Implement ball display UI component (colored circles 1-15 + 8-ball center)
-- [ ] **8-Ball Mode:**
+### Phase 4: Cue Ball Spin Overlay
 
-  - [ ] Display SOLIDS/STRIPES assignment buttons above ball display
-  - [ ] Show stripes (9-15) under HOME player, solids (1-7) under AWAY player (configurable)
-  - [ ] Clicking a ball toggles its "pocketed" state (grayed out / off-table)
-  - [ ] Reset button to clear ball state and start new rack
+- [ ] `/overlay/cueball` page: cue-ball graphic, click-to-place red contact-point dot.
+- [ ] Independent of the scoreboard overlay — separate OBS browser source, separately sized
+  and positioned.
+- [ ] Persist/clear the dot per shot (decide: manual clear button vs. auto-clear on next
+  score change — confirm with developer).
 
-- [ ] **9-Ball & 10-Ball Mode:**
+### Phase 5: Stream Deck Integration
 
-  - [ ] Show all balls (1-9 or 1-10) in order
-  - [ ] Clicking a ball marks it as pocketed by current player (at table)
-  - [ ] Visual indicator (grayed out) for pocketed balls
-  - [ ] Reset button for new rack
+- [ ] `/api/control/*` endpoints on the same in-process Kestrel server: score inc/dec,
+  shooter toggle, ball-group assignment, new rack, reset match.
+- [ ] `streamdeck/` folder: document the button layout and each button's target endpoint,
+  so the actual Stream Deck profile can be built in the Stream Deck app from this mapping.
 
-- [ ] Wire to GameManager:
+### Phase 6: Packaging
 
-  - [ ] Expose `GameState.BallsPocketed` property
-  - [ ] Add methods: `GameManager.PocketBall(ballNumber)`, `GameManager.ResetBalls()`
-  - [ ] Update UI on GameStateChanged events
-
-- [ ] **Estimated:** ~4-5 days for ball tracking and visual feedback
-
-### Phase 2c: Shot Clock & Match Controls
-
-**Features:** Tournament-style shot timer and match management
-
-- [ ] Implement Shot Clock component:
-
-  - [ ] Large countdown display (seconds)
-  - [ ] Start/Reset buttons (green Start, dark Reset)
-  - [ ] Preset timer buttons (30s, 45s, 60s)
-  - [ ] Show/Hide toggle to display/hide clock during play
-  - [ ] Timer countdown with visual feedback (color change near timeout)
-
-- [ ] Implement Match Control buttons:
-
-  - [ ] "New Rack" button (resets BallsPocketed, increments game counter)
-  - [ ] "Reset Entire Match" button (red warning style, resets all scores and match state)
-
-- [ ] Wire timer to GameManager (optional: track shot time in GameState for analytics)
-- [ ] **Estimated:** ~3-4 days for timer UI and match controls
-
-### Phase 4: Overlay (OBS Integration)
-
-- [ ] Design HTTP endpoint(s) for game state (e.g. `/api/game/current`)
-- [ ] Implement minimal ASP.NET Core controller returning JSON
-- [ ] Build HTML/CSS/JS browser overlay (read-only display of scores, players, break, ball state)
-- [ ] Consider WebSocket for real-time updates (vs. polling)
-- [ ] **Estimated:** ~1 week for basic streaming-overlay functionality
-
-### Phase 5: Player Management & Persistence
-
-- [ ] Add Entity Framework Core for local SQLite database
-- [ ] Create `Player` entity with name, league affiliation, skill levels (Fargo, APA, TAP, etc.)
-- [ ] Implement player loading/saving UI on Controller
-- [ ] Extend tournament features (multiple games, statistics)
-
-### Phase 6: Stream Deck Integration
-
-- [ ] Research Stream Deck HTTP API
-- [ ] Wire score increment/decrement buttons
-- [ ] Add game control buttons (start, reset, etc.)
-
-## Current Implementation Status
-
-### Complete
-- Core game logic (GameManager, RaceRules, data models)
-- All four league rulesets with skill-level-based race-to logic
-- Event-based state notification system
-- Solution builds cleanly with zero warnings
-
-### In Progress / Planned
-
-- **Phase 1:** Core unit tests (30-40 tests for full coverage)
-- **Phase 2a:** Basic Scoreboard UI (MVVM views, player setup, score management)
-- **Phase 2b:** Ball Assignment & Tracking (ball display, 8-ball solids/stripes, 9/10-ball pocketing)
-- **Phase 2c:** Shot Clock & Match Controls (timer, new rack, match reset)
-- **Phase 4:** Overlay HTTP server and HTML/CSS/JS for OBS
-- **Phase 5:** Player database with Entity Framework Core
-- **Phase 6:** Stream Deck integration
+- [ ] `dotnet publish -p:PublishSingleFile=true -p:SelfContained=true` for a distributable
+  build that doesn't require a separately installed .NET runtime.
 
 ## Known Gaps & Simplifications
 
-- **No persistence:** All game state is in-memory; match history and player ratings are not persisted.
-- **No UI yet:** Controller and Overlay are structural scaffolding with empty XAML templates.
-- **No player database:** Eventually will need a local SQLite database for player names and ratings across sessions.
-- **No configuration UI:** League selection, skill level assignment, and player team assignment are all hardcoded for now.
+- No persistence: match state is in-memory only.
+- No player database: names/teams are typed in per match.
+- Ball-pocketed tracking (marking individual balls down mid-rack, beyond group assignment)
+  is unscoped — confirm with developer before building it.
+- No configuration UI for anything beyond what's listed in Phase 2 yet.
 
 ## Change Log
 
-### v0.0 — 2026-07-12
+### 2026-08-13 — Phase 1: Core unit tests
 
-- **Project setup complete:** PoolScoreboard.sln with three projects (Core, Controller, Overlay).
-- **Core game logic:** `GameManager` (game orchestrator, state mutations, event notification), `RaceRules` (league/skill-level-specific race-to calculations for APA, USAPL, BCA, TAP across 8-ball, 9-ball, 10-ball), `Player` and `GameState` models.
-- **Enums:** `League.cs` (APA, USAPL, BCA, TAP), `GameType.cs` (EightBall, NineBall, TenBall).
-- **Fixed:** Initial `RaceRules` pattern-matching syntax error (invalid `and` combinator on tuple relational patterns); now builds clean.
-- **Documentation:** CLAUDE.md (architecture and best practices), NOTES.md (issues log), PROGRESS.md (this file), README.md (user-facing overview).
-- **Build:** `dotnet build` succeeds with 0 errors, 0 warnings. Solution ready for UI/Overlay implementation.
+- Added `PoolScoreboard.Core.Tests` (xUnit), referenced from and added to the solution.
+  17 tests cover `GameManager` initialization, scoring (single and split Race-To modes),
+  win detection, undo/reset, current-shooter toggling (including the no-op after a game
+  ends), 8-ball ball-group assignment (auto-flip to the complementary group, no-op outside
+  8-ball), and pocketed-ball tracking. `dotnet test` passes 17/17; `dotnet build` is clean
+  across all four projects.
+
+### 2026-08-13 — Phase 0: league system removed, domain model reworked
+
+- Deleted `Enums/League.cs` and `Rules/RaceRules.cs`. Added `Enums/BallGroup.cs` and
+  `Models/ColorTheme.cs`. Reworked `Player` (`RaceToTarget`/`BallGroup` replace
+  `League`/`SkillLevel`), `GameState` (`RaceToMode`, `CurrentShooter`, `ColorTheme`,
+  `PocketedBalls`), and `GameManager` (win detection off each player's own `RaceToTarget`;
+  added `AssignBallGroup`, `SetCurrentShooter`, `PocketBall`/`UnpocketBall`/`ResetBalls`).
+- Reworked `GameViewModel`/`PlayerViewModel` and `MainWindow.xaml`/`.xaml.cs`: dropped
+  league/skill-level/Fargo-rating UI, added Race-To mode toggle (single mode mirrors Home's
+  target to Away), 8-ball ball-group buttons, and a current-shooter toggle in place of the old
+  at-table toggle.
+- Fixed `PoolScoreboard.Overlay.csproj`: `Microsoft.NET.Sdk.Web` with `OutputType=Library`
+  (it has no `Main` — hosted in-process by the Controller) and a `ProjectReference` to Core.
+- `dotnet build` is clean across all three projects (0 warnings, 0 errors).
+
+### 2026-08-13 — Scope reset
+
+- Discarded the league-based design (APA/USAPL/BCA/TAP, skill level, Fargo rating) in favor
+  of a general-purpose, operator-controlled scoreboard. Rewrote CLAUDE.md, NOTES.md,
+  README.md, and this file to reflect the new target design and the Phase 0 rework needed to
+  get the existing code there. No source code changed yet — see Phase 0 above.
+
+### v0.0 — 2026-07-12 (superseded)
+
+- Original project setup: PoolScoreboard.sln with three projects (Core, Controller, Overlay).
+- League-based Core game logic (`GameManager`, `RaceRules`, `Player`, `GameState`).
+- Documentation (CLAUDE.md, NOTES.md, PROGRESS.md, README.md) — since superseded by the
+  2026-08-13 reset above.
+- (Not previously logged here, found via `git log`: manual Race-To entry replacing
+  auto-calculation, and an MVVM Controller UI foundation — both still league-aware and in
+  scope for Phase 0 rework.)

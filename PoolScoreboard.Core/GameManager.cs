@@ -1,44 +1,42 @@
 using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
-using PoolScoreboard.Core.Rules;
 
 namespace PoolScoreboard.Core;
 
 public class GameManager
 {
     private GameState _currentGame = new();
-    private RaceRules? _raceRules;
 
     public event EventHandler<GameStateChangedEventArgs>? GameStateChanged;
 
-    public void InitializeGame(Player player1, Player player2, GameType gameType)
+    public void InitializeGame(Player player1, Player player2, GameType gameType, RaceToMode raceToMode)
     {
         _currentGame = new GameState
         {
             Player1 = player1,
             Player2 = player2,
             GameType = gameType,
+            RaceToMode = raceToMode,
             Player1Score = 0,
             Player2Score = 0,
-            CurrentBreak = player1,
+            CurrentShooter = player1,
             IsGameActive = true,
             StartTime = DateTime.UtcNow,
             Winner = null
         };
 
-        _raceRules = new RaceRules(player1.League, gameType);
         RaiseGameStateChanged();
     }
 
     public void AddPoint(bool isPlayer1)
     {
-        if (!_currentGame.IsGameActive || _raceRules == null)
+        if (!_currentGame.IsGameActive)
             return;
 
         if (isPlayer1)
         {
             _currentGame.Player1Score++;
-            if (_raceRules.IsPlayerWinner(_currentGame.Player1, _currentGame.Player1Score, _currentGame.Player2Score))
+            if (_currentGame.Player1Score >= _currentGame.Player1.RaceToTarget)
             {
                 EndGame(_currentGame.Player1);
                 return;
@@ -47,7 +45,7 @@ public class GameManager
         else
         {
             _currentGame.Player2Score++;
-            if (_raceRules.IsPlayerWinner(_currentGame.Player2, _currentGame.Player2Score, _currentGame.Player1Score))
+            if (_currentGame.Player2Score >= _currentGame.Player2.RaceToTarget)
             {
                 EndGame(_currentGame.Player2);
                 return;
@@ -57,18 +55,18 @@ public class GameManager
         RaiseGameStateChanged();
     }
 
-    public void SetBreak(Player player)
+    public void SetCurrentShooter(Player player)
     {
         if (_currentGame.IsGameActive)
         {
-            _currentGame.CurrentBreak = player;
+            _currentGame.CurrentShooter = player;
             RaiseGameStateChanged();
         }
     }
 
     public void UndoPoint()
     {
-        if (!_currentGame.IsGameActive || _raceRules == null)
+        if (!_currentGame.IsGameActive)
             return;
 
         if (_currentGame.Player1Score > 0 || _currentGame.Player2Score > 0)
@@ -84,10 +82,51 @@ public class GameManager
         }
     }
 
+    public void AssignBallGroup(Player player, BallGroup group)
+    {
+        if (_currentGame.GameType != GameType.EightBall)
+            return;
+
+        Player other;
+        if (ReferenceEquals(player, _currentGame.Player1))
+            other = _currentGame.Player2;
+        else if (ReferenceEquals(player, _currentGame.Player2))
+            other = _currentGame.Player1;
+        else
+            return;
+
+        player.BallGroup = group;
+        other.BallGroup = group switch
+        {
+            BallGroup.Solids => BallGroup.Stripes,
+            BallGroup.Stripes => BallGroup.Solids,
+            _ => BallGroup.Unassigned
+        };
+
+        RaiseGameStateChanged();
+    }
+
+    public void PocketBall(int ballNumber)
+    {
+        _currentGame.PocketedBalls.Add(ballNumber);
+        RaiseGameStateChanged();
+    }
+
+    public void UnpocketBall(int ballNumber)
+    {
+        _currentGame.PocketedBalls.Remove(ballNumber);
+        RaiseGameStateChanged();
+    }
+
+    public void ResetBalls()
+    {
+        _currentGame.PocketedBalls.Clear();
+        RaiseGameStateChanged();
+    }
+
     public void ResetGame()
     {
         _currentGame = new();
-        _raceRules = null;
         RaiseGameStateChanged();
     }
 
@@ -99,11 +138,6 @@ public class GameManager
     }
 
     public GameState GetCurrentGameState() => _currentGame;
-
-    public int GetRaceToValue(Player player)
-    {
-        return _raceRules?.GetRaceToValue(player) ?? 5;
-    }
 
     private void RaiseGameStateChanged()
     {

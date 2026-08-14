@@ -1,21 +1,32 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with code in this repository.
 
 ## Project Overview
 
-**PoolScoreboard** is a Windows desktop application for managing pool game scoreboards with OBS streaming integration and Stream Deck support. It's a three-project .NET 8.0 solution: a game-logic Core, a WPF Controller UI, and an ASP.NET overlay server for live streaming.
+**PoolScoreboard** is a Windows desktop application for running a pool-match scoreboard as
+an OBS Studio browser-source overlay, controllable from a desktop window, the keyboard, or
+an Elgato Stream Deck. It must work fully offline — no calls to any external service, ever.
+It is a three-project .NET 8.0 solution: a game-logic Core, a WPF Controller UI that also
+hosts the overlay server in-process, and an ASP.NET Core Overlay module serving the OBS
+browser sources and the local Stream Deck control API.
+
+**This is a reset of an earlier attempt at this project.** The original build was
+league-based (APA/USAPL/BCA/TAP rulesets with skill-level or Fargo-rating-driven auto
+Race-To calculations). That direction is discarded — see NOTES.md, "2026-08-13 — Project
+scope reset". Nothing here should reference leagues, skill levels, or Fargo ratings; if you
+see that in the existing code, it is legacy and slated for removal (PROGRESS.md Phase 0).
 
 ## Project Layout
 
 - `PoolScoreboard.sln` — solution file
-- `PoolScoreboard.Core/` — game logic, rules, data models (class library)
-- `PoolScoreboard.Controller/` — WPF desktop application for scoreboard control
-- `PoolScoreboard.Overlay/` — ASP.NET Core HTTP server for OBS browser source
-- `README.md` — project overview and quick-start guide
-- `CLAUDE.md` — this file
-- `NOTES.md` — running log of issues discovered during development
-- `PROGRESS.md` — tracks current development status and next steps
+- `PoolScoreboard.Core/` — game logic, state, and data models (class library, no UI, no I/O)
+- `PoolScoreboard.Controller/` — WPF desktop application; operator's control window, and the
+  process that hosts the Overlay's Kestrel server in-process
+- `PoolScoreboard.Overlay/` — ASP.NET Core module: OBS browser-source pages + local HTTP
+  control API for the Stream Deck (hosted inside the Controller process, not a separate exe)
+- `streamdeck/` — Stream Deck profile documentation (button → local endpoint mapping)
+- `README.md` / `CLAUDE.md` / `NOTES.md` / `PROGRESS.md` — project docs
 
 ## Build & Run Commands
 
@@ -23,10 +34,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build the solution
 dotnet build
 
-# Run the WPF Controller (requires Windows)
+# Run the Controller (starts the WPF UI and the in-process overlay/control server)
 dotnet run --project PoolScoreboard.Controller/PoolScoreboard.Controller.csproj
 
-# Run tests (currently none, but structure exists)
+# Run tests (once PoolScoreboard.Core.Tests exists)
 dotnet test
 
 # Clean build artifacts
@@ -35,140 +46,118 @@ dotnet clean
 
 ## C# / Windows Best Practices
 
-- **Target an explicit TFM** in every `.csproj` (`net8.0` for Core, `net8.0-windows` for Controller with WPF, `net8.0` for Overlay with ASP.NET Core).
-- **Enable nullable reference types** (`<Nullable>enable</Nullable>`) on all projects — in place here.
-- **Implicit usings enabled** (`<ImplicitUsings>enable</ImplicitUsings>`) — all using statements are global.
+- **Target an explicit TFM** in every `.csproj` (`net8.0` for Core, `net8.0-windows` for
+  Controller with WPF, `net8.0` for Overlay).
+- **Enable nullable reference types** (`<Nullable>enable</Nullable>`) on all projects.
+- **Implicit usings enabled** (`<ImplicitUsings>enable</ImplicitUsings>`).
 - **File-scoped namespaces** — use `namespace X;` syntax throughout.
-- **Separate UI from logic:** Core contains all game rules and state management (testable, UI-agnostic); Controller binds UI to Core via event subscriptions and data binding; Overlay reads state through an HTTP endpoint.
-- **Event-based communication:** `GameManager` raises `GameStateChanged` events whenever state mutates; UI/Overlay subscribe to these events rather than polling.
-- **Use tuple pattern matching** for rules logic (e.g. `RaceRules.GetRaceToValue` maps `(League, GameType, SkillLevel)` tuples to race-to values).
+- **Separate UI from logic:** Core contains all game rules and state (testable, UI-agnostic);
+  Controller binds UI to Core via event subscriptions/data binding; Overlay reads/writes
+  state through the same in-process `GameManager` instance — never a second copy of state.
+- **Event-based communication:** `GameManager` raises `GameStateChanged` whenever state
+  mutates; the Controller UI, the OBS overlay pages, and the Stream Deck API all subscribe
+  to or read from this instead of polling each other.
+- **Localhost only:** the Overlay's Kestrel server must bind to `localhost`/`127.0.0.1`
+  only — never `0.0.0.0` — so the app stays usable and safe with no network connection and
+  isn't reachable from outside the machine.
+- **No CDN/external references** anywhere in the overlay HTML/CSS/JS (fonts, JS libraries,
+  images) — everything must be bundled locally so the overlay renders with no internet
+  connection.
+
+## Domain Model (target design — see PROGRESS.md Phase 0/1 for current state)
+
+- `GameType` — `EightBall`, `NineBall`, `TenBall`.
+- `RaceToMode` — `Single` (one shared target) or `Split` (each player has their own target).
+- `BallGroup` — `Unassigned`, `Solids`, `Stripes`. Only meaningful for 8-ball; the 8-ball
+  itself is never assigned to a group and always renders center.
+- `Player` — `Name`, `TeamName` (optional), `RaceToTarget`, `BallGroup` (8-ball only).
+- `GameState` — both `Player`s, `GameType`, `RaceToMode`, scores, `CurrentShooter`,
+  `ColorTheme`, `PocketedBalls` (ball numbers 1-15 currently off the table), active/winner
+  status.
+- `ColorTheme` — operator-set background/accent/text colors, applied to the overlay pages.
+- No league, skill level, or Fargo rating anywhere in this model.
+
+## Ball Display Detail
+
+- Every ball display (8-ball's grouped layout and the numeric 9/10-ball row) supports
+  marking individual balls **pocketed**: a pocketed ball renders **greyed out** in place
+  (not removed/collapsed from the layout), so the operator and viewers can see at a glance
+  what's left on the table.
+- `GameManager.PocketBall(ballNumber)` / `UnpocketBall(ballNumber)` toggle membership in
+  `GameState.PocketedBalls`; `ResetBalls()` clears it for a new rack.
+- This applies independently of `BallGroup` assignment in 8-ball — a ball's group (which
+  player it's displayed under) and its pocketed state are separate flags.
 
 ## Architecture & Key Files
 
 ### PoolScoreboard.Core (Game Logic)
 
-**Entry point:** `GameManager` — the main orchestrator for all game state and operations.
-
-**Enums:**
-
-- `League.cs` — APA, USAPL, BCA, TAP
-- `GameType.cs` — EightBall, NineBall, TenBall
-
-**Models:**
-
-- `Player.cs` — name, team, league affiliation, skill level
-- `GameState.cs` — current game (both players, scores, break holder, winner status, timestamps)
-
-**Rules:**
-
-- `RaceRules.cs` — league- and skill-level-specific race-to calculations for all 4 leagues × 3 game types
-
-**Design Patterns:**
-
-- `GameManager` uses an event-notification pattern: `public event EventHandler<GameStateChangedEventArgs>? GameStateChanged;`
-- All state mutations go through GameManager methods (`InitializeGame`, `AddPoint`, `SetBreak`, `UndoPoint`, `ResetGame`, `EndGame`)
-- `GameStateChanged` is raised after every state mutation, allowing UI to stay in sync without polling
-- No database or async I/O in Core — it's pure, fast, and testable
+- `GameManager` — orchestrator for all game state and operations: `InitializeGame`,
+  `AddPoint`, `UndoPoint`, `SetCurrentShooter`, `AssignBallGroup`, `ResetGame`, `EndGame`.
+  Raises `GameStateChanged` after every mutation.
+- No database, no async I/O — pure, fast, unit-testable.
 
 ### PoolScoreboard.Controller (WPF Desktop Application)
 
-**Status:** Scaffolding complete (App.xaml, MainWindow.xaml are templates), UI implementation not yet started.
+- MVVM: ViewModels for match setup, player setup, and the live game view.
+- Match setup: game type, Race-To mode (single/split) and value(s), color theme picker.
+- Live view: score +/- per player, current-shooter toggle, ball-group assignment buttons
+  (8-ball only) or ball display (9/10-ball), new-rack/reset-match controls.
+- On startup, starts the Overlay's Kestrel host in-process, passing it the same
+  `GameManager` instance the UI is bound to.
+- Dark theme with operator-customizable accent color, consistent with the overlay's theme.
 
-**Dependencies:** CommunityToolkit.Mvvm 8.4.2 for MVVM pattern support.
+### PoolScoreboard.Overlay (ASP.NET Core, hosted in-process by Controller)
 
-**Application Flow (Multi-Step Setup):**
+- `/overlay/scoreboard` — browser-source page: scores, Race-To, shooter indicator, ball
+  display, operator colors. Read-only; polls or subscribes (SSE/WebSocket) for state.
+- `/overlay/cueball` — separate browser-source page: a cue-ball graphic; clicking it places
+  a red dot marking the spin/contact point. Independent of and separately positionable from
+  the scoreboard overlay in the OBS scene.
+- `/api/control/*` — local HTTP endpoints for Stream Deck buttons (score inc/dec, shooter
+  toggle, ball assignment, new rack, reset match). Same `GameManager` instance as the UI.
 
-1. **Match Setup View** — Initialization phase
-   - League selector (APA, USAPL, BCA, TAP)
-   - Game Type selector (8-Ball, 9-Ball, 10-Ball)
-   - Optional match title (e.g., "Week 13 Tournament")
-   - Accent color selector for overlay branding (cyan, pink, purple, orange, green, blue)
-   - Creates `GameManager` with selected league/game type
+## Stream Deck Integration
 
-2. **Player Setup View** — Team/player entry phase
-   - Two-column layout (HOME and AWAY)
-   - Per-player input: Team Name, Player Name, Skill Level (1-9)
-   - Race To auto-calculated from Skill Level (via RaceRules)
-   - Game/Match score counters with +/- buttons
-   - Break holder toggle button ("At Table" / "Set Shooting")
-   - Calls `GameManager.InitializeGame()` when players are set
+- No custom Elgato SDK plugin — Stream Deck buttons hit the local `/api/control/*` HTTP
+  endpoints directly (built-in "Website"/HTTP-request-style action), which is simpler to
+  build and maintain and needs no separate plugin install.
+- `streamdeck/` documents the button layout and which endpoint each button calls, so the
+  actual `.streamDeckProfile` can be built/exported from the Stream Deck app using that
+  mapping.
+- Because the control API is local-only, Stream Deck control works with no internet
+  connection, same as the rest of the app.
 
-3. **Ball Display & Tracking** (Phase 2b)
+## Visual Reference
 
-   - **8-Ball mode:** SOLIDS/STRIPES assignment buttons, balls split by player (1-7 solids, 9-15 stripes, 8-ball center)
-   - **9-Ball & 10-Ball mode:** Numbered balls (1-9 or 1-10) with clickable tracking for pocketed balls
-   - Visual feedback: Pocketed balls grayed out / off-table
-   - Reset button to clear ball state for new rack
-
-4. **Shot Clock & Match Controls** (Phase 2c)
-
-   - Countdown timer display (30s, 45s, 60s presets)
-   - Start/Reset timer controls
-   - Show/Hide toggle for clock visibility
-   - "New Rack" button to reset balls and increment game counter
-   - "Reset Entire Match" button (red warning style) to reset all scores
-
-5. **Active Game View** — Live scoreboard during play
-
-   - Real-time score display
-   - Break holder indicator
-   - Game status (in progress, winner)
-   - Ball tracking and shot clock (when implemented)
-   - Keyboard shortcuts for score input, undo, reset
-
-**Design approach:**
-
-- Follow MVVM pattern — ViewModels for each view (MatchSetupViewModel, PlayerSetupViewModel, GameViewModel)
-- Use `GameManager` as the central orchestrator; ViewModels subscribe to `GameStateChanged` events
-- Data binding for all real-time display (scores, break holder, game status)
-- Dark navy theme (#1a2332) with cyan accents (#00d4ff) for active/highlighted states
-- Keyboard shortcuts: numeric keys for skill level, +/- for scores, Space to toggle break
-- Stream Deck integration (Phase 5) will mirror keyboard input logic
-- Future: match history logging, player database integration, tournament support
-
-### PoolScoreboard.Overlay (ASP.NET Core Server)
-
-**Status:** Project structure only, no implementation yet.
-
-**Purpose:** HTTP server serving a browser-based overlay for OBS streaming.
-
-**Design approach (when implementing):**
-
-- Stateless HTTP endpoint(s) serving JSON state (current game, scores, players, break holder)
-- Potential WebSocket support for real-time updates (browser source polls or subscribes)
-- HTML/CSS/JS overlay UI consuming that endpoint
-- Controller is the source of truth; Overlay reads state only
-
-## WPF Theming & UI Patterns (for Controller implementation)
-
-When building the Controller UI:
-
-- **Implicit Window style:** Use `DynamicResource` brushes (`TextPrimaryBrush`, `AccentPrimaryBrush`, etc.) for all surfaces, text, and borders so the UI follows light/dark theme changes live.
-- **Custom windows need theme application:** Any modal dialog or separate window must call `themeService.ApplyTitleBar(this)` from its `SourceInitialized` event so the native title bar matches the theme.
-- **DataGrid/ListBox styling:** Don't trust `Style` `Setter`s for `Background`/`Foreground` on standard controls — they often have default `ControlTemplate`s that ignore those properties. Prefer local attribute values or custom `ControlTemplate`s with explicit `TemplateBinding`.
-- **TextBlock foreground gotcha:** Any `TextBlock` with its own inline `<TextBlock.Style>` loses the implicit theme foreground and needs an explicit `Foreground="{DynamicResource TextPrimaryBrush}"` local value, or it renders nearly invisible on light surfaces.
+The developer wants the scoreboard's styling to draw on the World Nine Ball Tour (WNT /
+Matchroom Pool) broadcast scoreboard as an additional visual reference, alongside the
+overlays.uno Billiards Scoreboard already noted in README.md. As of 2026-08-13 this hasn't
+been translated into concrete style choices yet — see NOTES.md ("WNT visual reference —
+capability limits") for why, and PROGRESS.md for the pending research task.
 
 ## Known Simplifications & Future Work
 
-- **No database yet:** Game state is in-memory only; persistence (match history, player data) is not implemented.
-- **Core logic is complete for basic gameplay:** league rules, race-to calculations, break tracking, undo/reset are all functional and tested.
-- **UI is not started:** Controller and Overlay are structural only; no scoreboard display, player management, or OBS integration yet.
-- **No player database:** Controller will eventually need to load/save player names, ratings, and team info; no persistence layer yet.
+- No persistence yet: game state is in-memory only; no match history or saved player list.
+- No player database: names/teams are typed in per match for now.
 
 ## Testing Notes
 
-- Core logic (GameManager, RaceRules) is UI-free and easily unit-testable — create tests under a future `PoolScoreboard.Core.Tests` project using xUnit or NUnit.
-- Controller UI would be tested end-to-end (WPF integration tests against a real GameManager).
-- Overlay/HTTP integration tests would mock the game state.
+- Core logic (`GameManager`, models) is UI-free and unit-testable — put tests under
+  `PoolScoreboard.Core.Tests` (xUnit or NUnit).
+- Controller UI would be tested end-to-end against a real `GameManager`.
+- Overlay/control-API endpoints should be tested against a `GameManager` test instance, not
+  a live one.
 
 ## Versioning & Commit Policy
 
-Versions follow the pattern `0.<major>.<ui>` pre-1.0:
-- Major bumps for functionality changes (new feature, significant refactor)
-- UI bumps for cosmetic-only changes (layout, styling, zero behavior change)
-- Trivial fixes (typos, comments) fold into the next functional/UI commit
+Version format while pre-1.0: **`0.<major>.<ui>`**
 
-Example commits:
-- `v0.1: Initial game logic and Core types` — first working version
-- `v0.1.1: Controller main window layout` — UI-only styling
-- `v0.2: WPF scoreboard display with live score updates` — new feature
+- **Major functionality updates** (new features, new workflows, significant logic changes)
+  bump the middle number: `0.1` → `0.2` → `0.3` ...
+- **UI-only updates** (layout, styling, cosmetic/no-behavior-change tweaks) bump the third
+  number under the current major: `0.1.1` → `0.1.2` ... Resets when the major bumps.
+- Trivial fixes (typos, comments, formatting) fold into the next functional/UI commit.
+
+Commits are **not** auto-pushed in this repo — confirm with the developer before pushing,
+same as any other repo, unless they explicitly grant standing authorization for this project.

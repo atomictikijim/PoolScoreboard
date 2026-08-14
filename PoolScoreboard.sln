@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PoolScoreboard.Core", "Pool
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PoolScoreboard.Overlay", "PoolScoreboard.Overlay\PoolScoreboard.Overlay.csproj", "{CBD6B7E4-02EB-42F8-8FE9-6E1EAA459D29}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PoolScoreboard.Core.Tests", "PoolScoreboard.Core.Tests\PoolScoreboard.Core.Tests.csproj", "{9DA3BA3A-82E6-469E-8D8A-8F9B7234BD29}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{CBD6B7E4-02EB-42F8-8FE9-6E1EAA459D29}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CBD6B7E4-02EB-42F8-8FE9-6E1EAA459D29}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CBD6B7E4-02EB-42F8-8FE9-6E1EAA459D29}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9DA3BA3A-82E6-469E-8D8A-8F9B7234BD29}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9DA3BA3A-82E6-469E-8D8A-8F9B7234BD29}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9DA3BA3A-82E6-469E-8D8A-8F9B7234BD29}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9DA3BA3A-82E6-469E-8D8A-8F9B7234BD29}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

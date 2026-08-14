@@ -1,21 +1,46 @@
 # Pool Scoreboard Controller & OBS Overlay
 
-A Windows desktop application for managing pool game scoreboards with real-time OBS integration and Stream Deck support.
+A Windows desktop application for running a live pool-match scoreboard as an OBS Studio
+overlay, controlled from a desktop window, the keyboard, or an Elgato Stream Deck — with
+no internet connection required at any point.
+
+Modeled loosely on the control experience of overlays.uno's Billiards Scoreboard
+(https://app.overlays.uno/control/3qGQ7Nn39iB0pa7xemjnD0), but fully local: the app hosts
+its own overlay server on localhost, so it keeps working with no network at all.
 
 ## Features
 
-- **Multi-Game Support**: 8-ball, 9-ball, and 10-ball pool games
-- **League Support**: APA, USAPL, BCA, and TAP league rulesets with automatic skill-level-based race calculations
-- **Player Management**: Input player names, team names, and skill levels
-- **Game Control**: Keyboard and Stream Deck input for real-time scoreboard management
-- **OBS Integration**: Browser-based overlay for live streaming
-- **Automatic Win Detection**: Race conditions auto-calculate and detect winners based on league rules
+- **Game Types**: 8-ball, 9-ball, 10-ball — no league or skill-level system. The operator
+  sets everything directly.
+- **Race To**: a single shared target for both players, or a per-player split (e.g. Home
+  races to 7, Away races to 5).
+- **Ball Display**:
+  - *8-ball*: operator assigns Solids or Stripes to each player; that player's group of
+    balls displays underneath them. The 8-ball itself always stays in the center,
+    unassigned to either side.
+  - *9-ball / 10-ball*: balls display in numerical order (1–9 or 1–10), no assignment
+    needed.
+- **Current Shooter Indicator**: highlights whichever player is at the table right now.
+- **Customizable Color Scheme**: background, accent, and text colors are operator-set, not
+  hardcoded — so the overlay can match a stream's branding.
+- **Cue Ball Spin Overlay**: a second, independently placeable OBS browser source showing
+  a cue ball graphic. The operator clicks it to drop a red contact-point dot showing the
+  spin/english being used on a shot. Lives in its own browser source separate from the
+  scoreboard, so it can be sized and positioned anywhere in the scene.
+- **Stream Deck Control**: a documented Stream Deck profile (button layout + local HTTP
+  endpoints) drives scores, shooter toggle, ball assignment, and rack/match reset without
+  touching the desktop window.
 
 ## Project Structure
 
-- `PoolScoreboard.Controller/` — WPF desktop application for scoreboard control
-- `PoolScoreboard.Core/` — Game logic, rules engine, and data models
-- `PoolScoreboard.Overlay/` — HTTP server and overlay UI for OBS streaming
+- `PoolScoreboard.Controller/` — WPF desktop application; the operator's control window
+  and the host process for the local overlay server.
+- `PoolScoreboard.Core/` — game logic, state, and data models (no UI, no I/O).
+- `PoolScoreboard.Overlay/` — the ASP.NET Core Kestrel server (hosted in-process by the
+  Controller) serving the OBS browser-source pages and the local HTTP control API used by
+  the Stream Deck.
+- `streamdeck/` — Stream Deck profile documentation: the button-to-endpoint mapping used
+  to build the actual profile in the Stream Deck app.
 
 ## Quick Start
 
@@ -23,60 +48,46 @@ A Windows desktop application for managing pool game scoreboards with real-time 
 # Build the solution
 dotnet build
 
-# Run the controller app
+# Run the controller app (also starts the local overlay/control server)
 dotnet run --project PoolScoreboard.Controller/PoolScoreboard.Controller.csproj
 ```
 
-## Configuration
-
-### Supported Leagues
-
-- **APA** (American Poolplayers Association)
-- **USAPL** (US Amateur Pool League)
-- **BCA** (Billiard Congress of America)
-- **TAP** (Tough As Nails Pool League)
-
-### Game Types
-
-- **8-Ball**: Classic 8-ball pool format
-- **9-Ball**: Fast-paced 9-ball format
-- **10-Ball**: European-style 10-ball format
-
-## Input Methods
-
-- **Keyboard**: Numeric keys and arrow keys for score control
-- **Stream Deck**: HTTP API integration for button controls
-- **Mouse/Touch**: Direct UI interaction
+Add the overlay as an OBS **Browser Source** pointed at the local URL the Controller
+prints on startup (e.g. `http://localhost:5000/overlay/scoreboard`), and the cue-ball
+overlay as a second, separate Browser Source (e.g. `http://localhost:5000/overlay/cueball`).
 
 ## Architecture
 
 ### Core Module
 
-The `PoolScoreboard.Core` module contains:
-- `GameManager` — Manages overall game state and logic
-- `RaceRules` — League-specific ruleset calculations
-- `Models` — Data models for players and game state
-- `Enums` — Game types, leagues, and status enumerations
+- `GameManager` — orchestrates match state and raises `GameStateChanged` so the Controller
+  UI and the Overlay server both stay in sync without polling each other.
+- `GameState` / `Player` — data models: scores, race-to target(s), current shooter, 8-ball
+  group assignment, color theme.
+- No league, skill-level, or Fargo-rating concepts — race-to is always set directly by the
+  operator.
 
-### Controller Module
+### Controller Module (WPF)
 
-The `PoolScoreboard.Controller` WPF application provides:
-- Game setup and player management
-- Real-time scoreboard display
-- Keyboard and input handling
-- Integration with Core game logic
+- Operator's control window: match setup, score +/-, shooter toggle, ball assignment/marking,
+  color pickers.
+- Hosts the Overlay's Kestrel server in-process on startup, so there is exactly one process
+  and one `GameManager` instance — the Controller, the OBS overlay, and the Stream Deck
+  endpoints all read/write the same live state.
 
-### Overlay Module
+### Overlay Module (ASP.NET Core, hosted by Controller)
 
-The `PoolScoreboard.Overlay` module provides:
-- HTTP server for OBS browser source
-- Real-time game state synchronization
-- Customizable overlay UI
-- WebSocket support for live updates
+- `/overlay/scoreboard` — OBS browser source: scores, race-to, shooter indicator, ball
+  display, operator-set colors.
+- `/overlay/cueball` — OBS browser source: cue ball + click-to-place red spin dot.
+- `/api/control/*` — local-only HTTP endpoints for Stream Deck buttons (increment/decrement
+  score, toggle shooter, assign ball group, new rack, reset match).
+- Bound to `localhost` only — never reaches out to the internet, and nothing outside the
+  machine can reach it either.
 
 ## Development Notes
 
-- All projects target `.NET 8.0`
-- Nullable reference types are enabled
-- Follow MVVM pattern in WPF code
-- Game logic should be testable and UI-agnostic
+- All projects target `.NET 8.0`.
+- Nullable reference types enabled.
+- Follow MVVM in the WPF Controller.
+- Core stays UI-free and fully unit-testable.

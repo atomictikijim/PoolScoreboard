@@ -1,9 +1,8 @@
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PoolScoreboard.Core;
 using PoolScoreboard.Core.Enums;
-using PoolScoreboard.Core.Models;
-using PoolScoreboard.Core.Rules;
 
 namespace PoolScoreboard.Controller.ViewModels;
 
@@ -12,10 +11,10 @@ public partial class GameViewModel : ObservableObject
     private GameManager? _gameManager;
 
     [ObservableProperty]
-    private League selectedLeague = League.APA;
+    private GameType selectedGameType = GameType.NineBall;
 
     [ObservableProperty]
-    private GameType selectedGameType = GameType.NineBall;
+    private RaceToMode selectedRaceToMode = RaceToMode.Single;
 
     [ObservableProperty]
     private string? matchTitle;
@@ -33,32 +32,35 @@ public partial class GameViewModel : ObservableObject
     private string accentColor = "#00d4ff";
 
     [ObservableProperty]
-    private bool homeAtTable = true;
+    private bool homeIsCurrentShooter = true;
+
+    public bool IsEightBall => SelectedGameType == GameType.EightBall;
+
+    public bool IsSplitRaceTo => SelectedRaceToMode == RaceToMode.Split;
 
     public GameViewModel()
     {
-        SelectedLeague = League.APA;
-        SelectedGameType = GameType.NineBall;
-        SetupPlayers(SelectedLeague, SelectedGameType);
-    }
-
-    partial void OnSelectedLeagueChanged(League oldValue, League newValue)
-    {
-        // Update league without recreating players (preserves skill levels)
-        if (HomePlayer != null && AwayPlayer != null)
-        {
-            HomePlayer.UpdateLeagueAndGameType(newValue, SelectedGameType);
-            AwayPlayer.UpdateLeagueAndGameType(newValue, SelectedGameType);
-        }
+        SetupPlayers();
     }
 
     partial void OnSelectedGameTypeChanged(GameType oldValue, GameType newValue)
     {
-        // Update game type without recreating players (preserves skill levels)
-        if (HomePlayer != null && AwayPlayer != null)
+        OnPropertyChanged(nameof(IsEightBall));
+
+        if (newValue != GameType.EightBall && HomePlayer != null && AwayPlayer != null)
         {
-            HomePlayer.UpdateLeagueAndGameType(SelectedLeague, newValue);
-            AwayPlayer.UpdateLeagueAndGameType(SelectedLeague, newValue);
+            HomePlayer.BallGroup = BallGroup.Unassigned;
+            AwayPlayer.BallGroup = BallGroup.Unassigned;
+        }
+    }
+
+    partial void OnSelectedRaceToModeChanged(RaceToMode oldValue, RaceToMode newValue)
+    {
+        OnPropertyChanged(nameof(IsSplitRaceTo));
+
+        if (newValue == RaceToMode.Single && HomePlayer != null && AwayPlayer != null)
+        {
+            AwayPlayer.RaceToTarget = HomePlayer.RaceToTarget;
         }
     }
 
@@ -68,26 +70,7 @@ public partial class GameViewModel : ObservableObject
             return;
 
         _gameManager = new GameManager();
-
-        var skillLevel = HomePlayer.UsesSkillLevel ? HomePlayer.SkillLevel : (HomePlayer.FargoRating / 100);
-        var homePlayerModel = new Player
-        {
-            Name = HomePlayer.PlayerName,
-            TeamName = HomePlayer.TeamName,
-            SkillLevel = skillLevel,
-            League = SelectedLeague
-        };
-
-        skillLevel = AwayPlayer.UsesSkillLevel ? AwayPlayer.SkillLevel : (AwayPlayer.FargoRating / 100);
-        var awayPlayerModel = new Player
-        {
-            Name = AwayPlayer.PlayerName,
-            TeamName = AwayPlayer.TeamName,
-            SkillLevel = skillLevel,
-            League = SelectedLeague
-        };
-
-        _gameManager.InitializeGame(homePlayerModel, awayPlayerModel, SelectedGameType);
+        _gameManager.InitializeGame(HomePlayer.GetPlayer(), AwayPlayer.GetPlayer(), SelectedGameType, SelectedRaceToMode);
         _gameManager.GameStateChanged += OnGameStateChanged;
 
         GameInitialized = true;
@@ -97,19 +80,44 @@ public partial class GameViewModel : ObservableObject
     {
         if (HomePlayer != null && AwayPlayer != null)
         {
-            HomePlayer.GameScore = 0;
-            AwayPlayer.GameScore = 0;
-            HomeAtTable = true;
+            HomePlayer.Score = 0;
+            AwayPlayer.Score = 0;
+            HomeIsCurrentShooter = true;
             InitializeGame();
         }
     }
 
     [RelayCommand]
-    public void ToggleAtTable()
+    public void ToggleCurrentShooter()
     {
-        HomeAtTable = !HomeAtTable;
+        HomeIsCurrentShooter = !HomeIsCurrentShooter;
     }
 
+    [RelayCommand]
+    public void AssignHomeSolids() => AssignGroup(HomePlayer, AwayPlayer, BallGroup.Solids);
+
+    [RelayCommand]
+    public void AssignHomeStripes() => AssignGroup(HomePlayer, AwayPlayer, BallGroup.Stripes);
+
+    [RelayCommand]
+    public void AssignAwaySolids() => AssignGroup(AwayPlayer, HomePlayer, BallGroup.Solids);
+
+    [RelayCommand]
+    public void AssignAwayStripes() => AssignGroup(AwayPlayer, HomePlayer, BallGroup.Stripes);
+
+    private static void AssignGroup(PlayerViewModel? player, PlayerViewModel? other, BallGroup group)
+    {
+        if (player == null || other == null)
+            return;
+
+        player.BallGroup = group;
+        other.BallGroup = group switch
+        {
+            BallGroup.Solids => BallGroup.Stripes,
+            BallGroup.Stripes => BallGroup.Solids,
+            _ => BallGroup.Unassigned
+        };
+    }
 
     private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e)
     {
@@ -117,12 +125,20 @@ public partial class GameViewModel : ObservableObject
         // This will be extended as we add more game tracking
     }
 
-    public void SetupPlayers(League league, GameType gameType)
+    private void SetupPlayers()
     {
-        SelectedLeague = league;
-        SelectedGameType = gameType;
+        HomePlayer = new PlayerViewModel();
+        AwayPlayer = new PlayerViewModel();
+        HomePlayer.PropertyChanged += OnHomePlayerPropertyChanged;
+    }
 
-        HomePlayer = new PlayerViewModel(league, gameType);
-        AwayPlayer = new PlayerViewModel(league, gameType);
+    private void OnHomePlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PlayerViewModel.RaceToTarget)
+            && SelectedRaceToMode == RaceToMode.Single
+            && HomePlayer != null && AwayPlayer != null)
+        {
+            AwayPlayer.RaceToTarget = HomePlayer.RaceToTarget;
+        }
     }
 }

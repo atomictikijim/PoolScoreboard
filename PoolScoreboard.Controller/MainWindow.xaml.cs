@@ -1,6 +1,5 @@
-﻿using System.Windows;
+using System.Windows;
 using PoolScoreboard.Controller.ViewModels;
-using PoolScoreboard.Core.Enums;
 
 namespace PoolScoreboard.Controller;
 
@@ -16,16 +15,16 @@ public partial class MainWindow : Window
 
         DataContext = _viewModel;
 
-        UpdateAtTableButton();
+        UpdateCurrentShooterButton();
         _viewModel.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == nameof(GameViewModel.HomeAtTable))
-                UpdateAtTableButton();
+            if (e.PropertyName == nameof(GameViewModel.HomeIsCurrentShooter))
+                UpdateCurrentShooterButton();
         };
     }
 
-    private void UpdateAtTableButton()
+    private void UpdateCurrentShooterButton()
     {
-        AtTableToggleButton.Content = _viewModel.HomeAtTable ? "HOME at Table" : "AWAY at Table";
+        CurrentShooterToggleButton.Content = _viewModel.HomeIsCurrentShooter ? "HOME Shooting" : "AWAY Shooting";
     }
 }
