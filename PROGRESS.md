@@ -167,10 +167,10 @@ live:
 - [x] `streamdeck/` folder: document the button layout and each button's target endpoint,
   so the actual Stream Deck profile can be built in the Stream Deck app from this mapping.
 
-### Phase 6: Packaging
+### Phase 6: Packaging (DONE)
 
-- [ ] `dotnet publish -p:PublishSingleFile=true -p:SelfContained=true` for a distributable
-  build that doesn't require a separately installed .NET runtime.
+- [x] `dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true`
+  for a distributable build that doesn't require a separately installed .NET runtime.
 
 ## Known Gaps & Simplifications
 
@@ -185,6 +185,29 @@ live:
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-08-15 — Single-file self-contained publish (Phase 6)
+
+- Added `<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>` to `PoolScoreboard.Controller.csproj`
+  plus a `Condition="'$(SelfContained)' == 'true'"` property group
+  (`PublishSingleFile`/`IncludeNativeLibrariesForSelfExtract`/`EnableCompressionInSingleFile`) so
+  these only kick in for a real publish, not `dotnet build`/`dotnet run` — confirmed a plain
+  `dotnet build` still produces the normal multi-file Debug output afterward.
+  `IncludeNativeLibrariesForSelfExtract` matters specifically for WPF: a few native dependencies
+  (e.g. `PenIMC`, `wpfgfx`) can't be merged into the single file, so without it they'd still land
+  next to the exe instead of self-extracting from it at runtime.
+- Verified end-to-end: `dotnet publish -c Release -r win-x64 --self-contained true
+  -p:PublishSingleFile=true` produces one ~84MB `PoolScoreboard.Controller.exe` (plus `.pdb`
+  symbol files, which aren't needed for distribution) with no other runtime files. Launched the
+  published exe directly (not `dotnet run`), confirmed the process starts and stays up, and
+  confirmed the in-process overlay/control Kestrel server comes up correctly on the packaged
+  build too — `GET /overlay/scoreboard` returned 200 and
+  `GET /overlay/api/scoreboard/state` returned a valid `GameState` JSON snapshot — before
+  tearing the test process and output down.
+- Also added `You Chalkin To Me.png` (developer-supplied mascot art, background removed via a
+  connected-component flood fill so only the small interior details like teeth/eye-highlight
+  stayed opaque) as `Assets\Icon\AppIcon.ico`, wired via `ApplicationIcon`, ahead of this phase
+  so the packaged exe carries a real icon rather than the default WinExe placeholder.
 
 ### 2026-08-14 — In-app Help modal
 
