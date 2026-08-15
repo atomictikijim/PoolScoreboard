@@ -263,8 +263,6 @@ public partial class GameViewModel : ObservableObject
         _gameManager.InitializeGame(_homePlayerModel, _awayPlayerModel, SelectedGameType, SelectedRaceToMode);
         ApplyColorTheme();
         ApplyScoreboardStyle();
-
-        GameInitialized = true;
     }
 
     [RelayCommand]
@@ -426,12 +424,18 @@ public partial class GameViewModel : ObservableObject
             ball.IsPocketed = false;
 
         RefreshBallLayout();
-        GameInitialized = false;
     }
 
     private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e)
     {
         var state = e.GameState;
+
+        // Derived rather than only set by local button clicks — a remote Stream Deck call to
+        // /api/control/match/reset mutates GameManager directly, so this is what lets the
+        // Controller's own screen flip back to Match Setup in that case too. A finished match
+        // (Winner set, IsGameActive false) still counts as "initialized" so the winner banner
+        // stays on the live view until the operator resets or starts a new rack.
+        GameInitialized = state.IsGameActive || state.Winner != null;
 
         HomeScore = state.Player1Score;
         AwayScore = state.Player2Score;

@@ -24,6 +24,7 @@ public static class OverlayHost
 
         ScoreboardEndpoints.Map(app, gameManager);
         CueBallEndpoints.Map(app, gameManager);
+        ControlEndpoints.Map(app, gameManager);
 
         app.Start();
         return app;

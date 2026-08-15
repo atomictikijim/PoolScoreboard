@@ -160,11 +160,11 @@ live:
   `GameState.CueBallSpin` unconditionally before applying the score, and the page's own "Clear"
   button POSTs to `/overlay/api/cueball/clear` for an early reset (e.g. after a foul).
 
-### Phase 5: Stream Deck Integration
+### Phase 5: Stream Deck Integration (DONE)
 
-- [ ] `/api/control/*` endpoints on the same in-process Kestrel server: score inc/dec,
+- [x] `/api/control/*` endpoints on the same in-process Kestrel server: score inc/dec,
   shooter toggle, ball-group assignment, new rack, reset match.
-- [ ] `streamdeck/` folder: document the button layout and each button's target endpoint,
+- [x] `streamdeck/` folder: document the button layout and each button's target endpoint,
   so the actual Stream Deck profile can be built in the Stream Deck app from this mapping.
 
 ### Phase 6: Packaging
@@ -185,6 +185,44 @@ live:
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-08-14 — Phase 5: Stream Deck Integration
+
+- New `PoolScoreboard.Overlay.Endpoints.ControlEndpoints` maps ten `/api/control/*` routes onto
+  the shared `GameManager` instance: score add (home/away), undo, shooter toggle, 8-ball group
+  assignment (home/away × solids/stripes), new rack, and reset match. All are `GET` routes, not
+  `POST` — per CLAUDE.md's "no custom Elgato SDK plugin" design, Stream Deck buttons are meant to
+  hit these via the built-in "Website" action in background mode, which has no way to configure a
+  request body or verb. Registered in `OverlayHost.Start` alongside the existing
+  `ScoreboardEndpoints`/`CueBallEndpoints` calls.
+- Added `streamdeck/README.md`: a table mapping a suggested button layout to each endpoint and
+  its effect, plus notes on safe no-op behavior pre-match, what "Reset Match" actually does (full
+  reset back to the Match Setup screen, not a mid-rack undo), and why the cue-ball "Clear" button
+  is deliberately left off the table (meant to be clicked directly on the OBS browser source via
+  Interact mode).
+- **Found and fixed a real desync bug** while wiring this up: `GameViewModel.GameInitialized`
+  (which toggles the Controller between the Match Setup and Live View screens) was previously
+  only ever set by the local `StartMatch`/`ResetMatch` button-click commands, never derived from
+  `GameManager` state. Since the whole point of `/api/control/match/reset` is to let an operator
+  reset the match from a physical Stream Deck button without touching the WPF window, hitting it
+  would have reset `GameManager`'s state correctly but left the Controller's own screen stuck on
+  the (now-stale) Live View. Fixed by deriving `GameInitialized` in `OnGameStateChanged` instead:
+  `state.IsGameActive || state.Winner != null` (the `Winner != null` half keeps the live view
+  showing the winner banner after a race is won, until the operator resets or starts a new rack —
+  matching existing behavior). Removed the now-redundant explicit `GameInitialized = true/false`
+  assignments from `StartMatch`/`ResetMatch`, since the derived value already covers both.
+- `dotnet build` clean across all four projects; `dotnet test` 33/33 (no Core logic changed —
+  `ControlEndpoints` are thin routing wrappers over already-tested `GameManager` methods).
+  Verified live end-to-end with a throwaway console harness (Core + Overlay only, referencing
+  both projects directly, no WPF) that starts a real match via `GameManager.InitializeGame`,
+  starts `OverlayHost` on a scratch port, and hits every `/api/control/*` endpoint via `HttpClient`
+  while asserting on `GameManager.GetCurrentGameState()` after each call — confirmed score
+  add/undo, shooter toggle, ball-group auto-flip, new-rack pocketed-ball clearing, and match reset
+  (`IsGameActive` flips to `false`, players reset to blank) all work correctly. Also confirmed via
+  a full `dotnet clean && dotnet build` + Controller relaunch that the app still starts cleanly on
+  the Match Setup screen with correct defaults after these changes. Actually wiring a physical
+  Stream Deck device to these URLs is still owed by the developer — no such hardware is available
+  in this environment.
 
 ### 2026-08-14 — Confirmed in real OBS Studio: both overlay pages verified as browser sources
 
