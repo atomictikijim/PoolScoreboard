@@ -55,6 +55,18 @@ public class GameManager
         RaiseGameStateChanged();
     }
 
+    public void SetMatchPreview(Player player1, Player player2, GameType gameType, RaceToMode raceToMode)
+    {
+        if (_currentGame.IsGameActive)
+            return;
+
+        _currentGame.Player1 = player1;
+        _currentGame.Player2 = player2;
+        _currentGame.GameType = gameType;
+        _currentGame.RaceToMode = raceToMode;
+        RaiseGameStateChanged();
+    }
+
     public void SetCurrentShooter(Player player)
     {
         if (_currentGame.IsGameActive)
@@ -133,6 +145,37 @@ public class GameManager
     public void SetColorTheme(ColorTheme theme)
     {
         _currentGame.ColorTheme = theme;
+        RaiseGameStateChanged();
+    }
+
+    public void SetScoreboardStyle(ScoreboardStyle style)
+    {
+        _currentGame.ScoreboardStyle = new ScoreboardStyle
+        {
+            CornerRoundness = Math.Clamp(style.CornerRoundness, 0, 100),
+            OverallScale = Math.Clamp(style.OverallScale, 50, 200),
+            GlossyFinish = style.GlossyFinish,
+            EndCapStyle = style.EndCapStyle,
+            ShooterIndicatorStyle = style.ShooterIndicatorStyle
+        };
+        RaiseGameStateChanged();
+    }
+
+    public void SetScoreBarVisible(bool visible)
+    {
+        _currentGame.Visibility.ScoreBarVisible = visible;
+        RaiseGameStateChanged();
+    }
+
+    public void SetBallTrackerVisible(bool visible)
+    {
+        _currentGame.Visibility.BallTrackerVisible = visible;
+        RaiseGameStateChanged();
+    }
+
+    public void SetWinnerBannerVisible(bool visible)
+    {
+        _currentGame.Visibility.WinnerBannerVisible = visible;
         RaiseGameStateChanged();
     }
 

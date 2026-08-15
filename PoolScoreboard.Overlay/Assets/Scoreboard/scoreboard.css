@@ -1,9 +1,15 @@
 :root {
-  --bg: #1a2332;
-  --bg-light: #34445e;
-  --bg-dark: #0f1520;
-  --accent: #00d4ff;
+  --bg-home: #1a2332;
+  --bg-home-light: #34445e;
+  --bg-home-dark: #0f1520;
+  --bg-away: #1a2332;
+  --bg-away-light: #34445e;
+  --bg-away-dark: #0f1520;
+  --accent-home: #00d4ff;
+  --accent-away: #00d4ff;
   --text: #f0f0f0;
+  --radius-scale: 1;
+  --ui-scale: 1;
 }
 
 * {
@@ -23,6 +29,11 @@ html, body {
   flex-direction: column;
   align-items: center;
   padding: 28px 24px 20px;
+  /* Scales the whole widget from its top-left corner. OBS's browser-source width/height still
+     crops around this — sizing above 100% may clip unless the source is sized generously. This
+     is the intended trade-off, not a bug. */
+  transform: scale(var(--ui-scale));
+  transform-origin: top left;
 }
 
 .pill {
@@ -31,9 +42,9 @@ html, body {
   align-items: stretch;
   height: 84px;
   min-width: 620px;
-  border-radius: 42px;
+  border-radius: calc(42px * var(--radius-scale));
   overflow: hidden;
-  background: linear-gradient(180deg, var(--bg-light) 0%, var(--bg) 55%, var(--bg-dark) 100%);
+  background: #000000;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
@@ -44,20 +55,67 @@ html, body {
   padding: 0 28px;
   flex: 1 1 auto;
   min-width: 220px;
-  transition: box-shadow 0.25s ease, background 0.25s ease;
+  transition: box-shadow 0.25s ease;
 }
 
 .side-home {
   justify-content: flex-start;
+  background: linear-gradient(180deg, var(--bg-home-light) 0%, var(--bg-home) 55%, var(--bg-home-dark) 100%);
 }
 
 .side-away {
   justify-content: flex-end;
+  background: linear-gradient(180deg, var(--bg-away-light) 0%, var(--bg-away) 55%, var(--bg-away-dark) 100%);
 }
 
-.side.active {
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 0 0 3px var(--accent), inset 0 0 22px rgba(0, 0, 0, 0.15);
+.flat-finish .side-home {
+  background: var(--bg-home);
+}
+
+.flat-finish .side-away {
+  background: var(--bg-away);
+}
+
+.shooter-glow .side-home.active {
+  box-shadow: inset 0 0 0 3px var(--accent-home), inset 0 0 22px rgba(0, 0, 0, 0.15);
+}
+
+.shooter-glow .side-away.active {
+  box-shadow: inset 0 0 0 3px var(--accent-away), inset 0 0 22px rgba(0, 0, 0, 0.15);
+}
+
+.name-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.05;
+}
+
+.side-home .name-block {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.side-away .name-block {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.team-name {
+  color: var(--text);
+  opacity: 0.7;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.team-name:empty {
+  display: none;
 }
 
 .name {
@@ -69,13 +127,14 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .score-badge {
   min-width: 56px;
   height: 56px;
   padding: 0 10px;
-  border-radius: 14px;
+  border-radius: calc(14px * var(--radius-scale));
   background: #ffffff;
   color: #101820;
   font-weight: 800;
@@ -88,12 +147,14 @@ html, body {
 }
 
 .center {
+  position: relative;
   flex: 0 0 auto;
   min-width: 170px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-dark);
+  /* Always black, regardless of theme — not driven by ColorTheme. */
+  background: #000000;
 }
 
 .center-label {
@@ -104,11 +165,42 @@ html, body {
   white-space: nowrap;
 }
 
+.shooter-pointer {
+  position: absolute;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+/* Points left, toward the home player's name/score (away from the center Race-To segment). */
+.shooter-pointer-home {
+  right: 100%;
+  margin-right: 2px;
+  border: 8px solid transparent;
+  border-right-color: var(--accent-home);
+}
+
+/* Points right, toward the away player's name/score (away from the center Race-To segment). */
+.shooter-pointer-away {
+  left: 100%;
+  margin-left: 2px;
+  border: 8px solid transparent;
+  border-left-color: var(--accent-away);
+}
+
+.shooter-pointer.visible {
+  opacity: 1;
+}
+
 .cap {
   flex: 0 0 auto;
   width: 34px;
   margin: 8px 0;
-  border-radius: 17px;
+  border-radius: calc(17px * var(--radius-scale));
   background: #0a0a0a;
   display: flex;
   align-items: center;
@@ -116,32 +208,72 @@ html, body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
+.caps-hidden .cap {
+  display: none;
+}
+
 .cap-dot {
   width: 14px;
   height: 14px;
-  border-radius: 50%;
-  background: var(--accent);
+  border-radius: calc(50% * var(--radius-scale));
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+}
+
+.cap-icon {
+  display: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+}
+
+.cap.has-icon .cap-dot {
+  display: none;
+}
+
+.cap.has-icon .cap-icon {
+  display: block;
+}
+
+.cap-home .cap-dot {
+  background: var(--accent-home);
+}
+
+.cap-away .cap-dot {
+  background: var(--accent-away);
+}
+
+.sb-hideable {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.sb-hideable.sb-hidden {
+  opacity: 0;
+  transform: translateY(-16px);
+  pointer-events: none;
+}
+
+.sb-no-transition {
+  transition: none !important;
 }
 
 .winner-banner {
   margin-top: 14px;
   padding: 8px 22px;
-  border-radius: 20px;
-  background: var(--accent);
+  border-radius: calc(20px * var(--radius-scale));
   color: #101820;
   font-weight: 800;
   font-size: 18px;
   letter-spacing: 1px;
-  opacity: 0;
-  transform: translateY(-6px);
-  transition: opacity 0.25s ease, transform 0.25s ease;
-  pointer-events: none;
 }
 
-.winner-banner.visible {
-  opacity: 1;
-  transform: translateY(0);
+.winner-banner.winner-home {
+  background: var(--accent-home);
+}
+
+.winner-banner.winner-away {
+  background: var(--accent-away);
 }
 
 .ball-tracker {
@@ -150,22 +282,46 @@ html, body {
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
-  border-radius: 20px;
+  border-radius: calc(20px * var(--radius-scale));
   background: rgba(0, 0, 0, 0.35);
 }
 
 .ball {
+  position: relative;
   width: 30px;
   height: 30px;
   border-radius: 50%;
+  box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.35), inset 0 2px 3px rgba(255, 255, 255, 0.35);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.ball.solid {
+  background: var(--ball-color);
+}
+
+.ball.stripe {
+  background-color: #ffffff;
+  background-image: linear-gradient(var(--ball-color), var(--ball-color));
+  background-size: 100% 46%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.ball-badge {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 62%;
+  height: 62%;
+  border-radius: 50%;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 13px;
-  box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.35), inset 0 2px 3px rgba(255, 255, 255, 0.35);
-  transition: opacity 0.2s ease, filter 0.2s ease;
+  color: #111111;
+  font-weight: 800;
+  font-size: 11px;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.2);
 }
 
 .ball.pocketed {

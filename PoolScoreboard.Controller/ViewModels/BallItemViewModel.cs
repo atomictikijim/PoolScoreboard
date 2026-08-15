@@ -11,12 +11,14 @@ public partial class BallItemViewModel : ObservableObject
 {
     public int Number { get; }
 
-    public Brush Color { get; }
+    public System.Windows.Media.Brush Color { get; }
+
+    public bool IsStripe => Number > 8;
 
     [ObservableProperty]
     private bool isPocketed;
 
-    public BallItemViewModel(int number, Brush color)
+    public BallItemViewModel(int number, System.Windows.Media.Brush color)
     {
         Number = number;
         Color = color;

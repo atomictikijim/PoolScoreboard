@@ -12,6 +12,8 @@
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
             <converters:HexColorToBrushConverter x:Key="HexColorToBrushConverter" />
+            <converters:BoolToButtonStyleConverter x:Key="BoolToButtonStyleConverter" />
+            <converters:DataUriToImageSourceConverter x:Key="DataUriToImageSourceConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

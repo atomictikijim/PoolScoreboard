@@ -23,22 +23,80 @@
   }
 
   const root = document.documentElement;
+  const scoreboardRoot = document.querySelector('.scoreboard');
   const homeName = document.getElementById('homeName');
   const awayName = document.getElementById('awayName');
+  const homeTeam = document.getElementById('homeTeam');
+  const awayTeam = document.getElementById('awayTeam');
   const homeScore = document.getElementById('homeScore');
   const awayScore = document.getElementById('awayScore');
   const raceToLabel = document.getElementById('raceToLabel');
   const sideHome = document.getElementById('sideHome');
   const sideAway = document.getElementById('sideAway');
+  const shooterPointerHome = document.getElementById('shooterPointerHome');
+  const shooterPointerAway = document.getElementById('shooterPointerAway');
+  const scorePill = document.getElementById('scorePill');
+  const capHome = document.getElementById('capHome');
+  const capAway = document.getElementById('capAway');
+  const capIconHome = document.getElementById('capIconHome');
+  const capIconAway = document.getElementById('capIconAway');
   const winnerBanner = document.getElementById('winnerBanner');
   const ballTracker = document.getElementById('ballTracker');
 
+  let hasRenderedOnce = false;
+
   function applyTheme(colors) {
-    root.style.setProperty('--bg', colors.background);
-    root.style.setProperty('--bg-light', shade(colors.background, 18));
-    root.style.setProperty('--bg-dark', shade(colors.background, -22));
-    root.style.setProperty('--accent', colors.accent);
+    root.style.setProperty('--bg-home', colors.homeBackground);
+    root.style.setProperty('--bg-home-light', shade(colors.homeBackground, 18));
+    root.style.setProperty('--bg-home-dark', shade(colors.homeBackground, -22));
+    root.style.setProperty('--bg-away', colors.awayBackground);
+    root.style.setProperty('--bg-away-light', shade(colors.awayBackground, 18));
+    root.style.setProperty('--bg-away-dark', shade(colors.awayBackground, -22));
+    root.style.setProperty('--accent-home', colors.homeAccent);
+    root.style.setProperty('--accent-away', colors.awayAccent);
     root.style.setProperty('--text', colors.text);
+  }
+
+  function applyStyle(style, homeIsShooter) {
+    root.style.setProperty('--radius-scale', String(style.cornerRoundness / 100));
+    root.style.setProperty('--ui-scale', String(style.overallScale / 100));
+    scoreboardRoot.classList.toggle('flat-finish', !style.glossyFinish);
+    scoreboardRoot.classList.toggle('caps-hidden', style.endCapStyle === 'Hidden');
+
+    const showGlow = style.shooterIndicatorStyle === 'Glow' || style.shooterIndicatorStyle === 'Both';
+    const showTriangle = style.shooterIndicatorStyle === 'Triangle' || style.shooterIndicatorStyle === 'Both';
+    scoreboardRoot.classList.toggle('shooter-glow', showGlow);
+    shooterPointerHome.classList.toggle('visible', showTriangle && homeIsShooter);
+    shooterPointerAway.classList.toggle('visible', showTriangle && !homeIsShooter);
+  }
+
+  function setElementVisible(el, visible, skipAnimation) {
+    if (skipAnimation) {
+      el.classList.add('sb-no-transition');
+      el.classList.toggle('sb-hidden', !visible);
+      el.style.display = visible ? '' : 'none';
+      void el.offsetHeight;
+      el.classList.remove('sb-no-transition');
+      return;
+    }
+
+    if (visible) {
+      if (el.style.display === 'none') {
+        el.style.display = '';
+        void el.offsetHeight;
+      }
+      requestAnimationFrame(() => el.classList.remove('sb-hidden'));
+    } else {
+      el.classList.add('sb-hidden');
+      const onEnd = (event) => {
+        if (event.target !== el || event.propertyName !== 'opacity') return;
+        el.removeEventListener('transitionend', onEnd);
+        if (el.classList.contains('sb-hidden')) {
+          el.style.display = 'none';
+        }
+      };
+      el.addEventListener('transitionend', onEnd);
+    }
   }
 
   function raceToText(state) {
@@ -55,10 +113,16 @@
   }
 
   function ballElement(number, pocketed) {
+    const isStripe = number > 8;
     const el = document.createElement('div');
-    el.className = 'ball' + (pocketed ? ' pocketed' : '');
-    el.style.background = ballColor(number);
-    el.textContent = String(number);
+    el.className = 'ball ' + (isStripe ? 'stripe' : 'solid') + (pocketed ? ' pocketed' : '');
+    el.style.setProperty('--ball-color', ballColor(number));
+
+    const badge = document.createElement('span');
+    badge.className = 'ball-badge';
+    badge.textContent = String(number);
+    el.appendChild(badge);
+
     return el;
   }
 
@@ -85,6 +149,12 @@
 
     homeName.textContent = (state.home.name || 'HOME').toUpperCase();
     awayName.textContent = (state.away.name || 'AWAY').toUpperCase();
+    homeTeam.textContent = state.home.teamName ? state.home.teamName.toUpperCase() : '';
+    awayTeam.textContent = state.away.teamName ? state.away.teamName.toUpperCase() : '';
+    capIconHome.src = state.home.endCapIcon || '';
+    capHome.classList.toggle('has-icon', !!state.home.endCapIcon);
+    capIconAway.src = state.away.endCapIcon || '';
+    capAway.classList.toggle('has-icon', !!state.away.endCapIcon);
     homeScore.textContent = String(state.home.score);
     awayScore.textContent = String(state.away.score);
     raceToLabel.textContent = raceToText(state);
@@ -92,14 +162,28 @@
     sideHome.classList.toggle('active', state.homeIsCurrentShooter);
     sideAway.classList.toggle('active', !state.homeIsCurrentShooter);
 
+    applyStyle(state.style, state.homeIsCurrentShooter);
+
     if (state.winnerName) {
       winnerBanner.textContent = `${state.winnerName.toUpperCase()} WINS!`;
-      winnerBanner.classList.add('visible');
-    } else {
-      winnerBanner.classList.remove('visible');
+      winnerBanner.classList.toggle('winner-home', state.winnerIsHome);
+      winnerBanner.classList.toggle('winner-away', !state.winnerIsHome);
     }
 
+    // The ball tracker and winner banner are dependent overlays of the score bar — if the
+    // score bar itself is hidden, they hide too, regardless of their own individual toggle.
+    const scoreBarVisible = state.visibility.scoreBarVisible;
+    const showBallTracker = scoreBarVisible && state.visibility.ballTrackerVisible;
+    const showWinner = scoreBarVisible && !!state.winnerName && state.visibility.winnerBannerVisible;
+    const skipAnimation = !hasRenderedOnce;
+
+    setElementVisible(scorePill, scoreBarVisible, skipAnimation);
+    setElementVisible(ballTracker, showBallTracker, skipAnimation);
+    setElementVisible(winnerBanner, showWinner, skipAnimation);
+
     renderBalls(state);
+
+    hasRenderedOnce = true;
   }
 
   function connect() {

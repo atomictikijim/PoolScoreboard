@@ -8,7 +8,7 @@ namespace PoolScoreboard.Controller;
 /// <summary>
 /// Interaction logic for App.xaml
 /// </summary>
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     /// <summary>
     /// The single <see cref="GameManager"/> instance for the app's lifetime, shared between the

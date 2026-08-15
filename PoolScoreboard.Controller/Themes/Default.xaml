@@ -1,5 +1,12 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:converters="clr-namespace:PoolScoreboard.Controller.Converters">
+
+    <!-- Declared locally (not just in App.xaml) because StaticResource lookups from within this
+         dictionary's own Styles/Templates can't see the resources of App.xaml, which is the
+         dictionary that merges this one in, not the other way around. -->
+    <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
 
     <!-- Color Palette -->
     <Color x:Key="BackgroundColor">#1a2332</Color>
@@ -229,21 +236,26 @@
         <Setter Property="Height" Value="40" />
         <Setter Property="Margin" Value="4" />
         <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="Foreground" Value="White" />
-        <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="FontSize" Value="14" />
         <Setter Property="Background" Value="{Binding Color}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Grid>
-                        <Ellipse Fill="{TemplateBinding Background}" Stroke="{StaticResource PanelBorderBrush}" StrokeThickness="1" />
-                        <TextBlock Text="{TemplateBinding Content}"
+                    <Grid Width="40" Height="40">
+                        <Grid.Clip>
+                            <EllipseGeometry Center="20,20" RadiusX="20" RadiusY="20" />
+                        </Grid.Clip>
+                        <Ellipse Fill="White" Stroke="{StaticResource PanelBorderBrush}" StrokeThickness="1" />
+                        <Rectangle Fill="{TemplateBinding Background}" Height="18" VerticalAlignment="Center"
+                                   Visibility="{Binding IsStripe, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <Ellipse Fill="{TemplateBinding Background}" Stroke="{StaticResource PanelBorderBrush}" StrokeThickness="1"
+                                 Visibility="{Binding IsStripe, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
+                        <Ellipse Width="26" Height="26" Fill="White" />
+                        <TextBlock Text="{Binding Number}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
-                                   Foreground="{TemplateBinding Foreground}"
-                                   FontWeight="{TemplateBinding FontWeight}"
-                                   FontSize="{TemplateBinding FontSize}" />
+                                   Foreground="#111111"
+                                   FontWeight="Bold"
+                                   FontSize="13" />
                     </Grid>
                 </ControlTemplate>
             </Setter.Value>
@@ -253,6 +265,22 @@
                 <Setter Property="Background" Value="{StaticResource InactiveBrush}" />
             </DataTrigger>
         </Style.Triggers>
+    </Style>
+
+    <Style x:Key="SwatchButtonStyle" TargetType="Button">
+        <Setter Property="Width" Value="24" />
+        <Setter Property="Height" Value="24" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border CornerRadius="4"
+                            BorderBrush="{StaticResource PanelBorderBrush}"
+                            BorderThickness="1"
+                            Background="{TemplateBinding Background}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="CounterButtonStyle" TargetType="Button">

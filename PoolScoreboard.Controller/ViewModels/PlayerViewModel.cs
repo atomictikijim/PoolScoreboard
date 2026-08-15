@@ -21,6 +21,9 @@ public partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     private int raceToTarget = 5;
 
+    [ObservableProperty]
+    private string? endCapIconDataUri;
+
     public PlayerViewModel()
     {
         _player = new Player();
@@ -31,6 +34,8 @@ public partial class PlayerViewModel : ObservableObject
     partial void OnPlayerNameChanged(string value) => _player.Name = value;
 
     partial void OnRaceToTargetChanged(int value) => _player.RaceToTarget = value;
+
+    partial void OnEndCapIconDataUriChanged(string? value) => _player.EndCapIcon = value;
 
     public Player GetPlayer() => _player;
 }

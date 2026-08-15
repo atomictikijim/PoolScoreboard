@@ -1,7 +1,10 @@
 using System.ComponentModel;
+using System.IO;
+using System.Windows;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Win32;
 using PoolScoreboard.Core;
 using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
@@ -46,13 +49,34 @@ public partial class GameViewModel : ObservableObject
     private PlayerViewModel? awayPlayer;
 
     [ObservableProperty]
-    private string backgroundColor = "#1a2332";
+    private string homeBackgroundColor = "#1a2332";
 
     [ObservableProperty]
-    private string accentColor = "#00d4ff";
+    private string awayBackgroundColor = "#1a2332";
+
+    [ObservableProperty]
+    private string homeAccentColor = "#00d4ff";
+
+    [ObservableProperty]
+    private string awayAccentColor = "#00d4ff";
 
     [ObservableProperty]
     private string textColor = "#f0f0f0";
+
+    [ObservableProperty]
+    private int cornerRoundness = 100;
+
+    [ObservableProperty]
+    private int overallScale = 100;
+
+    [ObservableProperty]
+    private bool glossyFinish = true;
+
+    [ObservableProperty]
+    private EndCapStyle selectedEndCapStyle = EndCapStyle.Dot;
+
+    [ObservableProperty]
+    private ShooterIndicatorStyle selectedShooterIndicatorStyle = ShooterIndicatorStyle.Glow;
 
     [ObservableProperty]
     private bool gameInitialized = false;
@@ -89,6 +113,15 @@ public partial class GameViewModel : ObservableObject
     [ObservableProperty]
     private string? winnerAnnouncement;
 
+    [ObservableProperty]
+    private bool scoreBarVisible = true;
+
+    [ObservableProperty]
+    private bool ballTrackerVisible = true;
+
+    [ObservableProperty]
+    private bool winnerBannerVisible = true;
+
     public bool IsEightBall => SelectedGameType == GameType.EightBall;
 
     public bool IsSplitRaceTo => SelectedRaceToMode == RaceToMode.Split;
@@ -101,12 +134,14 @@ public partial class GameViewModel : ObservableObject
         BuildBalls();
         SetupPlayers();
         RefreshBallLayout();
+        ApplyMatchPreview();
     }
 
     partial void OnSelectedGameTypeChanged(GameType oldValue, GameType newValue)
     {
         OnPropertyChanged(nameof(IsEightBall));
         RefreshBallLayout();
+        ApplyMatchPreview();
     }
 
     partial void OnSelectedRaceToModeChanged(RaceToMode oldValue, RaceToMode newValue)
@@ -117,6 +152,103 @@ public partial class GameViewModel : ObservableObject
         {
             AwayPlayer.RaceToTarget = HomePlayer.RaceToTarget;
         }
+
+        ApplyMatchPreview();
+    }
+
+    private void ApplyMatchPreview()
+    {
+        if (HomePlayer == null || AwayPlayer == null)
+            return;
+
+        _gameManager.SetMatchPreview(HomePlayer.GetPlayer(), AwayPlayer.GetPlayer(), SelectedGameType, SelectedRaceToMode);
+    }
+
+    partial void OnHomeBackgroundColorChanged(string? oldValue, string newValue) => ApplyColorTheme();
+
+    partial void OnAwayBackgroundColorChanged(string? oldValue, string newValue) => ApplyColorTheme();
+
+    partial void OnHomeAccentColorChanged(string? oldValue, string newValue) => ApplyColorTheme();
+
+    partial void OnAwayAccentColorChanged(string? oldValue, string newValue) => ApplyColorTheme();
+
+    partial void OnTextColorChanged(string? oldValue, string newValue) => ApplyColorTheme();
+
+    private void ApplyColorTheme()
+    {
+        _gameManager.SetColorTheme(new ColorTheme
+        {
+            HomeBackground = HomeBackgroundColor,
+            AwayBackground = AwayBackgroundColor,
+            HomeAccent = HomeAccentColor,
+            AwayAccent = AwayAccentColor,
+            Text = TextColor
+        });
+    }
+
+    [RelayCommand]
+    private void PickColor(string? colorKey)
+    {
+        if (colorKey == null)
+            return;
+
+        var current = colorKey switch
+        {
+            "HomeBackground" => HomeBackgroundColor,
+            "AwayBackground" => AwayBackgroundColor,
+            "HomeAccent" => HomeAccentColor,
+            "AwayAccent" => AwayAccentColor,
+            "Text" => TextColor,
+            _ => (string?)null
+        };
+        if (current == null)
+            return;
+
+        using var dialog = new System.Windows.Forms.ColorDialog { FullOpen = true };
+        try
+        {
+            var color = (Color)ColorConverter.ConvertFromString(current);
+            dialog.Color = System.Drawing.Color.FromArgb(color.R, color.G, color.B);
+        }
+        catch (Exception)
+        {
+            // Operator is mid-edit of the hex value; open the dialog with its own default instead.
+        }
+
+        if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+            return;
+
+        var hex = $"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}";
+        switch (colorKey)
+        {
+            case "HomeBackground": HomeBackgroundColor = hex; break;
+            case "AwayBackground": AwayBackgroundColor = hex; break;
+            case "HomeAccent": HomeAccentColor = hex; break;
+            case "AwayAccent": AwayAccentColor = hex; break;
+            case "Text": TextColor = hex; break;
+        }
+    }
+
+    partial void OnCornerRoundnessChanged(int oldValue, int newValue) => ApplyScoreboardStyle();
+
+    partial void OnOverallScaleChanged(int oldValue, int newValue) => ApplyScoreboardStyle();
+
+    partial void OnGlossyFinishChanged(bool oldValue, bool newValue) => ApplyScoreboardStyle();
+
+    partial void OnSelectedEndCapStyleChanged(EndCapStyle oldValue, EndCapStyle newValue) => ApplyScoreboardStyle();
+
+    partial void OnSelectedShooterIndicatorStyleChanged(ShooterIndicatorStyle oldValue, ShooterIndicatorStyle newValue) => ApplyScoreboardStyle();
+
+    private void ApplyScoreboardStyle()
+    {
+        _gameManager.SetScoreboardStyle(new ScoreboardStyle
+        {
+            CornerRoundness = CornerRoundness,
+            OverallScale = OverallScale,
+            GlossyFinish = GlossyFinish,
+            EndCapStyle = SelectedEndCapStyle,
+            ShooterIndicatorStyle = SelectedShooterIndicatorStyle
+        });
     }
 
     [RelayCommand]
@@ -129,12 +261,8 @@ public partial class GameViewModel : ObservableObject
         _awayPlayerModel = AwayPlayer.GetPlayer();
 
         _gameManager.InitializeGame(_homePlayerModel, _awayPlayerModel, SelectedGameType, SelectedRaceToMode);
-        _gameManager.SetColorTheme(new ColorTheme
-        {
-            Background = BackgroundColor,
-            Accent = AccentColor,
-            Text = TextColor
-        });
+        ApplyColorTheme();
+        ApplyScoreboardStyle();
 
         GameInitialized = true;
     }
@@ -178,6 +306,82 @@ public partial class GameViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void PickHomeIcon() => PickIcon(HomePlayer);
+
+    [RelayCommand]
+    private void PickAwayIcon() => PickIcon(AwayPlayer);
+
+    [RelayCommand]
+    private void ClearHomeIcon()
+    {
+        if (HomePlayer != null)
+            HomePlayer.EndCapIconDataUri = null;
+    }
+
+    [RelayCommand]
+    private void ClearAwayIcon()
+    {
+        if (AwayPlayer != null)
+            AwayPlayer.EndCapIconDataUri = null;
+    }
+
+    [RelayCommand]
+    private void PickHomeFlag() => PickFlag(HomePlayer);
+
+    [RelayCommand]
+    private void PickAwayFlag() => PickFlag(AwayPlayer);
+
+    private static void PickFlag(PlayerViewModel? player)
+    {
+        if (player == null)
+            return;
+
+        var picker = new FlagPickerWindow { Owner = Application.Current.MainWindow };
+        if (picker.ShowDialog() != true || picker.SelectedEntry == null)
+            return;
+
+        var resourceStream = Application.GetResourceStream(picker.SelectedEntry.PackUri)
+            ?? throw new InvalidOperationException($"Bundled flag resource not found: {picker.SelectedEntry.PackUri}");
+
+        using var stream = resourceStream.Stream;
+        using var memory = new MemoryStream();
+        stream.CopyTo(memory);
+        player.EndCapIconDataUri = $"data:image/svg+xml;base64,{Convert.ToBase64String(memory.ToArray())}";
+    }
+
+    private static void PickIcon(PlayerViewModel? player)
+    {
+        if (player == null)
+            return;
+
+        var dialog = new OpenFileDialog
+        {
+            Title = "Choose End-Cap Icon (Team Logo / Flag)",
+            Filter = "Image files (*.png;*.jpg;*.jpeg;*.gif;*.bmp)|*.png;*.jpg;*.jpeg;*.gif;*.bmp"
+        };
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var bytes = File.ReadAllBytes(dialog.FileName);
+        if (bytes.Length > 1_500_000)
+        {
+            MessageBox.Show("Please choose an image smaller than 1.5 MB.", "Icon too large",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var mime = Path.GetExtension(dialog.FileName).ToLowerInvariant() switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".bmp" => "image/bmp",
+            _ => "application/octet-stream"
+        };
+        player.EndCapIconDataUri = $"data:{mime};base64,{Convert.ToBase64String(bytes)}";
+    }
+
+    [RelayCommand]
     private void TogglePocketed(BallItemViewModel? ball)
     {
         if (ball == null)
@@ -190,12 +394,24 @@ public partial class GameViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ToggleScoreBarVisible() => _gameManager.SetScoreBarVisible(!ScoreBarVisible);
+
+    [RelayCommand]
+    private void ToggleBallTrackerVisible() => _gameManager.SetBallTrackerVisible(!BallTrackerVisible);
+
+    [RelayCommand]
+    private void ToggleWinnerBannerVisible() => _gameManager.SetWinnerBannerVisible(!WinnerBannerVisible);
+
+    [RelayCommand]
     private void NewRack() => _gameManager.ResetBalls();
 
     [RelayCommand]
     private void ResetMatch()
     {
         _gameManager.ResetGame();
+        ApplyColorTheme();
+        ApplyScoreboardStyle();
+        ApplyMatchPreview();
 
         _homePlayerModel = null;
         _awayPlayerModel = null;
@@ -224,6 +440,10 @@ public partial class GameViewModel : ObservableObject
         AwayBallGroup = state.Player2.BallGroup;
         WinnerAnnouncement = state.Winner == null ? null : $"{state.Winner.Name} wins!";
 
+        ScoreBarVisible = state.Visibility.ScoreBarVisible;
+        BallTrackerVisible = state.Visibility.BallTrackerVisible;
+        WinnerBannerVisible = state.Visibility.WinnerBannerVisible;
+
         foreach (var (number, ball) in _allBalls)
             ball.IsPocketed = state.PocketedBalls.Contains(number);
 
@@ -235,6 +455,7 @@ public partial class GameViewModel : ObservableObject
         HomePlayer = new PlayerViewModel();
         AwayPlayer = new PlayerViewModel();
         HomePlayer.PropertyChanged += OnHomePlayerPropertyChanged;
+        AwayPlayer.PropertyChanged += OnAwayPlayerPropertyChanged;
     }
 
     private void OnHomePlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -245,7 +466,11 @@ public partial class GameViewModel : ObservableObject
         {
             AwayPlayer.RaceToTarget = HomePlayer.RaceToTarget;
         }
+
+        ApplyMatchPreview();
     }
+
+    private void OnAwayPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e) => ApplyMatchPreview();
 
     private void BuildBalls()
     {

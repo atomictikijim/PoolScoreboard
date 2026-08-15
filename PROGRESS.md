@@ -110,12 +110,18 @@ live:
 - [x] Get a screenshot from the developer of the WNT (World Nine Ball Tour / Matchroom Pool)
   score bar — received 2026-08-13 (see NOTES.md, "WNT visual reference — style cues
   extracted"); design tokens recorded in CLAUDE.md's "Visual Reference" section.
-- [ ] Get further screenshots showing a current-shooter highlight and the ball-tracker
-  graphic — not covered by the one screenshot so far. Not blocking Phase 3 (reasonable
-  defaults will be used for those two elements in the interim) but worth another ask.
+- [x] Get further screenshots showing a current-shooter highlight and the ball-tracker
+  graphic — received 2026-08-14 (see NOTES.md, "WNT visual reference: second screenshot adds
+  shooter-indicator and ball-tracker cues"); tokens recorded in CLAUDE.md.
 - [x] Apply the recorded design tokens (violet glossy pill bar, white score badges, center
   Race-To segment, circular end-caps) to the `/overlay/scoreboard` page — done as part of
   Phase 3.
+- [x] Revisit `/overlay/scoreboard`'s shooter-indicator (triangle pointer, not a glow) and
+  ball-tracker (separate pill below the bar, not embedded) against the newly recorded tokens —
+  done 2026-08-14 as part of "Configurable overlay styling + live show/hide" below: the triangle
+  pointer is now a selectable mode (`ShooterIndicatorStyle.Triangle`/`Glow`/`Both`), not the only
+  option, since the operator-configurability request (below) made the WNT look one of several
+  presets rather than a forced replacement.
 
 ### Phase 3: Overlay (OBS Integration) (DONE)
 
@@ -125,6 +131,22 @@ live:
   colors — no external CSS/JS/font references (must render offline).
 - [x] Live updates via polling or SSE/WebSocket (avoid a hard requirement on JS libraries
   pulled from a CDN).
+
+### Bundled end-cap icon set (DONE)
+
+- [x] Shipped a built-in icon set alongside the existing custom-file "Choose Icon..." picker: 249
+  country/territory flags ([lipis/flag-icons](https://github.com/lipis/flag-icons), MIT) and 56 US
+  state/territory/DC flags ([nibsbin/us-state-flags-svg](https://github.com/nibsbin/us-state-flags-svg))
+  — see NOTES.md for full licensing detail and implementation decisions. Additive: the custom file
+  picker and Clear button are unchanged.
+- [x] New "Choose Flag..." button per player opens `FlagPickerWindow` — a modal thumbnail grid
+  (SharpVectors' `SvgViewbox`), grouped STATES-then-COUNTRIES, alphabetical within each group.
+  Picking a tile reuses the exact same `Player.EndCapIcon`/live-preview pipeline as the custom file
+  picker (`data:image/svg+xml;base64,...`) — no Core/DTO/Overlay changes needed.
+- [x] Added the `SharpVectors.Reloaded` NuGet package (WPF-native SVG rendering, build-time/offline
+  dependency only) since WPF can't render SVG natively; extended
+  `DataUriToImageSourceConverter` to branch on MIME type so the existing preview swatch keeps
+  working for both picker-sourced SVG icons and file-picker-sourced raster icons.
 
 ### Phase 4: Cue Ball Spin Overlay
 
@@ -152,12 +174,215 @@ live:
 - No player database: names/teams are typed in per match.
 - Ball colors in the Controller's live view are placeholder standard billiard-ball colors,
   not yet informed by the WNT visual reference.
-- No current-shooter-highlight or ball-tracker WNT screenshot yet, so those two elements on
-  `/overlay/scoreboard` use reasonable defaults (accent-colored glow; grouped/greyed ball row)
-  rather than a matched design — revisit if the developer supplies more WNT references.
+- No persistence for `ScoreboardStyle`/element-visibility choices between app runs — they reset
+  to defaults every time a new match starts, same as `ColorTheme` today.
+- Flag end-caps from the WNT reference are still not implemented as real flags (no nationality
+  field on `Player`) — `EndCapStyle` only offers `Dot`/`Hidden` for now.
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-08-14 — Bundled flag icon set (country + US state flags) for end-cap icons
+
+- Downloaded and embedded 249 country/territory flag SVGs from
+  [lipis/flag-icons](https://github.com/lipis/flag-icons) (MIT) — the `iso:true` subset of its
+  `country.json`, renamed from ISO codes to display names (e.g. `us.svg` → `United States of
+  America.svg`) — and 56 US state/territory/DC flag SVGs from
+  [nibsbin/us-state-flags-svg](https://github.com/nibsbin/us-state-flags-svg) (no explicit repo
+  license, but its README states the artwork is pulled from Wikipedia's public-domain holdings and
+  frames the repo as "a public resource for artists" — flagged transparently in NOTES.md since it's
+  a softer legal basis than flag-icons' explicit MIT license, proceeding since the developer named
+  this source directly). Both sets live under `PoolScoreboard.Controller/Assets/Flags/{Countries,States}/`
+  as WPF `Resource` build items (`pack://application:,,,/...`-addressable), not `EmbeddedResource`s
+  — the idiomatic WPF way to bundle images, versus the manifest-stream approach used for the
+  Overlay's HTML/CSS/JS text assets.
+- Generated `PoolScoreboard.Controller/Assets/Flags/FlagCatalog.cs`: a static, hardcoded
+  `FlagIconEntry` list (`Label`, `Group`, `PackUri`) per flag, sorted alphabetically within each of
+  the two groups — no runtime resource-enumeration needed, so ordering and completeness aren't
+  dependent on how the build packs resources.
+- Added the `SharpVectors.Reloaded` NuGet package — WPF can't render SVG natively. It's a
+  build-time/offline dependency only (same category as `CommunityToolkit.Mvvm`, not a CDN/runtime
+  fetch), verified via a throwaway console probe that `FileSvgReader.Read(stream)` →
+  `new DrawingImage(drawing)` correctly converts real downloaded flag files (including Nepal's
+  non-rectangular flag) before wiring it into the app.
+- New `FlagPickerWindow` (+ `.xaml.cs`): a modal thumbnail grid using SharpVectors'
+  `SvgViewbox` bound directly to each entry's pack URI, grouped "STATES" (alphabetical) then
+  "COUNTRIES" (alphabetical) per the developer's spec, each tile a borderless button with the flag
+  image + name label. Selecting a tile sets `DialogResult = true` and exposes the chosen
+  `FlagIconEntry`.
+- `GameViewModel` gained `PickHomeFlagCommand`/`PickAwayFlagCommand`: opens the picker, and on
+  selection reads the chosen flag's SVG bytes via `Application.GetResourceStream(entry.PackUri)`,
+  base64-encodes them, and sets `player.EndCapIconDataUri = "data:image/svg+xml;base64,..."` —
+  reusing the exact same property and live-preview pipeline the custom-file "Choose Icon..." picker
+  already uses, so no Core, DTO, or Overlay changes were needed at all. A new "Choose Flag..."
+  button sits alongside the existing "Choose Icon..."/"Clear" pair in each player's End-Cap Icon
+  row in `MainWindow.xaml`.
+- Extended `DataUriToImageSourceConverter` to branch on the data URI's declared MIME type:
+  `image/svg+xml` → decode + `FileSvgReader` → `DrawingImage`; anything else (the existing raster
+  file-picker path) keeps today's `BitmapImage` behavior. This one converter still backs the
+  existing circular preview swatch for both icon sources.
+- `dotnet build` clean, `dotnet test` 29/29 (unaffected — no Core/Overlay logic changed). Verified
+  live: launched the Controller and confirmed it starts cleanly with the new package and ~305
+  embedded assets (no missing-resource or XAML-parse errors), confirmed via a standalone probe that
+  SharpVectors correctly converts real flag files at runtime. Full interactive verification of the
+  picker grid itself (opening it, confirming STATES-then-COUNTRIES ordering and thumbnail
+  rendering visually) is owed by the developer — this pass avoided driving the picker's file/window
+  dialogs via UI automation per earlier feedback in this session about not wanting the mouse/
+  keyboard driven directly.
+
+### 2026-08-14 — Per-side backgrounds, always-black center, cap-dot roundness, real ball rendering fix
+
+- `ColorTheme.Background` split further into `HomeBackground`/`AwayBackground` (mirroring the
+  earlier `Accent` → `HomeAccent`/`AwayAccent` split) so each side's segment of the bar can be a
+  distinct color, or the same color if the operator sets both equal. `.side-home`/`.side-away` in
+  `scoreboard.css` now each carry their own glossy/flat gradient (`--bg-home*`/`--bg-away*` CSS
+  vars); the outer `.pill` no longer paints a shared background since its children fully tile it.
+- The center "Race To" segment (`.center`) is now hardcoded `background: #000000` — not driven by
+  `ColorTheme` at all, per explicit instruction that it should always be black regardless of theme.
+- Fixed `.cap-dot`'s roundness (`border-radius`) to scale with `--radius-scale` like every other
+  rounded element (`calc(50% * var(--radius-scale))`) — previously it stayed a fixed circle even
+  when the corner-roundness slider was turned down to a squared-off look.
+- **Found and fixed a real rendering bug** while verifying the above (via a screenshot — the first
+  in this project since none of the earlier UI work had ever been visually confirmed): the
+  Controller's ball buttons showed correct *colors* but no digit and no stripe banding at all, for
+  every ball. Root cause was two-fold: (1) `Text="{TemplateBinding Content}"` doesn't reliably
+  convert a boxed `int` to a string in this context; (2) a `ControlTemplate.Triggers` `DataTrigger`
+  toggling the stripe-vs-solid `Visibility` wasn't taking effect. Both were replaced with direct
+  `{Binding Number}` / `{Binding IsStripe}` bindings (using the already-proven-working
+  `{Binding Color}` Style-setter pattern) feeding `BoolToVisibilityConverter`/
+  `InverseBooleanToVisibilityConverter`. Fixing this then surfaced a second bug: those two
+  converters are declared in `App.xaml`, which *merges in* `Themes/Default.xaml` — but
+  `StaticResource` lookups from *within* a merged dictionary's own Styles can't see the dictionary
+  that merged them in, only their own keys and dictionaries they themselves merge. Fixed by
+  declaring both converters locally in `Default.xaml` too.
+- Widened the Color Theme label column (90px → 120px) so "Home Background"/"Away Background"
+  don't truncate.
+- `dotnet build` clean, `dotnet test` 29/29 (`SetColorTheme` test updated for
+  `HomeBackground`/`AwayBackground`). Verified live with actual screenshots this time (via a
+  PowerShell UI-Automation + `Graphics.CopyFromScreen` harness, since no dedicated screenshot tool
+  is available in this environment): confirmed ball numbers and real stripe banding render
+  correctly in both the Controller and the overlay ball tracker, confirmed the center segment
+  renders black, and confirmed setting Home/Away Background to different hex values live-updates
+  the overlay with two visibly distinct side colors before any match is (re)started.
+- **Known pre-existing issue noticed, not fixed (out of scope for this pass):** none of the four
+  `ComboBox`es bound via `SelectedValue` to an enum property (`Game`, `Race-To Mode`, and the two
+  new Scoreboard Style dropdowns) visibly display their selected item's text — the dropdown arrow
+  shows but the selection box itself renders blank, even though the underlying property value is
+  set correctly. Likely a `SelectedValue`/string-item type-mismatch in `StandardComboBoxStyle`
+  predating this session's changes (Game/Race-To Mode use the exact same pattern and are also
+  affected). Flagging for a future pass since it wasn't part of what was reported this round.
+
+### 2026-08-14 — Live match-setup preview, team names, visibility hierarchy, per-side colors + picker
+
+- Added `GameManager.SetMatchPreview(player1, player2, gameType, raceToMode)` — updates
+  `GameState.Player1`/`Player2`/`GameType`/`RaceToMode` without touching scores/`IsGameActive`
+  (guarded to no-op while a game is active). `GameViewModel` calls it from every relevant setup
+  field's `partial void On<Property>Changed` hook (`SelectedGameType`, `SelectedRaceToMode`, and
+  now both `HomePlayer`/`AwayPlayer` `PropertyChanged` — previously only `HomePlayer` was
+  subscribed) plus once in the constructor and after `ResetMatch()`, so player names, team names,
+  game type, and Race-To all preview live on the overlay before "Start Match" is clicked, the same
+  way `ScoreboardStyle` already did.
+- The overlay now displays each player's team name (already present in the DTO, just never
+  rendered): `scoreboard.html`/`.css`/`.js` gained a `.name-block` wrapping a `.team-name` line
+  above `.name`, hidden automatically via `:empty` when a player has no team name set.
+- Fixed the ball tracker and winner banner to depend on the score bar's visibility: hiding the
+  score bar now hides both, regardless of their own individual toggle, since showing them without
+  the bar they're anchored to doesn't make sense. Plain AND logic in `scoreboard.js`'s `render()`.
+- `ColorTheme.Accent` split into `HomeAccent`/`AwayAccent` so each side's shooter-glow, shooter
+  triangle, and end-cap dot can carry a different color (or the same, if both are set equal —
+  the default). The winner banner now tints itself with the winning side's accent (`WinnerIsHome`
+  added to the DTO/mapper). `GameManager.SetColorTheme`'s existing lifecycle is unchanged, but
+  `GameViewModel` now applies it live the same way as `ScoreboardStyle` (previously it only
+  applied at "Start Match", an oversight from the earlier styling work).
+- Color entry got a picker: swatch squares next to each hex `TextBox` (Background, Home Accent,
+  Away Accent, Text) are now `Button`s wired to a new `PickColorCommand` that opens
+  `System.Windows.Forms.ColorDialog` and writes the chosen color back as hex (the hex `TextBox`
+  is still there for direct entry/paste). Referencing WinForms via `UseWindowsForms=true` turned
+  out to inject implicit global usings (`System.Windows.Forms`, `System.Drawing`) that collide
+  with WPF's own `Application`/`Brush`/`Color`/`TextBox`/etc. across the whole project — resolved
+  by referencing `Microsoft.WindowsDesktop.App.WindowsForms` directly via `<FrameworkReference>`
+  instead, which pulls in `ColorDialog` without the colliding implicit usings.
+- `dotnet build` clean (0 warnings), `dotnet test` 29/29 (2 new `SetMatchPreview` tests; existing
+  `SetColorTheme` test updated for `HomeAccent`/`AwayAccent`). Verified live: launched the
+  Controller and confirmed the pre-match `/overlay/api/scoreboard/state` snapshot already reflects
+  the ViewModel's default game type/race-to (proving the preview path fires from construction, not
+  just on edits) and that the served HTML/CSS/JS contain the team-name markup, the score-bar
+  dependency logic, and the home/away accent split. Manually operating the new color-picker dialog
+  and confirming the visual result in a browser is still owed by the developer (no GUI-automation
+  tooling available in this environment).
+
+### 2026-08-14 — Fixes: shooter-pointer direction, realistic ball rendering, live style preview
+
+- Fixed the shooter-indicator triangle's direction: `shooter-pointer-home`/`shooter-pointer-away`
+  had their `border-left-color`/`border-right-color` swapped, so each pointer's tip pointed *into*
+  the center Race-To segment instead of out toward the shooting player's name/score. Corrected in
+  `scoreboard.css`.
+- Balls (both the Overlay's ball tracker and the Controller's ball buttons) now render like real
+  pool balls instead of flat colored circles with plain text: a white number badge in the center,
+  and for 9-15 a white ball body with a colored stripe band instead of a solid fill. Overlay:
+  `ballElement()` in `scoreboard.js` builds a `.solid`/`.stripe` div with a nested `.ball-badge`
+  span, using a `--ball-color` custom property; `scoreboard.css` draws the stripe via a
+  `background-image`/`background-size` band clipped to the circle. Controller: `BallItemViewModel`
+  gained an `IsStripe` (`Number > 8`) property; `BallButtonStyle` in `Themes/Default.xaml` now
+  clips a `Grid` to a circle and layers a stripe-band `Rectangle` (shown only when `IsStripe`) or a
+  solid `Ellipse`, plus a white badge `Ellipse` and the number `TextBlock` on top.
+- `ScoreboardStyle` changes (corner roundness, scale, glossy/flat, end-cap, shooter-indicator mode)
+  now apply immediately as the operator adjusts them in Match Setup, instead of waiting for
+  "Start Match". `GameViewModel` gained `partial void On<Property>Changed` hooks for each style
+  property that call a new `ApplyScoreboardStyle()` helper, which `StartMatch()` and `ResetMatch()`
+  now call too (so a match reset re-applies the operator's chosen style instead of leaving the
+  overlay on `GameManager`'s freshly-reset defaults until the next match start).
+- `dotnet build` clean, `dotnet test` 27/27 (no test changes needed — these were rendering/wiring
+  fixes, not new game-logic behavior). Verified live: launched the Controller, confirmed
+  `/overlay/api/scoreboard/state`'s `style` field reflects defaults before any match is started
+  (proving the live-apply path is reachable pre-match), and confirmed the served CSS/JS contain
+  the corrected pointer directions and the new ball-rendering markup. Visually confirming the
+  triangle direction and ball appearance in an actual browser is still owed by the developer (no
+  screenshot/browser tooling available in this environment).
+
+### 2026-08-14 — Configurable overlay styling + live show/hide animation
+
+- Added `PoolScoreboard.Core.Models.ScoreboardStyle` (`CornerRoundness` 0-100, `OverallScale`
+  50-200, `GlossyFinish`, `EndCapStyle`, `ShooterIndicatorStyle`) and `ScoreboardVisibility`
+  (`ScoreBarVisible`/`BallTrackerVisible`/`WinnerBannerVisible`), plus the new `EndCapStyle`
+  (`Dot`/`Hidden`) and `ShooterIndicatorStyle` (`Triangle`/`Glow`/`Both`) enums. Both live on
+  `GameState` with defaults that reproduce the overlay's original hardcoded look exactly, so
+  nothing changes visually until an operator touches the new controls.
+- `GameManager` gained `SetScoreboardStyle` (clamps `CornerRoundness`/`OverallScale` into range)
+  and `SetScoreBarVisible`/`SetBallTrackerVisible`/`SetWinnerBannerVisible` — the style setter
+  follows `SetColorTheme`'s "set once at match setup" lifecycle, the three visibility setters
+  follow `PocketBall`/`SetCurrentShooter`'s "live, mid-match" lifecycle.
+- `/overlay/scoreboard` now reads these through new `ScoreboardStyleDto`/`ScoreboardVisibilityDto`
+  fields on `ScoreboardStateDto`. `scoreboard.css`/`.js` apply corner roundness and overall scale
+  as CSS-variable multipliers/transforms (`--radius-scale`, `--ui-scale`) rather than fixed
+  pixels, add a glossy/flat toggle and a hideable end-cap, add a new triangle shooter-pointer
+  (from the 2026-08-14 WNT screenshot) as a selectable alternative to the existing accent-glow —
+  see PROGRESS.md's "Pending: WNT visual reference" above — and introduce a generic
+  `.sb-hideable`/`.sb-hidden` slide+fade mechanism (inspired by overlays.uno's Billiards
+  Scoreboard "scorebug" transitions) applied to the score bar, ball tracker, and winner banner
+  independently. The winner banner's own win-detection visibility now combines with the new
+  operator toggle (`winnerName present AND operator hasn't hidden it`) instead of the old
+  bespoke CSS-only fade, which was removed to avoid two conflicting transitions on one element.
+  A `hasRenderedOnce` flag in `scoreboard.js` snaps all three elements to their correct state
+  instantly (no animation) on the very first SSE message of a connection — needed because the
+  server resends the full snapshot on every reconnect (e.g. an OBS scene switch mid-match), not
+  just true first page load.
+- `GameViewModel`/`MainWindow.xaml`: a new "SCOREBOARD STYLE" section (roundness/scale sliders,
+  glossy-finish checkbox, end-cap and shooter-indicator combo boxes) sits below the existing
+  "COLOR THEME" section in match setup, applied via `SetScoreboardStyle` in `StartMatch()`
+  alongside the existing `SetColorTheme` call. Three new live-view toggle buttons ("Score Bar" /
+  "Ball Tracker" / "Winner Banner") call the three new `GameManager` visibility setters; a new
+  `BoolToButtonStyleConverter` picks `ActiveButtonStyle`/`InactiveButtonStyle` to show each
+  toggle's on/off state, reusing the existing button styles rather than adding new ones.
+- `dotnet build` clean across all four projects; `dotnet test` 27/27 (9 new tests covering style
+  defaults, `SetScoreboardStyle` value updates and range-clamping, and the three visibility
+  setters). Verified live: launched the Controller and confirmed
+  `/overlay/api/scoreboard/state` includes the new `style`/`visibility` JSON fields with correct
+  defaults, and that `/overlay/scoreboard`'s HTML/CSS/JS serve the new markup/classes/functions
+  (`sb-hideable`, `shooterPointerHome`/`Away`, `--radius-scale`/`--ui-scale`, `flat-finish`,
+  `caps-hidden`, `shooter-glow`, `applyStyle`, `setElementVisible`, `hasRenderedOnce`). Full
+  visual QA of the animations/sliders in an actual browser is still owed by the developer (no
+  screenshot/browser-automation tooling available in this environment).
 
 ### 2026-08-13 — Phase 3: OBS overlay
 

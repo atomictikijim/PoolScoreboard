@@ -35,7 +35,7 @@ public partial class MainWindow : Window
     // Live-view shortcuts: Q/P score the home/away player, A undoes the last point,
     // Space toggles the current shooter, N starts a new rack. Only active once a match
     // is running, and ignored while a setup TextBox has focus.
-    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    private void MainWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (!_viewModel.GameInitialized || Keyboard.FocusedElement is TextBox)
             return;

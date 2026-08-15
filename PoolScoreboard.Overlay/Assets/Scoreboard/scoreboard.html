@@ -7,29 +7,43 @@
 </head>
 <body>
   <div class="scoreboard">
-    <div class="pill">
-      <div class="cap cap-home"><div class="cap-dot"></div></div>
+    <div class="pill sb-hideable" id="scorePill">
+      <div class="cap cap-home" id="capHome">
+        <div class="cap-dot"></div>
+        <img class="cap-icon" id="capIconHome" alt="" />
+      </div>
 
       <div class="side side-home" id="sideHome">
-        <span class="name" id="homeName">HOME</span>
+        <span class="name-block">
+          <span class="team-name" id="homeTeam"></span>
+          <span class="name" id="homeName">HOME</span>
+        </span>
         <span class="score-badge" id="homeScore">0</span>
       </div>
 
       <div class="center">
+        <div class="shooter-pointer shooter-pointer-home" id="shooterPointerHome"></div>
         <span class="center-label" id="raceToLabel">RACE TO 5</span>
+        <div class="shooter-pointer shooter-pointer-away" id="shooterPointerAway"></div>
       </div>
 
       <div class="side side-away" id="sideAway">
         <span class="score-badge" id="awayScore">0</span>
-        <span class="name" id="awayName">AWAY</span>
+        <span class="name-block">
+          <span class="team-name" id="awayTeam"></span>
+          <span class="name" id="awayName">AWAY</span>
+        </span>
       </div>
 
-      <div class="cap cap-away"><div class="cap-dot"></div></div>
+      <div class="cap cap-away" id="capAway">
+        <div class="cap-dot"></div>
+        <img class="cap-icon" id="capIconAway" alt="" />
+      </div>
     </div>
 
-    <div class="winner-banner" id="winnerBanner"></div>
+    <div class="winner-banner sb-hideable" id="winnerBanner"></div>
 
-    <div class="ball-tracker" id="ballTracker"></div>
+    <div class="ball-tracker sb-hideable" id="ballTracker"></div>
   </div>
 
   <script src="/overlay/scoreboard/app.js"></script>

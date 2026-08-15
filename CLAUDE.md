@@ -132,10 +132,10 @@ dotnet clean
 
 The developer wants the scoreboard's styling to draw on the World Nine Ball Tour (WNT /
 Matchroom Pool) broadcast scoreboard as an additional visual reference, alongside the
-overlays.uno Billiards Scoreboard already noted in README.md. As of 2026-08-13, one WNT
-screenshot (the score bar only — no shooter-highlight or ball-tracker shot yet) has been
-reviewed; see NOTES.md ("WNT visual reference — style cues extracted") for the concrete design
-tokens to use for the `/overlay/scoreboard` page in Phase 3:
+overlays.uno Billiards Scoreboard already noted in README.md. Two WNT screenshots have been
+reviewed as of 2026-08-14; see NOTES.md ("WNT visual reference — style cues extracted" and
+"WNT visual reference: second screenshot adds shooter-indicator and ball-tracker cues") for
+detail. Concrete design tokens for the `/overlay/scoreboard` page in Phase 3:
 
 - A single glossy "pill"-shaped bar, capsule-rounded ends, subtle top-lit gradient.
 - Deep violet/indigo bar fill (`ColorTheme.Background`), white bold sans-serif text
@@ -144,14 +144,23 @@ tokens to use for the `/overlay/scoreboard` page in Phase 3:
   next to each player's name.
 - A slightly darker center segment holding "Race to N" in smaller white text, separating the
   two player halves without a hard divider line.
-- Small circular end-cap badges (flag/team-sponsor mark) on black rounded caps at each end.
+- End-cap badges are rectangular national flags (slightly rounded corners) on black rounded
+  caps at each end — not circular, and not a generic team-sponsor mark.
+- Current-shooter indicator: a small right-pointing triangle (▶) next to the center Race-To
+  segment, on the side of whichever player is currently shooting — a pointer, not a glow/
+  highlight across that player's whole half.
+- Ball tracker: a separate white capsule-shaped bar, horizontally centered *below* the main
+  score bar, holding small colored circular ball icons (standard ball coloring, white number
+  centered) for balls still in play. Note: the WNT reference removes pocketed balls from this
+  row entirely rather than greying them out — that does **not** override this project's own
+  decision (see "Ball Display Detail" above) that pocketed balls render greyed out in place.
 - `ColorTheme.Accent` maps naturally to the score-badge/center-segment treatment.
 
-Not yet covered by a reference: how a current-shooter indicator or the ball tracker should
-look — those still need a screenshot before Phase 3 finalizes them; reasonable defaults will
-be used in the interim and can be revised later. This only informs the Overlay's own pages —
-the Controller's WPF operator console keeps its existing dark theme (CLAUDE.md's "consistent
-with the overlay's theme" is a soft aesthetic alignment, not a pixel match).
+Open question, not yet resolved: the flag end-caps aren't backed by any field in the current
+domain model (`Player` only has `Name`/`TeamName`, no nationality) — revisit with the developer
+if/when this styling is actually adopted. This only informs the Overlay's own pages — the
+Controller's WPF operator console keeps its existing dark theme (CLAUDE.md's "consistent with
+the overlay's theme" is a soft aesthetic alignment, not a pixel match).
 
 ## Known Simplifications & Future Work
 

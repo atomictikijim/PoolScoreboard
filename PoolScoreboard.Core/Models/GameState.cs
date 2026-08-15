@@ -17,4 +17,6 @@ public class GameState
     public Player? Winner { get; set; }
     public ColorTheme ColorTheme { get; set; } = new();
     public HashSet<int> PocketedBalls { get; set; } = new();
+    public ScoreboardStyle ScoreboardStyle { get; set; } = new();
+    public ScoreboardVisibility Visibility { get; set; } = new();
 }

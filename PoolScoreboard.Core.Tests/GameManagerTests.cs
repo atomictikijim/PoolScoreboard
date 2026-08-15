@@ -253,7 +253,7 @@ public class GameManagerTests
     {
         var manager = new GameManager();
         manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
-        var theme = new ColorTheme { Background = "#000000", Accent = "#ff0000", Text = "#ffffff" };
+        var theme = new ColorTheme { HomeBackground = "#000000", AwayBackground = "#222222", HomeAccent = "#ff0000", AwayAccent = "#0000ff", Text = "#ffffff" };
 
         manager.SetColorTheme(theme);
 
@@ -271,5 +271,142 @@ public class GameManagerTests
         manager.ResetBalls();
 
         Assert.Empty(manager.GetCurrentGameState().PocketedBalls);
+    }
+
+    [Fact]
+    public void InitializeGame_DefaultsToFullyRoundedVisibleStyle()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+
+        var state = manager.GetCurrentGameState();
+        Assert.Equal(100, state.ScoreboardStyle.CornerRoundness);
+        Assert.Equal(100, state.ScoreboardStyle.OverallScale);
+        Assert.True(state.ScoreboardStyle.GlossyFinish);
+        Assert.Equal(EndCapStyle.Dot, state.ScoreboardStyle.EndCapStyle);
+        Assert.Equal(ShooterIndicatorStyle.Glow, state.ScoreboardStyle.ShooterIndicatorStyle);
+        Assert.True(state.Visibility.ScoreBarVisible);
+        Assert.True(state.Visibility.BallTrackerVisible);
+        Assert.True(state.Visibility.WinnerBannerVisible);
+    }
+
+    [Fact]
+    public void SetScoreboardStyle_UpdatesGameStateScoreboardStyle()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var style = new ScoreboardStyle
+        {
+            CornerRoundness = 40,
+            OverallScale = 150,
+            GlossyFinish = false,
+            EndCapStyle = EndCapStyle.Hidden,
+            ShooterIndicatorStyle = ShooterIndicatorStyle.Both
+        };
+
+        manager.SetScoreboardStyle(style);
+
+        var result = manager.GetCurrentGameState().ScoreboardStyle;
+        Assert.Equal(40, result.CornerRoundness);
+        Assert.Equal(150, result.OverallScale);
+        Assert.False(result.GlossyFinish);
+        Assert.Equal(EndCapStyle.Hidden, result.EndCapStyle);
+        Assert.Equal(ShooterIndicatorStyle.Both, result.ShooterIndicatorStyle);
+    }
+
+    [Theory]
+    [InlineData(-20, 0)]
+    [InlineData(140, 100)]
+    public void SetScoreboardStyle_ClampsCornerRoundnessToValidRange(int input, int expected)
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+
+        manager.SetScoreboardStyle(new ScoreboardStyle { CornerRoundness = input });
+
+        Assert.Equal(expected, manager.GetCurrentGameState().ScoreboardStyle.CornerRoundness);
+    }
+
+    [Theory]
+    [InlineData(10, 50)]
+    [InlineData(500, 200)]
+    public void SetScoreboardStyle_ClampsOverallScaleToValidRange(int input, int expected)
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+
+        manager.SetScoreboardStyle(new ScoreboardStyle { OverallScale = input });
+
+        Assert.Equal(expected, manager.GetCurrentGameState().ScoreboardStyle.OverallScale);
+    }
+
+    [Fact]
+    public void SetScoreBarVisible_UpdatesVisibilityAndRaisesGameStateChanged()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var raised = 0;
+        manager.GameStateChanged += (_, _) => raised++;
+
+        manager.SetScoreBarVisible(false);
+
+        Assert.False(manager.GetCurrentGameState().Visibility.ScoreBarVisible);
+        Assert.Equal(1, raised);
+    }
+
+    [Fact]
+    public void SetBallTrackerVisible_UpdatesVisibility()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+
+        manager.SetBallTrackerVisible(false);
+
+        Assert.False(manager.GetCurrentGameState().Visibility.BallTrackerVisible);
+    }
+
+    [Fact]
+    public void SetMatchPreview_UpdatesPlayersGameTypeAndRaceToMode_BeforeMatchStarts()
+    {
+        var manager = new GameManager();
+        var player1 = CreatePlayer("Alice", 7);
+        var player2 = CreatePlayer("Bob", 7);
+
+        manager.SetMatchPreview(player1, player2, GameType.EightBall, RaceToMode.Split);
+
+        var state = manager.GetCurrentGameState();
+        Assert.Same(player1, state.Player1);
+        Assert.Same(player2, state.Player2);
+        Assert.Equal(GameType.EightBall, state.GameType);
+        Assert.Equal(RaceToMode.Split, state.RaceToMode);
+        Assert.False(state.IsGameActive);
+    }
+
+    [Fact]
+    public void SetMatchPreview_DoesNothingWhileGameIsActive()
+    {
+        var manager = new GameManager();
+        var player1 = CreatePlayer("Alice", 5);
+        var player2 = CreatePlayer("Bob", 5);
+        manager.InitializeGame(player1, player2, GameType.NineBall, RaceToMode.Single);
+
+        manager.SetMatchPreview(CreatePlayer("Someone Else", 9), CreatePlayer("Another", 9), GameType.TenBall, RaceToMode.Split);
+
+        var state = manager.GetCurrentGameState();
+        Assert.Same(player1, state.Player1);
+        Assert.Same(player2, state.Player2);
+        Assert.Equal(GameType.NineBall, state.GameType);
+        Assert.Equal(RaceToMode.Single, state.RaceToMode);
+    }
+
+    [Fact]
+    public void SetWinnerBannerVisible_UpdatesVisibility()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+
+        manager.SetWinnerBannerVisible(false);
+
+        Assert.False(manager.GetCurrentGameState().Visibility.WinnerBannerVisible);
     }
 }

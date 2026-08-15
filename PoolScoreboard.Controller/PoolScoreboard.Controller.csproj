@@ -10,11 +10,26 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="SharpVectors.Reloaded" Version="1.8.5" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\PoolScoreboard.Core\PoolScoreboard.Core.csproj" />
     <ProjectReference Include="..\PoolScoreboard.Overlay\PoolScoreboard.Overlay.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Bundled end-cap flag icon set (country + US state flags) — physical files so they're
+         addressable via pack:// URIs for SharpVectors' SvgViewbox and Application.GetResourceStream. -->
+    <Resource Include="Assets\Flags\**\*.svg" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Referenced directly (rather than via <UseWindowsForms>true</UseWindowsForms>) so the
+         color-picker's System.Windows.Forms.ColorDialog is available without WinForms' implicit
+         global usings (System.Windows.Forms, System.Drawing) colliding with WPF's own Application/
+         Brush/Color/TextBox/etc. types across the rest of this project. -->
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
 
 </Project>
