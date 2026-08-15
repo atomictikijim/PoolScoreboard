@@ -78,6 +78,35 @@ same "run in background" setting, just a different **Title** and **Website** URL
 | New Rack        | `http://127.0.0.1:51234/api/control/rack/new`                  |
 | Reset Match     | `http://127.0.0.1:51234/api/control/match/reset`                |
 
+### Ball display buttons (1-15)
+
+These follow the same pattern but with a ball number baked into the URL, so you need one button
+per ball you want to control — there's no single "any ball" button. Set the **Title** to the ball
+number (e.g., `1`, `9`, `15`) and the **Website** field to:
+
+```text
+http://127.0.0.1:51234/api/control/balls/<N>/toggle
+```
+
+replacing `<N>` with that ball's number (1 through 15). Each press **toggles** that ball's
+pocketed state — press it once to grey the ball out in the ball display, press again to bring it
+back if you marked it by mistake. There's no separate "pocket" vs "unpocket" button, matching how
+clicking a ball in the Controller's own live view already works.
+
+You don't need all 15 wired up — pick whatever your game type actually uses:
+
+- **9-ball**: balls 1-9
+- **10-ball**: balls 1-10
+- **8-ball**: balls 1-7 and 9-15 (the two groups), plus 8 for the 8-ball itself — assigning which
+  group belongs to which player still needs the Home/Away Solids/Stripes buttons above; these
+  per-ball buttons only mark them pocketed, independent of group assignment (see CLAUDE.md's
+  "Ball Display Detail")
+
+Fifteen individual buttons is a lot of Stream Deck real estate — a 6-key Mini won't fit them
+alongside everything else. Consider a dedicated folder/profile page just for ball toggles, or
+skip them entirely and mark pocketed balls by clicking directly in the Controller window instead
+(the Stream Deck buttons are an addition, not a replacement for that).
+
 A few layout suggestions, entirely up to you:
 
 - Group the two ball-assignment buttons per side together (8-ball only — you can leave them off
@@ -101,6 +130,8 @@ A few layout suggestions, entirely up to you:
    - **Toggle Shooter** flips the shooter indicator to the other player.
    - **Home/Away: Solids/Stripes** (8-ball only) assigns the ball group and auto-flips the other
      player's group.
+   - Each **ball toggle button** greys that ball out in the ball display, and un-greys it if you
+     press the same button again.
    - **New Rack** clears any pocketed-ball markers without touching the score.
    - **Reset Match** ends the match and returns the Controller to the Match Setup screen.
 4. Re-run Step 5 after any change to your Controller/Overlay setup (e.g., after an app update) to
@@ -119,6 +150,8 @@ A few layout suggestions, entirely up to you:
   don't need any reconfiguration after a restart, since the URLs never change).
 - **Ball-assignment buttons seem to do nothing**: they're 8-ball-only by design (see
   `GameManager.AssignBallGroup`) — they safely no-op for 9-ball/10-ball matches.
+- **A ball toggle button shows an error / does nothing**: double check the number in the URL is
+  between 1 and 15 — anything outside that range is rejected outright.
 
 ## Not covered here: the cue-ball overlay
 

@@ -65,6 +65,19 @@ internal static class ControlEndpoints
             return Results.Ok();
         });
 
+        app.MapGet("/api/control/balls/{number:int}/toggle", (int number) =>
+        {
+            if (number is < 1 or > 15)
+                return Results.BadRequest("Ball number must be between 1 and 15.");
+
+            var state = gameManager.GetCurrentGameState();
+            if (state.PocketedBalls.Contains(number))
+                gameManager.UnpocketBall(number);
+            else
+                gameManager.PocketBall(number);
+            return Results.Ok();
+        });
+
         app.MapGet("/api/control/rack/new", () =>
         {
             gameManager.ResetBalls();

@@ -27,6 +27,7 @@ using the mapping below, then export/share it from there if needed.
 | Home: Stripes     | `/api/control/balls/home/stripes`          | 8-ball only. Assigns Stripes to the home player (away player auto-flips to Solids). |
 | Away: Solids      | `/api/control/balls/away/solids`           | 8-ball only. Assigns Solids to the away player (home player auto-flips to Stripes). |
 | Away: Stripes     | `/api/control/balls/away/stripes`          | 8-ball only. Assigns Stripes to the away player (home player auto-flips to Solids). |
+| Ball N Pocketed   | `/api/control/balls/N/toggle` (N = 1-15)   | Toggles ball N's pocketed state — greys it out in the ball display if it was live, or brings it back if it was already marked pocketed. Same toggle behavior as clicking the ball in the Controller's live view. Returns `400` for N outside 1-15. |
 | New Rack          | `/api/control/rack/new`                    | Clears all pocketed-ball markers for a fresh rack. Does not touch scores. |
 | Reset Match       | `/api/control/match/reset`                 | Ends the current match entirely and returns the Controller to the Match Setup screen — same as clicking "Reset Match" in the app. Use between matches, not mid-rack. |
 

@@ -186,6 +186,25 @@ live:
 
 ## Change Log
 
+### 2026-08-14 — Stream Deck control for the ball display
+
+- Added `GET /api/control/balls/{number}/toggle` (number 1-15) to `ControlEndpoints` — toggles
+  that ball's pocketed state, mirroring the exact toggle semantics of clicking a ball in the
+  Controller's live view (pocket it if live, un-pocket it if already marked). Returns `400` for
+  numbers outside 1-15, since this is an external-facing API boundary unlike `GameManager`'s
+  internal `PocketBall`/`UnpocketBall` (which don't validate, since the Controller only ever
+  calls them with real ball numbers from its own view models).
+- Updated `streamdeck/README.md` and `streamdeck/SETUP.md` with the new endpoint: a worked
+  example of wiring up per-ball buttons, guidance on only wiring the balls actually in play for
+  the current game type (1-9 for 9-ball, 1-10 for 10-ball, 1-7/9-15 plus 8 for 8-ball), and a
+  note that 15 individual buttons may be more than fits on smaller Stream Deck models — suggesting
+  a dedicated folder/page or skipping them in favor of clicking balls directly in the Controller.
+- `dotnet build` clean, `dotnet test` 33/33 (no Core changes — thin routing wrapper over
+  already-tested `PocketBall`/`UnpocketBall`). Verified live with a throwaway console harness
+  (same pattern as the rest of Phase 5): toggled ball 9 on then off, toggled balls 1 and 15 on,
+  and confirmed `GameManager.GetCurrentGameState().PocketedBalls` reflected each change correctly,
+  plus confirmed ball numbers 0 and 16 are rejected with `400`.
+
 ### 2026-08-14 — Stream Deck setup walkthrough
 
 - Added `streamdeck/SETUP.md`: a step-by-step guide to actually wiring up the Phase 5
