@@ -19,4 +19,5 @@ public class GameState
     public HashSet<int> PocketedBalls { get; set; } = new();
     public ScoreboardStyle ScoreboardStyle { get; set; } = new();
     public ScoreboardVisibility Visibility { get; set; } = new();
+    public CueBallSpin? CueBallSpin { get; set; }
 }

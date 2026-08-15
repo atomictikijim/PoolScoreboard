@@ -23,6 +23,7 @@ public static class OverlayHost
         var app = builder.Build();
 
         ScoreboardEndpoints.Map(app, gameManager);
+        CueBallEndpoints.Map(app, gameManager);
 
         app.Start();
         return app;

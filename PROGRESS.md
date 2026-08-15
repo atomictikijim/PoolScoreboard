@@ -148,13 +148,17 @@ live:
   `DataUriToImageSourceConverter` to branch on MIME type so the existing preview swatch keeps
   working for both picker-sourced SVG icons and file-picker-sourced raster icons.
 
-### Phase 4: Cue Ball Spin Overlay
+### Phase 4: Cue Ball Spin Overlay (DONE)
 
-- [ ] `/overlay/cueball` page: cue-ball graphic, click-to-place red contact-point dot.
-- [ ] Independent of the scoreboard overlay — separate OBS browser source, separately sized
-  and positioned.
-- [ ] Persist/clear the dot per shot (decide: manual clear button vs. auto-clear on next
-  score change — confirm with developer).
+- [x] `/overlay/cueball` page: cue-ball graphic (pure CSS radial-gradient sphere, no external
+  image), click-to-place red contact-point dot.
+- [x] Independent of the scoreboard overlay — its own route, own embedded HTML/CSS/JS, own
+  SSE stream (`/overlay/api/cueball/stream`) — a separate OBS browser source, separately sized
+  and positioned from `/overlay/scoreboard`.
+- [x] Persist/clear the dot per shot: **both** auto-clear on the next score change and a manual
+  "Clear" button on the page itself (developer's choice, see Change Log) — `AddPoint` clears
+  `GameState.CueBallSpin` unconditionally before applying the score, and the page's own "Clear"
+  button POSTs to `/overlay/api/cueball/clear` for an early reset (e.g. after a foul).
 
 ### Phase 5: Stream Deck Integration
 
@@ -181,6 +185,49 @@ live:
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-08-14 — Phase 4: Cue Ball Spin Overlay
+
+- Added `PoolScoreboard.Core.Models.CueBallSpin` (`X`/`Y`, each a 0.0-1.0 fraction relative to
+  the cue-ball graphic) as a nullable `GameState.CueBallSpin` — `null` means no contact point is
+  currently placed. `GameManager` gained `SetCueBallSpin(x, y)` (clamps both into `[0, 1]`) and
+  `ClearCueBallSpin()`, both following the existing "live, mid-match" mutation lifecycle
+  (`RaiseGameStateChanged()` after every change, same as `PocketBall`/`SetCurrentShooter`).
+- Per the developer's choice between manual-clear-only, auto-clear-on-score-only, or both: went
+  with **both** — `AddPoint` now clears `CueBallSpin` unconditionally as its first action (before
+  the score/win-check logic), and the overlay page carries its own "Clear" button for an early
+  manual reset (e.g. after a foul, before the next point is scored).
+- New `PoolScoreboard.Overlay.Endpoints.CueBallEndpoints` mirrors `ScoreboardEndpoints`'s
+  pattern exactly: serves `/overlay/cueball` (HTML), `/overlay/cueball/style.css`,
+  `/overlay/cueball/app.js` (all embedded resources), `GET /overlay/api/cueball/state` (one-shot
+  JSON snapshot via new `CueBallStateDto`/`CueBallStateMapper`), and
+  `GET /overlay/api/cueball/stream` (SSE, same per-connection `Channel<string>` relay off
+  `GameManager.GameStateChanged`). Also adds two write endpoints specific to this page —
+  `POST /overlay/api/cueball/contact` (body `{x, y}`, binds to a `CueBallContactRequest` record)
+  and `POST /overlay/api/cueball/clear` — since the cue-ball page is the first overlay page that
+  needs to *write* state rather than just read it; these aren't considered part of Phase 5's
+  Stream Deck `/api/control/*` surface, which is for external button-triggered actions rather
+  than a page's own click handler.
+- The page itself (`Assets/CueBall/cueball.html/.css/.js`) renders the cue ball as a pure-CSS
+  radial-gradient sphere (no bundled image needed, keeping with the offline/no-external-asset
+  rule) with a red `.contact-dot` positioned via `left`/`top` percentages from the SSE-pushed
+  `x`/`y` fractions. Clicking the ball computes the click position relative to the ball's
+  bounding circle and clamps it to the circle's radius (so a corner-of-the-bounding-box click
+  can't place the dot visually outside the sphere) before `POST`ing to `/overlay/api/cueball/contact`.
+  Independent of the scoreboard page's SSE connection and DOM entirely — a separate OBS browser
+  source pointed at `/overlay/cueball`, sized/positioned on its own.
+- Registered `CueBallEndpoints.Map(app, gameManager)` in `OverlayHost.Start` alongside the
+  existing `ScoreboardEndpoints.Map` call; added `Assets\CueBall\*` to the `Overlay.csproj`'s
+  `EmbeddedResource` items (mirroring the existing `Assets\Scoreboard\*` entry).
+- `dotnet build` clean across all four projects; `dotnet test` 33/33 (4 new tests: setting/
+  clamping `CueBallSpin`, clearing it directly, and confirming `AddPoint` clears it). Verified
+  live: launched the Controller and confirmed `/overlay/cueball` + its CSS/JS return 200, and
+  exercised the full read/write/clear cycle via `curl` against `/overlay/api/cueball/state`,
+  `/contact`, and `/clear` — state round-trips correctly through all three. Visual QA of the
+  cue-ball graphic and dot placement in an actual browser/OBS browser source (including using
+  OBS's "Interact" mode to click the source, since browser sources aren't normally
+  mouse-interactive in a live scene) is still owed by the developer — no browser-rendering
+  tooling is available in this environment.
 
 ### 2026-08-14 — Fix: ComboBoxes not displaying selected item text
 

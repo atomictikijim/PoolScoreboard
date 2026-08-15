@@ -1,0 +1,63 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.cue-ball {
+  position: relative;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  cursor: crosshair;
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #f2f2f2 45%, #d8d8d8 75%, #b0b0b0 100%);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45), inset 0 -8px 18px rgba(0, 0, 0, 0.12), inset 0 6px 14px rgba(255, 255, 255, 0.6);
+}
+
+.contact-dot {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  margin-top: -10px;
+  border-radius: 50%;
+  background: #d81e1e;
+  border: 2px solid #7a0d0d;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  display: none;
+  pointer-events: none;
+}
+
+.contact-dot.visible {
+  display: block;
+}
+
+.clear-button {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f0f0f0;
+  background: rgba(20, 20, 20, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.clear-button:hover {
+  background: rgba(40, 40, 40, 0.8);
+}

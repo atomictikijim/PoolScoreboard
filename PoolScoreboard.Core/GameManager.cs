@@ -33,6 +33,8 @@ public class GameManager
         if (!_currentGame.IsGameActive)
             return;
 
+        _currentGame.CueBallSpin = null;
+
         if (isPlayer1)
         {
             _currentGame.Player1Score++;
@@ -176,6 +178,22 @@ public class GameManager
     public void SetWinnerBannerVisible(bool visible)
     {
         _currentGame.Visibility.WinnerBannerVisible = visible;
+        RaiseGameStateChanged();
+    }
+
+    public void SetCueBallSpin(double x, double y)
+    {
+        _currentGame.CueBallSpin = new CueBallSpin
+        {
+            X = Math.Clamp(x, 0.0, 1.0),
+            Y = Math.Clamp(y, 0.0, 1.0)
+        };
+        RaiseGameStateChanged();
+    }
+
+    public void ClearCueBallSpin()
+    {
+        _currentGame.CueBallSpin = null;
         RaiseGameStateChanged();
     }
 

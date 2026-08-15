@@ -409,4 +409,56 @@ public class GameManagerTests
 
         Assert.False(manager.GetCurrentGameState().Visibility.WinnerBannerVisible);
     }
+
+    [Fact]
+    public void SetCueBallSpin_SetsValue()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+
+        manager.SetCueBallSpin(0.25, 0.75);
+
+        var spin = manager.GetCurrentGameState().CueBallSpin;
+        Assert.NotNull(spin);
+        Assert.Equal(0.25, spin!.X);
+        Assert.Equal(0.75, spin.Y);
+    }
+
+    [Fact]
+    public void SetCueBallSpin_ClampsOutOfRangeValues()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+
+        manager.SetCueBallSpin(-0.5, 1.5);
+
+        var spin = manager.GetCurrentGameState().CueBallSpin;
+        Assert.NotNull(spin);
+        Assert.Equal(0.0, spin!.X);
+        Assert.Equal(1.0, spin.Y);
+    }
+
+    [Fact]
+    public void ClearCueBallSpin_ClearsValue()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        manager.SetCueBallSpin(0.5, 0.5);
+
+        manager.ClearCueBallSpin();
+
+        Assert.Null(manager.GetCurrentGameState().CueBallSpin);
+    }
+
+    [Fact]
+    public void AddPoint_ClearsCueBallSpin()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        manager.SetCueBallSpin(0.5, 0.5);
+
+        manager.AddPoint(isPlayer1: true);
+
+        Assert.Null(manager.GetCurrentGameState().CueBallSpin);
+    }
 }
