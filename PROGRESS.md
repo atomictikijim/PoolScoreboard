@@ -182,6 +182,29 @@ live:
 
 ## Change Log
 
+### 2026-08-14 — Fix: ComboBoxes not displaying selected item text
+
+- Root cause of the pre-existing bug noted in the previous entry: the four style/game-type
+  `ComboBox`es had their items declared as plain `<system:String>` literals (e.g. `"EightBall"`)
+  while bound via `SelectedValue` to enum-typed `GameViewModel` properties (`GameType`,
+  `RaceToMode`, `EndCapStyle`, `ShooterIndicatorStyle`). WPF's `Selector` matches `SelectedValue`
+  against each item's `SelectedValuePath`-resolved value using `Equals`; with `SelectedValuePath`
+  unset, that resolved value is the item itself, so an enum instance was never `.Equals()` to a
+  `string`, and the match silently failed — `SelectedItem`/`SelectionBoxItem` never got set, so
+  the selection box always rendered blank even though the underlying property held the correct
+  value (the reverse direction worked because selecting a string item let WPF's default
+  `EnumConverter` parse it back into the enum when writing to the bound property).
+- Fixed by changing each `ComboBox`'s child items from `<system:String>` literals to
+  `<x:Static Member="enums:GameType.EightBall" />`-style references (added an `enums:` xmlns for
+  `PoolScoreboard.Core.Enums` in `MainWindow.xaml`), so the items are actual enum instances of the
+  same type as the bound property — `SelectedValue` matching now compares enum-to-enum and
+  succeeds, and the default `ContentPresenter` still displays the enum's `ToString()` (e.g.
+  "NineBall"), so the visible text is unchanged from before.
+- `dotnet build` clean, `dotnet test` 29/29 (no logic changed — XAML-only fix). Verified live via
+  a screenshot of the Controller's Match Setup screen: all four combo boxes (Game, Race-To Mode,
+  End-Cap Style, Shooter Indicator) now display their selected text ("NineBall", "Single", "Dot",
+  "Glow") instead of a blank selection box.
+
 ### 2026-08-14 — Bundled flag icon set (country + US state flags) for end-cap icons
 
 - Downloaded and embedded 249 country/territory flag SVGs from

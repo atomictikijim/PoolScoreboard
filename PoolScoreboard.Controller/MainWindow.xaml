@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PoolScoreboard.Controller"
         xmlns:system="clr-namespace:System;assembly=System.Runtime"
+        xmlns:enums="clr-namespace:PoolScoreboard.Core.Enums;assembly=PoolScoreboard.Core"
         mc:Ignorable="d"
         Title="PoolScoreboard Controller"
         Height="780"
@@ -46,15 +47,15 @@
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="Game" Style="{StaticResource LabelTextBlockStyle}" />
                         <ComboBox SelectedValue="{Binding SelectedGameType}" Style="{StaticResource StandardComboBoxStyle}">
-                            <system:String>EightBall</system:String>
-                            <system:String>NineBall</system:String>
-                            <system:String>TenBall</system:String>
+                            <x:Static Member="enums:GameType.EightBall" />
+                            <x:Static Member="enums:GameType.NineBall" />
+                            <x:Static Member="enums:GameType.TenBall" />
                         </ComboBox>
 
                         <TextBlock Text="Race-To Mode" Style="{StaticResource LabelTextBlockStyle}" Margin="0,12,0,4" />
                         <ComboBox SelectedValue="{Binding SelectedRaceToMode}" Style="{StaticResource StandardComboBoxStyle}">
-                            <system:String>Single</system:String>
-                            <system:String>Split</system:String>
+                            <x:Static Member="enums:RaceToMode.Single" />
+                            <x:Static Member="enums:RaceToMode.Split" />
                         </ComboBox>
 
                         <TextBlock Text="COLOR THEME" Style="{StaticResource LabelTextBlockStyle}" Margin="0,20,0,8" />
@@ -169,15 +170,15 @@
 
                         <TextBlock Text="End-Cap Style" Style="{StaticResource LabelTextBlockStyle}" />
                         <ComboBox SelectedValue="{Binding SelectedEndCapStyle}" Style="{StaticResource StandardComboBoxStyle}" Margin="0,0,0,12">
-                            <system:String>Dot</system:String>
-                            <system:String>Hidden</system:String>
+                            <x:Static Member="enums:EndCapStyle.Dot" />
+                            <x:Static Member="enums:EndCapStyle.Hidden" />
                         </ComboBox>
 
                         <TextBlock Text="Shooter Indicator" Style="{StaticResource LabelTextBlockStyle}" />
                         <ComboBox SelectedValue="{Binding SelectedShooterIndicatorStyle}" Style="{StaticResource StandardComboBoxStyle}">
-                            <system:String>Triangle</system:String>
-                            <system:String>Glow</system:String>
-                            <system:String>Both</system:String>
+                            <x:Static Member="enums:ShooterIndicatorStyle.Triangle" />
+                            <x:Static Member="enums:ShooterIndicatorStyle.Glow" />
+                            <x:Static Member="enums:ShooterIndicatorStyle.Both" />
                         </ComboBox>
                     </StackPanel>
 
