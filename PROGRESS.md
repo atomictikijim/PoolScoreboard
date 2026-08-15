@@ -186,6 +186,18 @@ live:
 
 ## Change Log
 
+### 2026-08-14 — Cue ball overlay: training cross + larger contact dot
+
+- Added a `.cross-pattern` element (CSS `::before`/`::after` lines) through the center of the
+  cue-ball graphic, mimicking the cross printed on real spin-training cue balls, per developer
+  request. Sized after a few rounds of live feedback: short lines spanning only the center ~22%
+  of the ball (`inset` at 39%/61%) so it reads as a small reference cross rather than dividing
+  the ball into quadrants.
+- Enlarged `.contact-dot` from 20px to 34px for better visibility, again per live feedback.
+- CSS/HTML-only change, no Core/Overlay-API logic touched; `dotnet test` unaffected (33/33).
+  Verified live across three iterations: launched the Controller, opened `/overlay/cueball` in a
+  browser, and refreshed after each CSS tweak per the developer's visual feedback.
+
 ### 2026-08-14 — Phase 4: Cue Ball Spin Overlay
 
 - Added `PoolScoreboard.Core.Models.CueBallSpin` (`X`/`Y`, each a 0.0-1.0 fraction relative to

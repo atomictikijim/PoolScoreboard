@@ -28,12 +28,41 @@ html, body {
   box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45), inset 0 -8px 18px rgba(0, 0, 0, 0.12), inset 0 6px 14px rgba(255, 255, 255, 0.6);
 }
 
+.cross-pattern {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cross-pattern::before,
+.cross-pattern::after {
+  content: '';
+  position: absolute;
+  background: rgba(30, 30, 30, 0.5);
+}
+
+.cross-pattern::before {
+  left: 39%;
+  right: 39%;
+  top: 50%;
+  height: 3px;
+  transform: translateY(-50%);
+}
+
+.cross-pattern::after {
+  top: 39%;
+  bottom: 39%;
+  left: 50%;
+  width: 3px;
+  transform: translateX(-50%);
+}
+
 .contact-dot {
   position: absolute;
-  width: 20px;
-  height: 20px;
-  margin-left: -10px;
-  margin-top: -10px;
+  width: 34px;
+  height: 34px;
+  margin-left: -17px;
+  margin-top: -17px;
   border-radius: 50%;
   background: #d81e1e;
   border: 2px solid #7a0d0d;
