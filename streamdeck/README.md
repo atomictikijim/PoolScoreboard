@@ -1,5 +1,9 @@
 # Stream Deck button mapping
 
+For a step-by-step walkthrough of actually setting this up in the Stream Deck app, see
+[SETUP.md](SETUP.md). This file is the reference table of endpoints — what each button hits and
+what it does.
+
 No custom Elgato SDK plugin is used — every button below is built in the Stream Deck app using
 its built-in **Website** action, pointed at the local URL in the "Endpoint" column, with
 **"Run in background"** (a.k.a. "don't open a browser window") checked. Every endpoint is a plain

@@ -186,7 +186,14 @@ live:
 
 ## Change Log
 
-### 2026-08-14 — Phase 5: Stream Deck Integration
+### 2026-08-14 — Stream Deck setup walkthrough
+
+- Added `streamdeck/SETUP.md`: a step-by-step guide to actually wiring up the Phase 5
+  `/api/control/*` endpoints in the Stream Deck app (creating a profile, adding a "Website"
+  action per button, the background-fetch setting so buttons don't pop open browser windows,
+  a full button-by-button test pass, and troubleshooting). `streamdeck/README.md` stays the
+  reference table of endpoints/effects and now links to `SETUP.md` at the top. Documentation
+  only — no code changed.
 
 - New `PoolScoreboard.Overlay.Endpoints.ControlEndpoints` maps ten `/api/control/*` routes onto
   the shared `GameManager` instance: score add (home/away), undo, shooter toggle, 8-ball group
