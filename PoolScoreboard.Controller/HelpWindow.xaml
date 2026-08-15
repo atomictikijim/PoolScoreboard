@@ -1,0 +1,310 @@
+<Window x:Class="PoolScoreboard.Controller.HelpWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PoolScoreboard Help"
+        Height="720"
+        Width="920"
+        Background="{StaticResource BackgroundBrush}"
+        WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <Style x:Key="HelpHeadingStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+        <Style x:Key="HelpSubHeadingStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Margin" Value="0,18,0,6" />
+        </Style>
+        <Style x:Key="HelpBodyStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+        <Style x:Key="HelpBulletStyle" TargetType="TextBlock" BasedOn="{StaticResource HelpBodyStyle}">
+            <Setter Property="Margin" Value="12,0,0,4" />
+        </Style>
+        <Style x:Key="HelpCodeStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Margin" Value="12,0,0,4" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="NavButtonStyle" TargetType="Button" BasedOn="{StaticResource InactiveButtonStyle}">
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="POOLSCOREBOARD HELP" Style="{StaticResource HelpHeadingStyle}" Margin="0" />
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="190" />
+                <ColumnDefinition Width="20" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Nav -->
+            <StackPanel Grid.Column="0">
+                <Button x:Name="OverviewNavButton" Content="Overview" Style="{StaticResource ActiveButtonStyle}" Margin="0,0,0,8" Padding="12,10" Click="ShowOverview_Click" />
+                <Button x:Name="ControllerNavButton" Content="Using the Controller" Style="{StaticResource NavButtonStyle}" Margin="0,0,0,8" Padding="12,10" Click="ShowController_Click" />
+                <Button x:Name="ObsNavButton" Content="OBS Studio Setup" Style="{StaticResource NavButtonStyle}" Margin="0,0,0,8" Padding="12,10" Click="ShowObs_Click" />
+                <Button x:Name="StreamDeckNavButton" Content="Stream Deck Setup" Style="{StaticResource NavButtonStyle}" Margin="0,0,0,8" Padding="12,10" Click="ShowStreamDeck_Click" />
+            </StackPanel>
+
+            <!-- Content -->
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid>
+                    <!-- ================= OVERVIEW ================= -->
+                    <StackPanel x:Name="OverviewPanel">
+                        <TextBlock Text="What this app does" Style="{StaticResource HelpSubHeadingStyle}" Margin="0,0,0,6" />
+                        <TextBlock Style="{StaticResource HelpBodyStyle}">
+                            PoolScoreboard runs a pool-match scoreboard for OBS Studio, controlled from this
+                            window, the keyboard, or an Elgato Stream Deck. Everything runs locally on this
+                            PC — it works fully offline and never contacts the internet.
+                        </TextBlock>
+
+                        <TextBlock Text="The four pieces" Style="{StaticResource HelpSubHeadingStyle}" />
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • This Controller window — set up a match, then run it live: scoring, undo,
+                            current shooter, ball tracking, and overlay visibility toggles.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • The Scoreboard overlay — a web page this app serves locally. Add it to OBS as
+                            a Browser Source to show the score bar, ball tracker, and winner banner on
+                            stream. It updates live and automatically as you use the Controller.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • The Cue Ball overlay — a separate web page with an interactive cue-ball
+                            graphic for marking spin/contact points, also added to OBS on its own.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • Optional Stream Deck buttons — score, undo, toggle shooter, assign balls,
+                            start a new rack, or reset the match from physical buttons, without touching
+                            this window at all.
+                        </TextBlock>
+
+                        <TextBlock Text="Where to go next" Style="{StaticResource HelpSubHeadingStyle}" />
+                        <TextBlock Style="{StaticResource HelpBodyStyle}">
+                            Use the tabs on the left: "Using the Controller" covers every field and button in
+                            this window, "OBS Studio Setup" covers adding the overlay pages to your scene, and
+                            "Stream Deck Setup" covers wiring up physical buttons.
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- ================= CONTROLLER ================= -->
+                    <StackPanel x:Name="ControllerPanel" Visibility="Collapsed">
+                        <TextBlock Text="Match Setup screen" Style="{StaticResource HelpSubHeadingStyle}" Margin="0,0,0,6" />
+                        <TextBlock Style="{StaticResource HelpBodyStyle}">
+                            This is the first screen you see. Everything here previews live on the Scoreboard
+                            overlay immediately — you don't need to click Start Match to see your changes.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • <Bold>Game</Bold> — 8-Ball, 9-Ball, or 10-Ball. Choosing 8-Ball unlocks the ball
+                            group (Solids/Stripes) controls later in Live View.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • <Bold>Race-To Mode</Bold> — Single means both players share one target score
+                            (changing Home's Race To also updates Away's); Split lets each player have their
+                            own target.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • <Bold>Color Theme</Bold> — separate background and accent colors for each side,
+                            plus one shared text color. Click the swatch next to a hex field to open a color
+                            picker, or type a hex value directly. The center "Race To" segment is always
+                            black regardless of these colors.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • <Bold>Scoreboard Style</Bold> — corner roundness, overall scale, a glossy/flat
+                            finish toggle, end-cap style (a colored dot, or hidden), and shooter-indicator
+                            style (a triangle pointer, a glow on the active side, or both).
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • <Bold>Home / Away player fields</Bold> — team name (optional, shown above the
+                            player's name on the overlay if set), player name, and Race To target. End-Cap
+                            Icon lets you set a custom logo image ("Choose Icon..."), a bundled country or
+                            US state flag ("Choose Flag..."), or remove it ("Clear") — it replaces the
+                            default colored dot at that side's end of the score bar.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBodyStyle}" Margin="0,4,0,0">
+                            Click <Bold>START MATCH</Bold> when you're ready to begin scoring.
+                        </TextBlock>
+
+                        <TextBlock Text="Live View screen" Style="{StaticResource HelpSubHeadingStyle}" />
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • <Bold>Score + / −</Bold> — the + button on each side adds a point for that
+                            player (ending the match if they reach their Race-To target). The − button undoes
+                            the last scored point, decrementing whichever player is currently ahead — it does
+                            nothing at a tie.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • <Bold>Shooter toggle</Bold> — the button at the top-right switches which player
+                            the shooter indicator points to on the overlay.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • <Bold>Ball Group (8-Ball only)</Bold> — Solids/Stripes buttons under each
+                            player assign that group to them; the other player automatically gets the
+                            opposite group.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • <Bold>Ball display</Bold> — click any ball to mark it pocketed (it greys out in
+                            place on both this window and the overlay's ball tracker) or click again to bring
+                            it back.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • <Bold>OVERLAY row</Bold> — Score Bar / Ball Tracker / Winner Banner buttons show
+                            or hide each of those elements on the overlay live, with a slide/fade animation.
+                            Hiding the score bar also hides the other two, since they're anchored to it.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • <Bold>NEW RACK</Bold> clears all pocketed-ball markers for a fresh rack without
+                            touching the score. <Bold>RESET MATCH</Bold> ends the match entirely and returns
+                            you to the Match Setup screen — use it between matches, not mid-rack.
+                        </TextBlock>
+
+                        <TextBlock Text="Keyboard shortcuts (Live View only)" Style="{StaticResource HelpSubHeadingStyle}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Q — add a point for Home</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">P — add a point for Away</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">A — undo the last point</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Space — toggle current shooter</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">N — start a new rack</TextBlock>
+                        <TextBlock Style="{StaticResource HelpBodyStyle}" Margin="0,8,0,0">
+                            These are disabled while typing in a text field, so they won't interfere with
+                            entering names or race-to values.
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- ================= OBS ================= -->
+                    <StackPanel x:Name="ObsPanel" Visibility="Collapsed">
+                        <TextBlock Text="Before you start" Style="{StaticResource HelpSubHeadingStyle}" Margin="0,0,0,6" />
+                        <TextBlock Style="{StaticResource HelpBodyStyle}">
+                            PoolScoreboard Controller must be running — the overlay pages are served by this
+                            app, not by a separate program. If the Controller closes, the overlay pages stop
+                            responding until you reopen it.
+                        </TextBlock>
+
+                        <TextBlock Text="Add the overlay pages as Browser Sources" Style="{StaticResource HelpSubHeadingStyle}" />
+                        <TextBlock Style="{StaticResource HelpBodyStyle}">
+                            In OBS Studio, add a new source to your scene: <Bold>Sources → + → Browser</Bold>.
+                            Create one for each overlay you want, and paste in the matching URL:
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Scoreboard: http://127.0.0.1:51234/overlay/scoreboard</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Cue Ball: http://127.0.0.1:51234/overlay/cueball</TextBlock>
+                        <TextBlock Style="{StaticResource HelpBodyStyle}" Margin="0,8,0,0">
+                            Leave "Local file" unchecked — these are live local web pages, not files on disk.
+                        </TextBlock>
+
+                        <TextBlock Text="Sizing and positioning" Style="{StaticResource HelpSubHeadingStyle}" />
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • Size each Browser Source generously. The scoreboard scales from its top-left
+                            corner, so a source box that's too small will clip the graphic instead of shrinking
+                            it — widen the source or lower the Scale setting in Match Setup instead.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • The two overlays are completely independent — position and resize them separately
+                            in your scene, and skip adding either one you don't need.
+                        </TextBlock>
+
+                        <TextBlock Text="Using the cue-ball overlay live" Style="{StaticResource HelpSubHeadingStyle}" />
+                        <TextBlock Style="{StaticResource HelpBodyStyle}">
+                            Browser Sources aren't normally clickable in a live scene. To place or clear the
+                            contact-point dot on the cue ball, right-click the source in OBS and choose
+                            <Bold>Interact</Bold> — that opens a small window where clicks actually reach the
+                            page. Click the ball to place the dot; use the Clear button on the page to remove
+                            it early. It also clears automatically the moment the next point is scored.
+                        </TextBlock>
+
+                        <TextBlock Text="Everything updates live" Style="{StaticResource HelpSubHeadingStyle}" />
+                        <TextBlock Style="{StaticResource HelpBodyStyle}">
+                            Once a Browser Source is added, it stays in sync with the Controller automatically
+                            — scores, colors, style changes, and visibility toggles all appear within a moment
+                            of you making them, with no need to refresh the source.
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- ================= STREAM DECK ================= -->
+                    <StackPanel x:Name="StreamDeckPanel" Visibility="Collapsed">
+                        <TextBlock Text="No plugin required" Style="{StaticResource HelpSubHeadingStyle}" Margin="0,0,0,6" />
+                        <TextBlock Style="{StaticResource HelpBodyStyle}">
+                            Every button is built using the Stream Deck app's built-in <Bold>Website</Bold>
+                            action, pointed at a local URL — no Elgato SDK plugin install needed. The Controller
+                            must be running for these to work, and they never leave this PC.
+                        </TextBlock>
+
+                        <TextBlock Text="Setting up a button" Style="{StaticResource HelpSubHeadingStyle}" />
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • In the Stream Deck app, drag the <Bold>Website</Bold> action (under System) onto
+                            a button.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • Set the <Bold>Title</Bold> to whatever label you want on the button, and
+                            <Bold>Website</Bold> to the full URL from the table below.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • Make sure the option for fetching the URL in the background is enabled (wording
+                            varies by Stream Deck software version) — otherwise every press opens a new browser
+                            window instead of quietly hitting the button.
+                        </TextBlock>
+
+                        <TextBlock Text="Button endpoints" Style="{StaticResource HelpSubHeadingStyle}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Home +1 — http://127.0.0.1:51234/api/control/score/home/add</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Away +1 — http://127.0.0.1:51234/api/control/score/away/add</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Undo — http://127.0.0.1:51234/api/control/score/undo</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Toggle Shooter — http://127.0.0.1:51234/api/control/shooter/toggle</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Home: Solids — http://127.0.0.1:51234/api/control/balls/home/solids</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Home: Stripes — http://127.0.0.1:51234/api/control/balls/home/stripes</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Away: Solids — http://127.0.0.1:51234/api/control/balls/away/solids</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Away: Stripes — http://127.0.0.1:51234/api/control/balls/away/stripes</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ball N Pocketed (N = 1-15) — http://127.0.0.1:51234/api/control/balls/N/toggle</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">New Rack — http://127.0.0.1:51234/api/control/rack/new</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Reset Match — http://127.0.0.1:51234/api/control/match/reset</TextBlock>
+
+                        <TextBlock Text="Notes" Style="{StaticResource HelpSubHeadingStyle}" />
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • Score/undo/shooter/ball buttons safely do nothing if pressed before a match has
+                            been started — they won't crash or desync anything.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • Ball-assignment buttons only apply to 8-Ball and safely do nothing for
+                            9-Ball/10-Ball matches.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • Each ball-toggle button flips that ball's pocketed state — press once to mark
+                            it pocketed, press again to bring it back. You only need to set up buttons for the
+                            balls your game type actually uses (1-9 for 9-Ball, 1-10 for 10-Ball, 1-15 for
+                            8-Ball).
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • Reset Match is destructive — it clears the loaded players and settings back to
+                            defaults, just like the in-app button. Consider putting it on its own page or
+                            folder so it's harder to press by accident.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • The cue-ball overlay's Clear button isn't in this list — it's meant to be clicked
+                            directly on the overlay page via OBS's Interact mode, covered in OBS Studio Setup.
+                        </TextBlock>
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+
+        <Button Grid.Row="4" Content="Close" Style="{StaticResource InactiveButtonStyle}" Click="Close_Click"
+                HorizontalAlignment="Right" Padding="20,8" />
+    </Grid>
+</Window>

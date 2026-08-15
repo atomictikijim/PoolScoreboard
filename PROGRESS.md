@@ -186,6 +186,35 @@ live:
 
 ## Change Log
 
+### 2026-08-14 — In-app Help modal
+
+- Added `HelpWindow.xaml`/`.xaml.cs`: a modal (opened via `ShowDialog`) with a left-hand nav
+  (Overview / Using the Controller / OBS Studio Setup / Stream Deck Setup) and a scrollable
+  content panel on the right, styled to match the app's existing dark theme (reuses
+  `BackgroundBrush`/`TextPrimaryBrush`/`TextSecondaryBrush`/`AccentBrush`/`ActiveButtonStyle`/
+  `InactiveButtonStyle` from `Themes/Default.xaml` — no new global resources). Content is
+  self-contained (not just links to the repo's markdown docs) since a packaged/distributed build
+  won't necessarily ship the source repo — it condenses CLAUDE.md's feature set, every Match
+  Setup/Live View control, the OBS Browser Source + Interact-mode workflow, and the full Stream
+  Deck endpoint table from `streamdeck/README.md`/`SETUP.md` into one place.
+- `GameViewModel` gained a `ShowHelpCommand` (`new HelpWindow { Owner = ... }.ShowDialog()`).
+  `MainWindow.xaml` was restructured slightly: the root `Grid` now has a persistent top row (an
+  "Help" button, top-right, visible on both the Match Setup and Live View screens) above the
+  existing two-screen content, rather than adding it to just one screen — the outer content that
+  used to be the root Grid's direct children moved one level deeper into row 1.
+- `dotnet build` clean, `dotnet test` 33/33 (no Core/Overlay logic changed — a new WPF window and
+  one command). Verified live in two ways: a real screenshot of the Controller confirming the
+  Help button's placement doesn't disturb the existing Match Setup layout, and a throwaway WPF
+  render harness (a small `net8.0-windows` console app referencing the Controller project) that
+  constructs `HelpWindow` directly, merges `Themes/Default.xaml` into a minimal `Application` so
+  `StaticResource` lookups resolve, and renders each of the four nav panels to PNG via
+  `RenderTargetBitmap` — switching panels by raising each nav button's `Click` routed event
+  in-process (not OS-level input simulation) rather than driving the mouse, consistent with
+  earlier feedback in this session about not simulating clicks on the app under test. All four
+  panels confirmed to render correctly: text wraps, headings/body/code styling reads clearly, the
+  active nav button highlights correctly, and the content `ScrollViewer` scrolls independently of
+  the fixed nav column.
+
 ### 2026-08-14 — Stream Deck control for the ball display
 
 - Added `GET /api/control/balls/{number}/toggle` (number 1-15) to `ControlEndpoints` — toggles

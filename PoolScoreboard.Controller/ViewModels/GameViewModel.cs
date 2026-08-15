@@ -426,6 +426,9 @@ public partial class GameViewModel : ObservableObject
         RefreshBallLayout();
     }
 
+    [RelayCommand]
+    private void ShowHelp() => new HelpWindow { Owner = Application.Current.MainWindow }.ShowDialog();
+
     private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e)
     {
         var state = e.GameState;

@@ -22,6 +22,24 @@
     </Window.Resources>
     <Border Padding="20">
         <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Persistent top bar -->
+            <Grid Grid.Row="0" Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="POOLSCOREBOARD" FontSize="13" FontWeight="Bold"
+                           Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Content="Help" Style="{StaticResource InactiveButtonStyle}"
+                        Command="{Binding ShowHelpCommand}" Padding="16,6" />
+            </Grid>
+
+            <Grid Grid.Row="1">
             <!-- ================= MATCH SETUP ================= -->
             <Grid Visibility="{Binding GameInitialized, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                 <Grid.RowDefinitions>
@@ -389,6 +407,7 @@
                     <Button Content="NEW RACK" Style="{StaticResource InactiveButtonStyle}" Command="{Binding NewRackCommand}" Padding="16,8" Margin="0,0,12,0" />
                     <Button Content="RESET MATCH" Style="{StaticResource InactiveButtonStyle}" Command="{Binding ResetMatchCommand}" Padding="16,8" />
                 </StackPanel>
+            </Grid>
             </Grid>
         </Grid>
     </Border>
