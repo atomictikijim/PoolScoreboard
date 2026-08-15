@@ -186,6 +186,14 @@ live:
 
 ## Change Log
 
+### 2026-08-14 — Confirmed in real OBS Studio: both overlay pages verified as browser sources
+
+- The developer added `/overlay/scoreboard` and `/overlay/cueball` as actual OBS Studio browser
+  sources (not just curl/screenshot checks from this environment) and confirmed both render
+  correctly. This closes out the "visual QA in an actual browser/OBS browser source is still
+  owed by the developer" caveat noted on every overlay changelog entry back through Phase 3 —
+  no code change, just closing the loop on outstanding manual verification.
+
 ### 2026-08-14 — Cue ball overlay: training cross + larger contact dot
 
 - Added a `.cross-pattern` element (CSS `::before`/`::after` lines) through the center of the
