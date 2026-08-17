@@ -19,8 +19,10 @@ using the mapping below, then export/share it from there if needed.
 
 | Button label     | Endpoint                                | Effect |
 |-------------------|------------------------------------------|--------|
-| Home +1           | `/api/control/score/home/add`             | Adds one point to the home player. Ends the match if it reaches their Race-To target. |
-| Away +1           | `/api/control/score/away/add`             | Adds one point to the away player. Ends the match if it reaches their Race-To target. |
+| Home +1           | `/api/control/score/home/add`             | Adds one point to the home player. Sets the winner banner if it reaches their Race-To target — the match stays fully editable afterward. |
+| Away +1           | `/api/control/score/away/add`             | Adds one point to the away player. Sets the winner banner if it reaches their Race-To target — the match stays fully editable afterward. |
+| Home -1           | `/api/control/score/home/subtract`        | Removes one point from the home player (does nothing below 0). Clears the winner banner if their score drops back below their Race-To target. |
+| Away -1           | `/api/control/score/away/subtract`        | Removes one point from the away player (does nothing below 0). Clears the winner banner if their score drops back below their Race-To target. |
 | Undo              | `/api/control/score/undo`                 | Undoes the last scored point (decrements whichever player is currently ahead). |
 | Toggle Shooter    | `/api/control/shooter/toggle`              | Switches the current-shooter indicator to the other player. |
 | Home: Solids      | `/api/control/balls/home/solids`           | 8-ball only. Assigns Solids to the home player (away player auto-flips to Stripes). |
@@ -39,6 +41,9 @@ using the mapping below, then export/share it from there if needed.
 - Score/undo/shooter-toggle/ball-assignment buttons no-op safely if no match is active yet (e.g.
   pressed while the Controller is still on the Match Setup screen) — pressing them won't crash or
   desync anything, they just have no effect until "Start Match" has been clicked.
+- A player reaching their Race-To target only sets the winner banner — it does not lock the match.
+  Home +1/-1, Away +1/-1, Undo, shooter-toggle, and ball buttons all keep working after a win, so a
+  scoring mistake spotted after the fact can still be corrected without a full "Reset Match".
 - "Reset Match" is destructive: it clears the loaded players, color theme, and scoreboard style
   back to defaults, exactly like the in-app button. It's meant for wrapping up one match before
   setting up the next, not for a mid-match do-over — use "New Rack" (or "Undo") for that instead.

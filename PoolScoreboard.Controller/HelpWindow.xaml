@@ -125,10 +125,10 @@
                             own target.
                         </TextBlock>
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
-                            • <Bold>Color Theme</Bold> — separate background and accent colors for each side,
-                            plus one shared text color. Click the swatch next to a hex field to open a color
-                            picker, or type a hex value directly. The center "Race To" segment is always
-                            black regardless of these colors.
+                            • <Bold>Color Theme</Bold> — separate background, accent, and text colors for each
+                            side. Click the swatch next to a hex field to open a color picker, or type a hex
+                            value directly. The center "Race To" segment is always black with white text,
+                            regardless of these colors.
                         </TextBlock>
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
                             • <Bold>Scoreboard Style</Bold> — corner roundness, overall scale, a glossy/flat
@@ -149,9 +149,9 @@
                         <TextBlock Text="Live View screen" Style="{StaticResource HelpSubHeadingStyle}" />
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
                             • <Bold>Score + / −</Bold> — the + button on each side adds a point for that
-                            player (ending the match if they reach their Race-To target). The − button undoes
-                            the last scored point, decrementing whichever player is currently ahead — it does
-                            nothing at a tie.
+                            player, and the − button removes one (it does nothing below 0). Reaching a
+                            Race-To target shows the winner banner but doesn't lock anything — you can keep
+                            using + / − afterward to correct a mistake without resetting the match.
                         </TextBlock>
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
                             • <Bold>Shooter toggle</Bold> — the button at the top-right switches which player
@@ -265,6 +265,8 @@
                         <TextBlock Text="Button endpoints" Style="{StaticResource HelpSubHeadingStyle}" />
                         <TextBlock Style="{StaticResource HelpCodeStyle}">Home +1 — http://127.0.0.1:51234/api/control/score/home/add</TextBlock>
                         <TextBlock Style="{StaticResource HelpCodeStyle}">Away +1 — http://127.0.0.1:51234/api/control/score/away/add</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Home -1 — http://127.0.0.1:51234/api/control/score/home/subtract</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Away -1 — http://127.0.0.1:51234/api/control/score/away/subtract</TextBlock>
                         <TextBlock Style="{StaticResource HelpCodeStyle}">Undo — http://127.0.0.1:51234/api/control/score/undo</TextBlock>
                         <TextBlock Style="{StaticResource HelpCodeStyle}">Toggle Shooter — http://127.0.0.1:51234/api/control/shooter/toggle</TextBlock>
                         <TextBlock Style="{StaticResource HelpCodeStyle}">Home: Solids — http://127.0.0.1:51234/api/control/balls/home/solids</TextBlock>
@@ -279,6 +281,10 @@
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
                             • Score/undo/shooter/ball buttons safely do nothing if pressed before a match has
                             been started — they won't crash or desync anything.
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • Reaching a Race-To target only shows the winner banner — it doesn't lock the
+                            match, so Home/Away +1/-1 keep working afterward to fix a mistake.
                         </TextBlock>
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
                             • Ball-assignment buttons only apply to 8-Ball and safely do nothing for

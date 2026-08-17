@@ -27,6 +27,18 @@ internal static class ControlEndpoints
             return Results.Ok();
         });
 
+        app.MapGet("/api/control/score/home/subtract", () =>
+        {
+            gameManager.SubtractPoint(isPlayer1: true);
+            return Results.Ok();
+        });
+
+        app.MapGet("/api/control/score/away/subtract", () =>
+        {
+            gameManager.SubtractPoint(isPlayer1: false);
+            return Results.Ok();
+        });
+
         app.MapGet("/api/control/score/undo", () =>
         {
             gameManager.UndoPoint();

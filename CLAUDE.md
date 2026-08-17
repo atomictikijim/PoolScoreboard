@@ -138,8 +138,8 @@ reviewed as of 2026-08-14; see NOTES.md ("WNT visual reference — style cues ex
 detail. Concrete design tokens for the `/overlay/scoreboard` page in Phase 3:
 
 - A single glossy "pill"-shaped bar, capsule-rounded ends, subtle top-lit gradient.
-- Deep violet/indigo bar fill (`ColorTheme.Background`), white bold sans-serif text
-  (`ColorTheme.Text`).
+- Deep violet/indigo bar fill (`ColorTheme.HomeBackground`/`AwayBackground`), white bold
+  sans-serif text (`ColorTheme.HomeText`/`AwayText`, editable independently per side).
 - White rounded-rect score badges with dark, high-contrast numbers, sitting inside the bar
   next to each player's name.
 - A slightly darker center segment holding "Race to N" in smaller white text, separating the

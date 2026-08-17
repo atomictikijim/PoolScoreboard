@@ -37,7 +37,8 @@ public class ColorThemeDto
     public required string AwayBackground { get; init; }
     public required string HomeAccent { get; init; }
     public required string AwayAccent { get; init; }
-    public required string Text { get; init; }
+    public required string HomeText { get; init; }
+    public required string AwayText { get; init; }
 }
 
 public class ScoreboardStyleDto

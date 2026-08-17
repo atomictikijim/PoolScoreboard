@@ -138,6 +138,21 @@
                                     Command="{Binding PickColorCommand}" CommandParameter="AwayAccent" />
                         </Grid>
 
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="24" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Home Text" VerticalAlignment="Center" Style="{StaticResource ValueTextBlockStyle}" />
+                            <TextBox Grid.Column="2" Text="{Binding HomeTextColor, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" Margin="0" />
+                            <Button Grid.Column="4" Style="{StaticResource SwatchButtonStyle}"
+                                    Background="{Binding HomeTextColor, Converter={StaticResource HexColorToBrushConverter}}"
+                                    Command="{Binding PickColorCommand}" CommandParameter="HomeText" />
+                        </Grid>
+
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120" />
@@ -146,11 +161,11 @@
                                 <ColumnDefinition Width="8" />
                                 <ColumnDefinition Width="24" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Text" VerticalAlignment="Center" Style="{StaticResource ValueTextBlockStyle}" />
-                            <TextBox Grid.Column="2" Text="{Binding TextColor, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" Margin="0" />
+                            <TextBlock Grid.Column="0" Text="Away Text" VerticalAlignment="Center" Style="{StaticResource ValueTextBlockStyle}" />
+                            <TextBox Grid.Column="2" Text="{Binding AwayTextColor, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" Margin="0" />
                             <Button Grid.Column="4" Style="{StaticResource SwatchButtonStyle}"
-                                    Background="{Binding TextColor, Converter={StaticResource HexColorToBrushConverter}}"
-                                    Command="{Binding PickColorCommand}" CommandParameter="Text" />
+                                    Background="{Binding AwayTextColor, Converter={StaticResource HexColorToBrushConverter}}"
+                                    Command="{Binding PickColorCommand}" CommandParameter="AwayText" />
                         </Grid>
                     </StackPanel>
 
@@ -282,7 +297,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="{Binding WinnerAnnouncement}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
-                    <Button Grid.Column="1" x:Name="CurrentShooterToggleButton" Style="{StaticResource ActiveButtonStyle}" Command="{Binding ToggleCurrentShooterCommand}" Height="36" />
+                    <Button Grid.Column="1" Content="{Binding CurrentShooterButtonText}" Style="{StaticResource ActiveButtonStyle}" Command="{Binding ToggleCurrentShooterCommand}" Height="36" />
                 </Grid>
 
                 <!-- Player panels -->
@@ -305,7 +320,7 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding UndoLastPointCommand}" Margin="0,0,4,0" />
+                                <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding SubtractHomePointCommand}" Margin="0,0,4,0" />
                                 <TextBlock Grid.Column="1" Text="{Binding HomeScore}" Style="{StaticResource LargeValueTextBlockStyle}" />
                                 <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding AddHomePointCommand}" Margin="4,0,0,0" />
                             </Grid>
@@ -344,7 +359,7 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding UndoLastPointCommand}" Margin="0,0,4,0" />
+                                <Button Grid.Column="0" Content="−" Style="{StaticResource CounterButtonStyle}" Command="{Binding SubtractAwayPointCommand}" Margin="0,0,4,0" />
                                 <TextBlock Grid.Column="1" Text="{Binding AwayScore}" Style="{StaticResource LargeValueTextBlockStyle}" />
                                 <Button Grid.Column="2" Content="+" Style="{StaticResource CounterButtonStyle}" Command="{Binding AddAwayPointCommand}" Margin="4,0,0,0" />
                             </Grid>

@@ -72,7 +72,7 @@ public class GameManagerTests
         manager.AddPoint(true);
 
         var state = manager.GetCurrentGameState();
-        Assert.False(state.IsGameActive);
+        Assert.True(state.IsGameActive);
         Assert.Same(state.Player1, state.Winner);
     }
 
@@ -88,24 +88,69 @@ public class GameManagerTests
         manager.AddPoint(true);
 
         var state = manager.GetCurrentGameState();
-        Assert.False(state.IsGameActive);
+        Assert.True(state.IsGameActive);
         Assert.Same(player1, state.Winner);
         Assert.Equal(2, state.Player1Score);
     }
 
     [Fact]
-    public void AddPoint_DoesNothingWhenGameIsNotActive()
+    public void AddPoint_StillWorksAfterAPlayerReachesRaceToTarget()
     {
         var manager = new GameManager();
         manager.InitializeGame(CreatePlayer("Alice", 1), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Split);
 
         manager.AddPoint(true); // Alice wins immediately at race-to 1
+        Assert.Same(manager.GetCurrentGameState().Player1, manager.GetCurrentGameState().Winner);
 
-        Assert.False(manager.GetCurrentGameState().IsGameActive);
-
+        // The match must remain fully editable after a win, in case of a scoring mistake.
         manager.AddPoint(false);
 
-        Assert.Equal(0, manager.GetCurrentGameState().Player2Score);
+        Assert.Equal(1, manager.GetCurrentGameState().Player2Score);
+    }
+
+    [Fact]
+    public void SubtractPoint_DecrementsCorrectPlayersScore()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        manager.AddPoint(true);
+        manager.AddPoint(true);
+        manager.AddPoint(false);
+
+        manager.SubtractPoint(isPlayer1: true);
+
+        var state = manager.GetCurrentGameState();
+        Assert.Equal(1, state.Player1Score);
+        Assert.Equal(1, state.Player2Score);
+    }
+
+    [Fact]
+    public void SubtractPoint_DoesNotGoBelowZero()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+
+        manager.SubtractPoint(isPlayer1: true);
+        manager.SubtractPoint(isPlayer1: false);
+
+        var state = manager.GetCurrentGameState();
+        Assert.Equal(0, state.Player1Score);
+        Assert.Equal(0, state.Player2Score);
+    }
+
+    [Fact]
+    public void SubtractPoint_ClearsWinnerWhenScoreDropsBelowRaceToTarget()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 1), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Split);
+        manager.AddPoint(true); // Alice wins at race-to 1
+
+        manager.SubtractPoint(isPlayer1: true);
+
+        var state = manager.GetCurrentGameState();
+        Assert.Null(state.Winner);
+        Assert.True(state.IsGameActive);
+        Assert.Equal(0, state.Player1Score);
     }
 
     [Fact]
@@ -169,18 +214,18 @@ public class GameManagerTests
     }
 
     [Fact]
-    public void SetCurrentShooter_DoesNothingAfterGameEnds()
+    public void SetCurrentShooter_StillWorksAfterAPlayerReachesRaceToTarget()
     {
         var manager = new GameManager();
         var player1 = CreatePlayer("Alice", 1);
         var player2 = CreatePlayer("Bob", 5);
         manager.InitializeGame(player1, player2, GameType.NineBall, RaceToMode.Split);
 
-        manager.AddPoint(true); // Alice wins, game ends
+        manager.AddPoint(true); // Alice wins immediately at race-to 1
 
         manager.SetCurrentShooter(player2);
 
-        Assert.Same(player1, manager.GetCurrentGameState().CurrentShooter);
+        Assert.Same(player2, manager.GetCurrentGameState().CurrentShooter);
     }
 
     [Theory]
@@ -253,7 +298,7 @@ public class GameManagerTests
     {
         var manager = new GameManager();
         manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
-        var theme = new ColorTheme { HomeBackground = "#000000", AwayBackground = "#222222", HomeAccent = "#ff0000", AwayAccent = "#0000ff", Text = "#ffffff" };
+        var theme = new ColorTheme { HomeBackground = "#000000", AwayBackground = "#222222", HomeAccent = "#ff0000", AwayAccent = "#0000ff", HomeText = "#ffffff", AwayText = "#dddddd" };
 
         manager.SetColorTheme(theme);
 

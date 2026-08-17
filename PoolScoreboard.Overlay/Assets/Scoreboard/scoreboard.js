@@ -54,7 +54,8 @@
     root.style.setProperty('--bg-away-dark', shade(colors.awayBackground, -22));
     root.style.setProperty('--accent-home', colors.homeAccent);
     root.style.setProperty('--accent-away', colors.awayAccent);
-    root.style.setProperty('--text', colors.text);
+    root.style.setProperty('--text-home', colors.homeText);
+    root.style.setProperty('--text-away', colors.awayText);
   }
 
   function applyStyle(style, homeIsShooter) {

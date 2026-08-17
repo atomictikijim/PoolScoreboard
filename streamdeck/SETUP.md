@@ -69,6 +69,8 @@ same "run in background" setting, just a different **Title** and **Website** URL
 |-----------------|--------------------------------------------------------------|
 | Home +1         | `http://127.0.0.1:51234/api/control/score/home/add`           |
 | Away +1         | `http://127.0.0.1:51234/api/control/score/away/add`           |
+| Home -1         | `http://127.0.0.1:51234/api/control/score/home/subtract`      |
+| Away -1         | `http://127.0.0.1:51234/api/control/score/away/subtract`      |
 | Undo            | `http://127.0.0.1:51234/api/control/score/undo`                |
 | Toggle Shooter  | `http://127.0.0.1:51234/api/control/shooter/toggle`            |
 | Home: Solids    | `http://127.0.0.1:51234/api/control/balls/home/solids`         |
@@ -125,8 +127,13 @@ A few layout suggestions, entirely up to you:
    effect of each press.
 3. Press through every button once, confirming:
    - **Home +1** / **Away +1** increase the correct side's score.
+   - **Home -1** / **Away -1** decrease the correct side's score (it does nothing below 0 — that's
+     expected, not a bug).
    - **Undo** decreases whichever side is currently ahead (it does nothing at a tie — that's
      expected, not a bug).
+   - Pushing a side to their Race-To target shows the winner banner but doesn't lock anything —
+     confirm **Home +1** / **Away +1** / **Home -1** / **Away -1** still work afterward, so a
+     mistaken final point can be corrected without needing "Reset Match".
    - **Toggle Shooter** flips the shooter indicator to the other player.
    - **Home/Away: Solids/Stripes** (8-ball only) assigns the ball group and auto-flips the other
      player's group.

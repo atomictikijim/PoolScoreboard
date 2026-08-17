@@ -36,24 +36,31 @@ public class GameManager
         _currentGame.CueBallSpin = null;
 
         if (isPlayer1)
-        {
             _currentGame.Player1Score++;
-            if (_currentGame.Player1Score >= _currentGame.Player1.RaceToTarget)
-            {
-                EndGame(_currentGame.Player1);
-                return;
-            }
+        else
+            _currentGame.Player2Score++;
+
+        UpdateWinner();
+        RaiseGameStateChanged();
+    }
+
+    public void SubtractPoint(bool isPlayer1)
+    {
+        if (!_currentGame.IsGameActive)
+            return;
+
+        if (isPlayer1)
+        {
+            if (_currentGame.Player1Score > 0)
+                _currentGame.Player1Score--;
         }
         else
         {
-            _currentGame.Player2Score++;
-            if (_currentGame.Player2Score >= _currentGame.Player2.RaceToTarget)
-            {
-                EndGame(_currentGame.Player2);
-                return;
-            }
+            if (_currentGame.Player2Score > 0)
+                _currentGame.Player2Score--;
         }
 
+        UpdateWinner();
         RaiseGameStateChanged();
     }
 
@@ -90,8 +97,7 @@ public class GameManager
             else if (_currentGame.Player2Score > _currentGame.Player1Score)
                 _currentGame.Player2Score--;
 
-            _currentGame.Winner = null;
-            _currentGame.IsGameActive = true;
+            UpdateWinner();
             RaiseGameStateChanged();
         }
     }
@@ -197,11 +203,14 @@ public class GameManager
         RaiseGameStateChanged();
     }
 
-    private void EndGame(Player winner)
+    private void UpdateWinner()
     {
-        _currentGame.Winner = winner;
-        _currentGame.IsGameActive = false;
-        RaiseGameStateChanged();
+        if (_currentGame.Player1Score >= _currentGame.Player1.RaceToTarget)
+            _currentGame.Winner = _currentGame.Player1;
+        else if (_currentGame.Player2Score >= _currentGame.Player2.RaceToTarget)
+            _currentGame.Winner = _currentGame.Player2;
+        else
+            _currentGame.Winner = null;
     }
 
     public GameState GetCurrentGameState() => _currentGame;
