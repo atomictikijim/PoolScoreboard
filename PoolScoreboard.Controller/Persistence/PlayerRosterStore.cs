@@ -80,6 +80,9 @@ public sealed class PlayerRosterStore
                                              or UnauthorizedAccessException
                                              or JsonException)
         {
+            // The app still runs, but every saved player is gone for this session and the next save makes
+            // the empty list the new roster: say so, or the loss is silent.
+            Trace.TraceWarning($"Could not read the player roster: {exception.Message}");
             _icons.Clear();
             return new PlayerRoster();
         }

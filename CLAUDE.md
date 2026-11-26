@@ -124,6 +124,11 @@ dotnet clean
   fact. At startup a log over 1 MiB is moved to `controller.old.log`, replacing the previous run's. Each
   line is opened, appended and closed — no handle is held — so the log stays readable while the app runs.
   It never throws: an unopenable log just silences the file.
+- An exception that reaches the top of the app — `DispatcherUnhandledException`, `AppDomain.UnhandledException`,
+  `TaskScheduler.UnobservedTaskException` — is written to that log with its type, message, stack and inner
+  exceptions (`Diagnostics/UnhandledExceptionLog`), and left unhandled so the app still fails the same way.
+  A `settings.json` or `roster.json` that cannot be read or written logs a "Could not read/write …" warning and
+  falls back to defaults instead of failing silently.
 - `Persistence/PlayerRosterStore` does the same for `roster.json` and one icon file per saved player.
   `GameViewModel` remembers both sides when a match starts and when the window closes, and each side's
   "Saved Player" dropdown fills name, team, Race-To and icon from a roster entry.

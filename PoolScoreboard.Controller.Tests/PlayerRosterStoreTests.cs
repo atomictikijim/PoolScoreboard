@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using PoolScoreboard.Controller.Diagnostics;
 using PoolScoreboard.Controller.Persistence;
 using PoolScoreboard.Core.Persistence;
 
@@ -233,12 +234,19 @@ public sealed class PlayerRosterStoreTests : IDisposable
     }
 
     [Fact]
-    public void Load_WithUnreadableJson_ReturnsEmptyRoster()
+    public void Load_WithUnreadableJson_ReturnsEmptyRosterAndSaysWhyInTheLog()
     {
         Directory.CreateDirectory(_root);
         File.WriteAllText(RosterPath, "{ not json at all");
 
-        Assert.Empty(Store.Load().Players);
+        var logPath = Path.Combine(_root, "controller.log");
+        using (var log = new TraceLogFile(logPath))
+        {
+            log.Attach();
+            Assert.Empty(Store.Load().Players);
+        }
+
+        Assert.Contains("Could not read the player roster", File.ReadAllText(logPath));
     }
 
     [Fact]

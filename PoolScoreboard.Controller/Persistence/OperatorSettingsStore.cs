@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using PoolScoreboard.Core.Persistence;
@@ -51,9 +52,31 @@ internal sealed class OperatorSettingsStore
                                              or UnauthorizedAccessException
                                              or JsonException)
         {
-            // Startup must not be blocked by an unreadable or hand-edited file; the app opens on
-            // defaults and the next save overwrites it.
+            // Startup must not be blocked by an unreadable or hand-edited file, but it must not be silent
+            // either: the app opens on defaults and the next save replaces this file, so this line is the
+            // only evidence of what the operator was running with.
+            Trace.TraceWarning($"Could not read the operator settings: {exception.Message}");
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Saves, but never throws: this runs from the debounce timer, while the window is closing and again
+    /// from <c>OnExit</c>, where a locked or full disk must not take the app down or skip the exit. Returns
+    /// whether it wrote; a failure is logged, because the old file staying in place is otherwise
+    /// indistinguishable from a successful save.
+    /// </summary>
+    public bool TrySave(OperatorProfile profile, string? homeIconDataUri, string? awayIconDataUri)
+    {
+        try
+        {
+            Save(profile, homeIconDataUri, awayIconDataUri);
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Trace.TraceWarning($"Could not write the operator settings: {exception.Message}");
+            return false;
         }
     }
 

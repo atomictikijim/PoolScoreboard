@@ -47,6 +47,17 @@ public partial class App : System.Windows.Application
 
         _traceLog.Attach();
 
+        // From here on a crash explains itself in the log instead of leaving it ending at whatever warning
+        // came before. None of these marks the exception handled: the app still fails exactly as it did,
+        // the difference is that it now says what failed. The AppDomain handler skips the UI failure it
+        // already wrote, since one dispatcher exception reaches both.
+        DispatcherUnhandledException += (_, args) =>
+            UnhandledExceptionLog.RecordUnhandledUi(args.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            UnhandledExceptionLog.RecordAppDomainFailure(args.ExceptionObject as Exception, args.IsTerminating);
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+            UnhandledExceptionLog.RecordUnobservedTask(args.Exception);
+
         // Restore before any window exists: GameViewModel reads GameManager's state when it is
         // constructed, so this is what makes both the setup screen and the overlay open with the
         // saved colours, style, visibility and last players instead of the defaults.
@@ -68,23 +79,19 @@ public partial class App : System.Windows.Application
         _saveTimer.Start();
     }
 
+    /// <summary>
+    /// Saves the current profile. Never throws: a locked or full disk shouldn't take the app down
+    /// mid-stream, and the store logs the failure so a run whose settings went unsaved says so.
+    /// </summary>
     public void SaveOperatorProfile()
     {
         _saveTimer.Stop();
 
-        try
-        {
-            var state = SharedGameManager.GetStateSnapshot();
-            _settingsStore.Save(
-                OperatorProfile.Capture(state),
-                state.Player1.EndCapIcon,
-                state.Player2.EndCapIcon);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            // A locked or full disk shouldn't take the app down mid-stream; the next edit retries and
-            // the profile simply doesn't persist this run.
-        }
+        var state = SharedGameManager.GetStateSnapshot();
+        _settingsStore.TrySave(
+            OperatorProfile.Capture(state),
+            state.Player1.EndCapIcon,
+            state.Player2.EndCapIcon);
     }
 
     private void RestoreOperatorProfile()

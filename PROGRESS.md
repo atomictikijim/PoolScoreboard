@@ -194,6 +194,27 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Crashes and unreadable settings leave evidence in controller.log
+
+- Unhandled exceptions now reach the log: `App.OnStartup` subscribes to `DispatcherUnhandledException`,
+  `AppDomain.UnhandledException` and `TaskScheduler.UnobservedTaskException`, each recording through the new
+  `Diagnostics/UnhandledExceptionLog` (source, exception type and message, stack trace, inner exceptions) as a
+  `TraceError`. None of the handlers marks the exception handled, so the app still fails exactly as it did —
+  the difference is that the log now ends with *why* instead of stopping at the last warning. A dispatcher
+  failure reaches the CLR as well, so the AppDomain handler skips the exception the UI handler already
+  recorded: one crash writes one entry, while a different thread's failure still gets its own.
+- `OperatorSettingsStore.Load` and `PlayerRosterStore.Load` used to return defaults/empty on a `JsonException`,
+  `IOException` or `UnauthorizedAccessException` without a word, so a hand-edited or truncated `settings.json`
+  looked like a fresh install and the next save replaced it. Both now log "Could not read the operator
+  settings/player roster: …" and still fall back, so a bad file cannot block startup.
+- Settings writes get the treatment the roster already had: `OperatorSettingsStore.TrySave` logs
+  "Could not write the operator settings: …" and returns false, and `App.SaveOperatorProfile` calls it instead
+  of swallowing the exception. A save that silently did not happen now says so.
+- Tests: three for the crash entry (type/message/stack, inner exceptions, and the UI-then-AppDomain duplicate
+  being suppressed) against a real `TraceLogFile`, the read tests for both stores now also assert the warning
+  line, and one for the settings save (a failure reports and logs instead of throwing).
+- Build 0 warnings; 149/149 tests (93 Core + 56 Controller).
+
 ### 2026-11-26 — Overlay host errors reach the log, and a taken port no longer kills startup
 
 - New `PoolScoreboard.Overlay/Diagnostics/TraceLoggerProvider` forwards the host's `ILogger` records at Warning

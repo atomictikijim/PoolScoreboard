@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using PoolScoreboard.Controller.Diagnostics;
 using PoolScoreboard.Controller.Persistence;
 using PoolScoreboard.Core;
 using PoolScoreboard.Core.Enums;
@@ -212,12 +213,39 @@ public sealed class OperatorSettingsStoreTests : IDisposable
     }
 
     [Fact]
-    public void Load_WithUnreadableJson_ReturnsNullInsteadOfThrowing()
+    public void Load_WithUnreadableJson_ReturnsNullAndSaysWhyInTheLog()
     {
         Directory.CreateDirectory(_root);
         File.WriteAllText(SettingsPath, "{ this is not json");
 
-        Assert.Null(Store.Load());
+        var text = CaptureLog(() => Assert.Null(Store.Load()));
+
+        Assert.Contains("Could not read the operator settings", text);
+    }
+
+    [Fact]
+    public void TrySave_ReportsAndLogsAFailureInsteadOfThrowing_WhenTheFileCannotBeWritten()
+    {
+        // A directory where settings.json should be: opening the file fails the way a locked or
+        // read-only path does.
+        Directory.CreateDirectory(SettingsPath);
+
+        var text = CaptureLog(() => Assert.False(Store.TrySave(Profile(), homeIconDataUri: null, awayIconDataUri: null)));
+
+        Assert.Contains("Could not write the operator settings", text);
+    }
+
+    /// <summary>Runs the action with the log attached and returns what the file holds afterwards.</summary>
+    private string CaptureLog(Action action)
+    {
+        var logPath = Path.Combine(_root, "controller.log");
+        using (var log = new TraceLogFile(logPath))
+        {
+            log.Attach();
+            action();
+        }
+
+        return File.ReadAllText(logPath);
     }
 
     [Fact]

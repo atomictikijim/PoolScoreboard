@@ -114,7 +114,9 @@ overlay as a second, separate Browser Source at
 - Diagnostics land in `%AppData%\PoolScoreboard\controller.log`, appended across runs with a
   "Controller started" line per session. Shutdown warnings (such as the overlay host missing its stop
   timeout) go there, since by then there is no window to show them in. ASP.NET Core's own warnings and errors
-  from the overlay host — a failed bind, a fault while serving — are forwarded there too. Lines are appended
+  from the overlay host — a failed bind, a fault while serving — are forwarded there too. An exception that
+  kills the app is recorded with its stack trace, and a `settings.json` or `roster.json` that cannot be read
+  or written says so there instead of failing silently. Lines are appended
   one at a time and nothing holds the file open, so it can be read while the Controller runs. A log that
   grows past 1 MiB is rotated at the next startup to `controller.old.log`, keeping one previous run.
 - Pushing runs the same Release build and full test suite as CI. Enable the committed hook once
