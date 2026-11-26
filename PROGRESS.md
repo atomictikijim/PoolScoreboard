@@ -194,6 +194,33 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — An overlay that dies mid-session shows the banner again
+
+- The banner only reflected startup and manual retries: a host that came up and then stopped serving left the
+  window advertising a dead overlay for the rest of the match. `OverlayHostSession` now probes the running
+  host's `/overlay/api/scoreboard/state` every 3 s (2 s timeout) and, after a confirming retry 250 ms later
+  fails too, reports `The overlay stopped serving on 127.0.0.1:51234.` in the same top-bar banner, with the
+  same **Retry** that starts the host again.
+- The probe rather than `IHostApplicationLifetime.ApplicationStopped`: the host is started with `Start()`, not
+  `Run()`, so nothing stops it when its stopping token is cancelled — a listener fault would never produce that
+  event. Probing the endpoint also catches a host that is still bound but no longer answering.
+- A round can outlast the interval (two 2 s timeouts plus the pause), so a tick that arrives while a round is
+  still running is skipped instead of stacking more requests on a host already suspected of being down.
+- A stop the app asked for is not a failure: `Stop` disables the timer before the host goes down, and a probe
+  already in flight is ignored because the session no longer holds that host by the time it reports.
+- The dead host is stopped and disposed before the event is raised, so the port is already free when the
+  operator's Retry arrives, and the stop leaves one `Trace` entry in `controller.log`.
+- The view model subscribes to the session's new `Stopped` event and hops to the WPF dispatcher before
+  refreshing the banner, the same way game-state events already do.
+- Tests: a real Kestrel host is stopped out from under the session without calling `Stop` — the session
+  reports the port, and Retry serves again on the same port; a host left serving through several probes raises
+  nothing, and a plain `Stop` leaves no reason; the existing port-taken/retry test still covers startup.
+- The Controller test assembly now runs its classes one at a time: several of them attach and detach
+  process-wide `Trace.Listeners` while `TraceLogFileTests` enumerates that collection, which made it fail
+  intermittently with "Collection was modified" — unrelated to this feature, but it had to stop flaking for the
+  suite to mean anything.
+- Build 0 warnings; 160/160 tests (93 Core + 67 Controller).
+
 ### 2026-11-26 — A dead overlay is visible in the window, named, and retryable
 
 - A failed overlay start was only a log line: the window kept showing overlay URLs that answered nothing, and

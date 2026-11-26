@@ -117,7 +117,11 @@ dotnet clean
   (  `127.0.0.1:51234` already taken, usually a leftover Controller) and logs the reason, so startup continues
   without the overlay instead of dying before a window exists. `OverlayHostSession` keeps that failure: the main
   window's top bar shows it (naming the process holding the port, via `Diagnostics/PortOwner`) beside a Retry
-  button, so a dead overlay is visible and recoverable without restarting the app.
+  button, so a dead overlay is visible and recoverable without restarting the app. While a host is up the
+  session also probes `/overlay/api/scoreboard/state` every 3 s (2 s timeout, one confirming retry), because the
+  host is started rather than run and its stopping token is never observed: a host that stops answering reports
+  the port, releases itself, raises `Stopped`, and the view model shows the same banner and Retry again
+  mid-match. A stop the app asked for is not reported.
 - Only one Controller runs per desktop session (`SingleInstanceGuard`): a named mutex elects the first process,
   and a second launch sets a named event so the running window comes to the front, logs that it is exiting and
   shuts down before restoring or saving the profile — a duplicate must never write defaults over the running

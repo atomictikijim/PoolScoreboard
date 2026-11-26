@@ -141,7 +141,7 @@ public partial class GameViewModel : ObservableObject
 
     /// <summary>
     /// Set while the overlay host is not serving: the main window shows this reason beside a Retry button, so
-    /// a failed start is visible instead of only being a line in the log.
+    /// a failed start — or a host that died mid-session — is visible instead of only being a line in the log.
     /// </summary>
     [ObservableProperty]
     private string? overlayStatus;
@@ -162,6 +162,11 @@ public partial class GameViewModel : ObservableObject
         _persist = persist;
         _overlaySession = overlaySession;
         _gameManager.GameStateChanged += OnGameStateChanged;
+
+        // The host can stop serving after a successful start too, and the session probes for that, so the
+        // banner is not left showing a stale "serving" state for the rest of the match.
+        if (_overlaySession != null)
+            _overlaySession.Stopped += OnOverlayStopped;
 
         // Start from whatever GameManager already holds: App restores the saved operator profile into
         // it before this window exists, so the screen has to show those values rather than defaults.
@@ -342,6 +347,31 @@ public partial class GameViewModel : ObservableObject
     private void RetryOverlay()
     {
         _overlaySession?.Start(_gameManager);
+        RefreshOverlayStatus();
+    }
+
+    /// <summary>
+    /// The host stopped on its own. This runs on whichever thread stopped it (a Kestrel failure), and the
+    /// banner is WPF-bound state, so it hops to the UI thread the way game-state events do.
+    /// </summary>
+    private void OnOverlayStopped(object? sender, EventArgs e)
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
+        {
+            try
+            {
+                if (!dispatcher.HasShutdownStarted)
+                    dispatcher.BeginInvoke(new Action(RefreshOverlayStatus));
+            }
+            catch (InvalidOperationException)
+            {
+                // Shutdown began between the check and the post; the window is going away anyway.
+            }
+
+            return;
+        }
+
         RefreshOverlayStatus();
     }
 

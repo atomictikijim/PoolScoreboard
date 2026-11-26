@@ -7,7 +7,8 @@ namespace PoolScoreboard.Controller.Tests;
 
 /// <summary>
 /// A failed overlay start has to be visible and recoverable: the window shows the reason (including who holds
-/// the port) and Retry starts the host once the port is free. Real listener, real Kestrel, throwaway port.
+/// the port) and Retry starts the host once the port is free. The same has to hold for a host that stops
+/// serving mid-session. Real listener, real Kestrel, throwaway port.
 /// </summary>
 public sealed class OverlayHostSessionTests
 {
@@ -41,6 +42,73 @@ public sealed class OverlayHostSessionTests
         }
 
         Assert.False(session.IsRunning);
+    }
+
+    [Fact]
+    public async Task HostStoppingMidSession_ReportsThePort_AndRetryServesAgain()
+    {
+        var port = FreePort();
+        var session = new OverlayHostSession(port, TimeSpan.FromMilliseconds(150));
+        using var stopped = new ManualResetEventSlim();
+        var reports = 0;
+
+        try
+        {
+            Assert.True(session.Start(new GameManager()));
+            session.Stopped += (_, _) =>
+            {
+                Interlocked.Increment(ref reports);
+                stopped.Set();
+            };
+
+            // Takes the server down the way a fault in its listener does: no call to Stop, the host just stops
+            // answering while the session still believes it is serving.
+            Assert.NotNull(session.CurrentHost);
+            await session.CurrentHost!.StopAsync();
+
+            Assert.True(stopped.Wait(TimeSpan.FromSeconds(10)), "the session never reported the stopped host");
+            Assert.False(session.IsRunning);
+            Assert.Contains($"127.0.0.1:{port}", session.FailureReason);
+
+            // Retry, which is what the banner's button does: the stopped host released the port, so the
+            // overlay comes back without a restart.
+            Assert.True(session.Start(new GameManager()));
+            Assert.True(session.IsRunning);
+            Assert.Null(session.FailureReason);
+
+            // One banner per failure: rounds that were already in flight when it fired must not report again.
+            Thread.Sleep(500);
+            Assert.Equal(1, reports);
+        }
+        finally
+        {
+            session.Stop(TimeSpan.FromSeconds(2));
+        }
+
+        Assert.False(session.IsRunning);
+    }
+
+    [Fact]
+    public void StopWhileServing_IsNotReportedAsAFailure()
+    {
+        var session = new OverlayHostSession(FreePort(), TimeSpan.FromMilliseconds(100));
+        var reports = 0;
+        session.Stopped += (_, _) => Interlocked.Increment(ref reports);
+
+        Assert.True(session.Start(new GameManager()));
+
+        // Long enough for several probes to come back fine: a serving overlay must never raise the banner.
+        Thread.Sleep(600);
+        Assert.True(session.IsRunning);
+        Assert.Null(session.FailureReason);
+
+        session.Stop(TimeSpan.FromSeconds(5));
+
+        // The shutdown runs the same probe path; a stop the app asked for must not leave a banner behind or
+        // point the operator at a Retry it did not need.
+        Assert.Equal(0, reports);
+        Assert.False(session.IsRunning);
+        Assert.Null(session.FailureReason);
     }
 
     private static int FreePort()
