@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Windows;
@@ -5,9 +6,11 @@ using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
+using PoolScoreboard.Controller.Persistence;
 using PoolScoreboard.Core;
 using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
+using PoolScoreboard.Core.Persistence;
 
 namespace PoolScoreboard.Controller.ViewModels;
 
@@ -27,6 +30,11 @@ public partial class GameViewModel : ObservableObject
 
     private readonly GameManager _gameManager;
     private readonly Action? _persist;
+    private readonly PlayerRosterStore _rosterStore = new();
+    private readonly PlayerRoster _roster;
+
+    /// <summary>The saved players both sides' pickers bind to, most recently used first.</summary>
+    public ObservableCollection<SavedPlayerOption> SavedPlayers { get; } = new();
 
     /// <summary>
     /// True while the constructor copies the restored profile into the properties below. The change
@@ -144,6 +152,8 @@ public partial class GameViewModel : ObservableObject
         // it before this window exists, so the screen has to show those values rather than defaults.
         // The change handlers are suppressed via _restoring below — state already agrees, so pushing
         // each property back through SetColorTheme/SetScoreboardStyle would only re-raise it.
+        _roster = _rosterStore.Load();
+
         // Game type and Race-To mode are per-match choices, not part of the saved profile, so this
         // screen's own defaults stay in charge of them (ApplyMatchPreview below pushes them).
         var restored = _gameManager.GetStateSnapshot();
@@ -160,6 +170,7 @@ public partial class GameViewModel : ObservableObject
 
         BuildBalls();
         SetupPlayers(restored);
+        RefreshSavedPlayers();
         RefreshBallLayout();
         ApplyMatchPreview();
     }
@@ -308,7 +319,13 @@ public partial class GameViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void StartMatch() => _gameManager.InitializeGame(SelectedGameType, SelectedRaceToMode);
+    private void StartMatch()
+    {
+        // Starting a match is when a name becomes a player who played, so both sides join the roster
+        // here (blank sides are ignored) and the pickers come back with them at the top.
+        RememberPlayers();
+        _gameManager.InitializeGame(SelectedGameType, SelectedRaceToMode);
+    }
 
     [RelayCommand]
     private void AddHomePoint() => _gameManager.AddPoint(isPlayer1: true);
@@ -513,13 +530,54 @@ public partial class GameViewModel : ObservableObject
 
     private void SetupPlayers(GameState restored)
     {
-        HomePlayer = new PlayerViewModel(_gameManager, isHome: true, restored.Player1, _persist);
-        AwayPlayer = new PlayerViewModel(_gameManager, isHome: false, restored.Player2, _persist);
+        HomePlayer = new PlayerViewModel(_gameManager, isHome: true, restored.Player1, _persist, _rosterStore.LoadIcon);
+        AwayPlayer = new PlayerViewModel(_gameManager, isHome: false, restored.Player2, _persist, _rosterStore.LoadIcon);
 
         // Only for the Race-To mirror: the fields themselves already reach state (and the overlay)
         // through SetPlayerDetails, so pushing the match preview on every keystroke would just
         // re-send an unchanged game type and Race-To mode.
         HomePlayer.PropertyChanged += OnHomePlayerPropertyChanged;
+    }
+
+    /// <summary>
+    /// Saves both sides into the roster (players with a name only), writing their end-cap artwork
+    /// alongside, then refreshes the pickers. Called when a match starts and when the window closes.
+    /// </summary>
+    public void RememberPlayers()
+    {
+        foreach (var player in new[] { HomePlayer, AwayPlayer })
+        {
+            if (player == null)
+                continue;
+
+            var entry = _roster.Remember(
+                player.PlayerName,
+                player.TeamName,
+                player.RaceToTarget,
+                Guid.NewGuid().ToString("n"));
+
+            if (entry == null)
+                continue;
+
+            _rosterStore.SetIcon(entry.Id, player.EndCapIconDataUri);
+        }
+
+        _rosterStore.Save(_roster);
+        RefreshSavedPlayers();
+    }
+
+    private void RefreshSavedPlayers()
+    {
+        // Selections are cleared first: the list items are replaced wholesale, and a stale selection
+        // would otherwise fill the fields again the moment the operator's new objects arrive.
+        if (HomePlayer != null)
+            HomePlayer.SavedPlayer = null;
+        if (AwayPlayer != null)
+            AwayPlayer.SavedPlayer = null;
+
+        SavedPlayers.Clear();
+        foreach (var entry in _roster.Players)
+            SavedPlayers.Add(new SavedPlayerOption(entry.Id, entry.Name, entry.TeamName, entry.RaceToTarget));
     }
 
     private void OnHomePlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)

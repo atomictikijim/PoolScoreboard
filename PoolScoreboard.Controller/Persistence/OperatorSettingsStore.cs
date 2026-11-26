@@ -1,6 +1,5 @@
 using System.IO;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using PoolScoreboard.Core.Persistence;
 
 namespace PoolScoreboard.Controller.Persistence;
@@ -13,13 +12,6 @@ namespace PoolScoreboard.Controller.Persistence;
 internal sealed class OperatorSettingsStore
 {
     private const string IconsFolderName = "icons";
-
-    private static readonly JsonSerializerOptions Options = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter() }
-    };
 
     private readonly string _iconsFolder;
 
@@ -46,7 +38,7 @@ internal sealed class OperatorSettingsStore
             if (!File.Exists(SettingsPath))
                 return null;
 
-            var settings = JsonSerializer.Deserialize<PersistedSettings>(File.ReadAllText(SettingsPath), Options);
+            var settings = JsonSerializer.Deserialize<PersistedSettings>(File.ReadAllText(SettingsPath), PersistenceJson.Options);
             if (settings?.Profile == null)
                 return null;
 
@@ -79,7 +71,7 @@ internal sealed class OperatorSettingsStore
         // Write then move, so a crash mid-save leaves the previous settings intact rather than a
         // truncated file that would fail to load next time.
         var temporaryPath = SettingsPath + ".tmp";
-        File.WriteAllText(temporaryPath, JsonSerializer.Serialize(settings, Options));
+        File.WriteAllText(temporaryPath, JsonSerializer.Serialize(settings, PersistenceJson.Options));
         File.Move(temporaryPath, SettingsPath, overwrite: true);
     }
 

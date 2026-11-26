@@ -180,8 +180,9 @@ live:
 - No match persistence: scores, ball groups and pocketed balls are in-memory only. The operator
   profile — colour theme, scoreboard style, element visibility and both players' name/team/Race-To/
   end-cap icon — is saved to `%AppData%\PoolScoreboard\settings.json` and restored on launch.
-- No player roster to choose from: the last match's two players come back, but there is no list of
-  past players to pick a name from.
+- The roster only remembers players who were on screen for a started match (or still there when the
+  window closed). There is no UI to delete or rename an entry — reusing a name updates it, and the list
+  is capped at 100 — and no match history: no scores are stored against a player.
 - Ball colors in the Controller's live view are placeholder standard billiard-ball colors,
   not yet informed by the WNT visual reference.
 - Flag end-caps are artwork ("Choose Flag..." bundles country and US-state SVGs) stored as the
@@ -192,6 +193,28 @@ live:
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-26 — A saved player roster instead of only the last two players
+
+- `PlayerRoster` (Core, `Persistence/`) is the saved-player list: `Remember` adds or updates a player
+  and moves them to the front, matching on name ignoring case and surrounding space so a returning
+  player keeps one entry (and one icon) when their team or Race-To changes. Blank names are ignored,
+  entries keep their id when updated, and the list is capped at 100. `Find`, `FindByName`, `Forget`
+  and `Search` (name or team, case-insensitive, recency order) round it out — all pure and unit-tested.
+- `PlayerRosterStore` (Controller) writes `roster.json` plus `icons/roster-{id}.{ext}` per player.
+  Icons are read lazily, one at a time, so picking a player decodes only that player's artwork; entry
+  ids are sanitised before use as file names, the mime is re-validated on load, and a forgotten player
+  (or a hand-copied leftover file) loses its artwork on the next save.
+- Match Setup gained a "Saved Player" dropdown per side. `GameViewModel.RememberPlayers` writes both
+  sides (with their current icon) into the roster when a match starts and when the window closes;
+  picking an entry fills name, team, Race-To and the remembered icon in a single push to state.
+- Tests: 12 in Core for the roster rules and 15 in `PoolScoreboard.Controller.Tests` for the store
+  (round trip, per-player icons, mime change, clearing, pruning, orphan files, missing/corrupt file,
+  path-escape and non-image mime, cap, temp file). 121/121 overall, 0 warnings.
+- Verified in the running Controller: typed both sides, started a match, saw `roster.json` list Bob
+  then Alice; relaunched, both dropdowns listed "Bob - Red Rackers" and "Alice - Blue Cuers"; picking
+  Bob filled his name/team, and picking Alice restored her name, team, Race-To 7 and a served icon
+  matching the saved 16,877-byte PNG byte for byte.
 
 ### 2026-11-26 — Cover the settings store in CI, plus review fixes for the gate commit
 

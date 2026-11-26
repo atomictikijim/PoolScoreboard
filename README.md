@@ -28,6 +28,10 @@ its own overlay server on localhost, so it keeps working with no network at all.
   and state flags, or any image file the operator picks — instead of the plain accent-colored
   dot. The overlay fetches the icon separately from the score data, so swapping artwork does
   not re-send the whole scoreboard to OBS.
+- **Saved Players**: everyone you play is remembered — name, team, Race-To and end-cap icon — so a
+  returning player can be dropped into either side from a dropdown instead of being retyped. Players
+  join the roster automatically when a match starts (or when the window closes) and are listed most
+  recently used first.
 - **Overlay Show/Hide**: the score bar, ball tracker and winner banner can each be turned off
   from the Controller without touching the OBS scene; hiding the score bar hides the other two
   with it. The same toggles are available on the Match Setup screen, so a stream can be
@@ -102,9 +106,10 @@ overlay as a second, separate Browser Source at
 - Nullable reference types enabled.
 - Follow MVVM in the WPF Controller.
 - Core stays UI-free and fully unit-testable.
-- Operator settings (colour theme, scoreboard style, show/hide state, and the last two players
-  with their end-cap icons) persist to `%AppData%\PoolScoreboard\`. Match state — scores, racks,
-  pocketed balls — does not.
+- Persistence lives in `%AppData%\PoolScoreboard\`: `settings.json` holds the colour theme,
+  scoreboard style, show/hide state and the last two players, while `roster.json` holds the saved
+  player list. End-cap artwork is stored as files under `icons\`, not inline. Match state — scores,
+  racks, pocketed balls — does not persist.
 - Pushing runs the same Release build and full test suite as CI. Enable the committed hook once
   per clone with `git config core.hooksPath .githooks`; bypass it deliberately with
   `git push --no-verify`.

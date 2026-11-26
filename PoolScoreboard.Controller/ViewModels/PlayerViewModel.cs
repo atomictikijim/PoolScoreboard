@@ -16,8 +16,9 @@ public partial class PlayerViewModel : ObservableObject
     private readonly GameManager _gameManager;
     private readonly bool _isHome;
     private readonly Action? _persist;
+    private readonly Func<string?, string?>? _loadSavedPlayerIcon;
 
-    /// <summary>Suppresses the push-to-state handlers while the constructor seeds restored values.</summary>
+    /// <summary>Suppresses the push-to-state handlers while restored or picked values are seeded.</summary>
     private bool _restoring;
 
     [ObservableProperty]
@@ -32,11 +33,24 @@ public partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     private string? endCapIconDataUri;
 
-    public PlayerViewModel(GameManager gameManager, bool isHome, Player? restored = null, Action? persist = null)
+    /// <summary>
+    /// The roster entry the operator picked for this side. Setting it fills every field (and the
+    /// remembered icon) in one go; it is cleared whenever the picker's list is rebuilt.
+    /// </summary>
+    [ObservableProperty]
+    private SavedPlayerOption? savedPlayer;
+
+    public PlayerViewModel(
+        GameManager gameManager,
+        bool isHome,
+        Player? restored = null,
+        Action? persist = null,
+        Func<string?, string?>? loadSavedPlayerIcon = null)
     {
         _gameManager = gameManager;
         _isHome = isHome;
         _persist = persist;
+        _loadSavedPlayerIcon = loadSavedPlayerIcon;
 
         // These values are already in GameManager (restored from the saved profile), so the pushes are
         // suppressed rather than re-raised as no-op mutations.
@@ -64,6 +78,28 @@ public partial class PlayerViewModel : ObservableObject
     partial void OnRaceToTargetChanged(int value) => PushToState();
 
     partial void OnEndCapIconDataUriChanged(string? value) => PushToState();
+
+    partial void OnSavedPlayerChanged(SavedPlayerOption? value)
+    {
+        if (value == null)
+            return;
+
+        // One push for the whole side rather than one per field: picking a saved player is one edit.
+        _restoring = true;
+        try
+        {
+            PlayerName = value.Name;
+            TeamName = value.TeamName;
+            RaceToTarget = value.RaceToTarget;
+            EndCapIconDataUri = _loadSavedPlayerIcon?.Invoke(value.Id);
+        }
+        finally
+        {
+            _restoring = false;
+        }
+
+        PushToState();
+    }
 
     // Each edit re-sends all four fields; GameManager writes only what actually changed (the icon),
     // so re-sending the untouched ones doesn't churn the overlay's cached artwork.

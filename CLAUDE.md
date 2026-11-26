@@ -101,8 +101,10 @@ dotnet clean
   `AddPoint`/`SubtractPoint`, `UndoPoint`, `ToggleCurrentShooter`, `AssignBallGroup`, `ResetGame`.
   Raises `GameStateChanged` after every mutation.
 - No database, no async I/O — pure, fast, unit-testable.
-- `Persistence/OperatorProfile` (capture/apply of the saved profile) and `Persistence/EndCapIconData`
-  (data-URI ↔ icon bytes) live here too, deliberately I/O-free so both are unit-tested.
+- `Persistence/OperatorProfile` (capture/apply of the saved profile), `Persistence/PlayerRoster`
+  (saved-player identity — a name, ignoring case — ordering and the 100-entry cap) and
+  `Persistence/EndCapIconData` (data-URI ↔ icon bytes) live here too, deliberately I/O-free so all
+  three are unit-tested.
 
 ### PoolScoreboard.Controller (WPF Desktop Application)
 
@@ -115,6 +117,9 @@ dotnet clean
 - `Persistence/OperatorSettingsStore` reads/writes `%AppData%\PoolScoreboard\settings.json` plus the
   end-cap icon files; `App` applies the saved profile before the window exists, then saves on a
   750 ms debounce and on exit.
+- `Persistence/PlayerRosterStore` does the same for `roster.json` and one icon file per saved player.
+  `GameViewModel` remembers both sides when a match starts and when the window closes, and each side's
+  "Saved Player" dropdown fills name, team, Race-To and icon from a roster entry.
 - Dark theme with operator-customizable accent color, consistent with the overlay's theme.
 
 ### PoolScoreboard.Overlay (ASP.NET Core, hosted in-process by Controller)
@@ -181,15 +186,16 @@ alignment, not a pixel match).
 - Persistence covers the operator profile only: `%AppData%\PoolScoreboard\settings.json` holds the
   colour theme, scoreboard style, element visibility and both players' setup fields, while match
   state (scores, racks, pocketed balls) stays in memory. There is no match history.
-- No player database: the last two players are restored, but names/teams are typed in rather than
-  chosen from a saved roster.
+- The roster only holds players who have actually been on screen for a started match (or present
+  when the window closed). There is no delete/rename UI — reusing a name updates that entry, and the
+  list is capped at 100 — and no match history: scores are never stored per player.
 
 ## Testing Notes
 
 - Core logic (`GameManager`, models) is UI-free and unit-testable — put tests under
   `PoolScoreboard.Core.Tests` (xUnit or NUnit).
 - `PoolScoreboard.Controller.Tests` covers the Controller's file-backed persistence
-  (`OperatorSettingsStore`) against a throwaway temp folder. It targets `net8.0-windows` because it
+  (`OperatorSettingsStore` and `PlayerRosterStore`) against a throwaway temp folder. It targets `net8.0-windows` because it
   references the WPF project; the tests themselves touch no UI. Controller UI behaviour is still
   checked by hand against a real `GameManager`.
 - Overlay/control-API endpoints should be tested against a `GameManager` test instance, not

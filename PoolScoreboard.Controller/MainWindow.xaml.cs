@@ -19,6 +19,10 @@ public partial class MainWindow : Window
         DataContext = _viewModel;
 
         PreviewKeyDown += MainWindow_PreviewKeyDown;
+
+        // Remember both sides on the way out, so a match that was set up but never started still
+        // leaves its players in the roster.
+        Closed += (_, _) => _viewModel.RememberPlayers();
     }
 
     // Live-view shortcuts: Q/P score the home/away player, A undoes the last point,
