@@ -6,12 +6,6 @@ namespace PoolScoreboard.Core.Tests;
 
 public class GameManagerTests
 {
-    private static Player CreatePlayer(string name, int raceToTarget) => new()
-    {
-        Name = name,
-        RaceToTarget = raceToTarget
-    };
-
     /// <summary>
     /// A manager with a match in progress, set up the way the setup screen does it: write both
     /// players through <see cref="GameManager.SetPlayerDetails" />, then start from them. There is no
@@ -36,7 +30,7 @@ public class GameManagerTests
     {
         var manager = NewMatch();
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.True(state.IsGameActive);
         Assert.Equal("Alice", state.Player1.Name);
         Assert.Equal("Bob", state.Player2.Name);
@@ -57,7 +51,7 @@ public class GameManagerTests
         manager.AddPoint(isPlayer1: false);
         manager.AddPoint(isPlayer1: true);
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.Equal(2, state.Player1Score);
         Assert.Equal(1, state.Player2Score);
     }
@@ -84,7 +78,7 @@ public class GameManagerTests
         manager.AddPoint(true);
         manager.AddPoint(true);
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.False(state.IsGameActive);
         Assert.Same(state.Player1, state.Winner);
     }
@@ -97,7 +91,7 @@ public class GameManagerTests
         manager.AddPoint(true);
         manager.AddPoint(true);
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.False(state.IsGameActive);
         Assert.Same(state.Player1, state.Winner);
         Assert.Equal(2, state.Player1Score);
@@ -110,11 +104,11 @@ public class GameManagerTests
 
         manager.AddPoint(true); // Alice wins immediately at race-to 1
 
-        Assert.False(manager.GetCurrentGameState().IsGameActive);
+        Assert.False(manager.GetStateSnapshot().IsGameActive);
 
         manager.AddPoint(false);
 
-        Assert.Equal(0, manager.GetCurrentGameState().Player2Score);
+        Assert.Equal(0, manager.GetStateSnapshot().Player2Score);
     }
 
     [Fact]
@@ -128,7 +122,7 @@ public class GameManagerTests
 
         manager.UndoPoint();
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.Equal(2, state.Player1Score);
         Assert.Equal(0, state.Player2Score);
     }
@@ -143,12 +137,12 @@ public class GameManagerTests
         manager.AddPoint(true);
 
         manager.UndoPoint(); // undoes home's second point
-        Assert.Equal(1, manager.GetCurrentGameState().Player1Score);
-        Assert.Equal(1, manager.GetCurrentGameState().Player2Score);
+        Assert.Equal(1, manager.GetStateSnapshot().Player1Score);
+        Assert.Equal(1, manager.GetStateSnapshot().Player2Score);
 
         manager.UndoPoint(); // undoes away's point
-        Assert.Equal(1, manager.GetCurrentGameState().Player1Score);
-        Assert.Equal(0, manager.GetCurrentGameState().Player2Score);
+        Assert.Equal(1, manager.GetStateSnapshot().Player1Score);
+        Assert.Equal(0, manager.GetStateSnapshot().Player2Score);
     }
 
     [Fact]
@@ -161,7 +155,7 @@ public class GameManagerTests
 
         manager.UndoPoint();
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.Equal(1, state.Player1Score);
         Assert.Equal(0, state.Player2Score);
     }
@@ -172,11 +166,11 @@ public class GameManagerTests
         var manager = NewMatch(raceToMode: RaceToMode.Split, homeRaceTo: 1);
 
         manager.AddPoint(true); // Alice reaches race-to 1, match ends
-        Assert.False(manager.GetCurrentGameState().IsGameActive);
+        Assert.False(manager.GetStateSnapshot().IsGameActive);
 
         manager.UndoPoint();
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.True(state.IsGameActive);
         Assert.Null(state.Winner);
         Assert.Equal(0, state.Player1Score);
@@ -192,7 +186,7 @@ public class GameManagerTests
         manager.ResetGame();
         manager.UndoPoint();
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.False(state.IsGameActive);
         Assert.Equal(0, state.Player1Score);
         Assert.Null(state.Winner);
@@ -205,7 +199,7 @@ public class GameManagerTests
 
         manager.UndoPoint();
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.Equal(0, state.Player1Score);
         Assert.Equal(0, state.Player2Score);
     }
@@ -218,7 +212,7 @@ public class GameManagerTests
 
         manager.ResetGame();
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.False(state.IsGameActive);
         Assert.Equal(0, state.Player1Score);
         Assert.Equal(0, state.Player2Score);
@@ -356,7 +350,7 @@ public class GameManagerTests
 
         manager.AssignBallGroup(isHome: true, assigned);
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.Equal(assigned, state.Player1.BallGroup);
         Assert.Equal(expectedOther, state.Player2.BallGroup);
     }
@@ -368,7 +362,7 @@ public class GameManagerTests
 
         manager.AssignBallGroup(isHome: true, BallGroup.Solids);
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.Equal(BallGroup.Unassigned, state.Player1.BallGroup);
         Assert.Equal(BallGroup.Unassigned, state.Player2.BallGroup);
     }
@@ -381,7 +375,7 @@ public class GameManagerTests
         manager.AssignBallGroup(isHome: true, BallGroup.Solids);
         manager.AssignBallGroup(isHome: false, BallGroup.Solids);
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.Equal(BallGroup.Stripes, state.Player1.BallGroup);
         Assert.Equal(BallGroup.Solids, state.Player2.BallGroup);
     }
@@ -394,13 +388,13 @@ public class GameManagerTests
         manager.PocketBall(7);
         manager.PocketBall(9);
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.Contains(7, state.PocketedBalls);
         Assert.Contains(9, state.PocketedBalls);
 
         manager.UnpocketBall(7);
 
-        state = manager.GetCurrentGameState();
+        state = manager.GetStateSnapshot();
         Assert.DoesNotContain(7, state.PocketedBalls);
         Assert.Contains(9, state.PocketedBalls);
     }
@@ -408,7 +402,7 @@ public class GameManagerTests
     [Fact]
     public void EndCapIconVersion_BumpsWheneverIconIsAssigned()
     {
-        var player = CreatePlayer("Alice", 5);
+        var player = new Player { Name = "Alice", RaceToTarget = 5 };
 
         Assert.Equal(0, player.EndCapIconVersion);
 
@@ -431,13 +425,16 @@ public class GameManagerTests
         manager.AddPoint(isPlayer1: true);
         manager.GameStateChanged -= Capture;
 
-        // Mutate afterwards: the snapshot handed to the subscriber must not follow along.
+        // Mutate afterwards: everything the subscriber was handed must stay as it was. (There is no
+        // live-state accessor to compare against any more — these value checks are what prove the
+        // payload is detached, where Assert.NotSame used to.)
+        manager.AddPoint(isPlayer1: false);
         manager.PocketBall(3);
 
         Assert.NotNull(raised);
         Assert.Equal(1, raised!.Player1Score);
+        Assert.Equal(0, raised.Player2Score);
         Assert.Empty(raised.PocketedBalls);
-        Assert.NotSame(manager.GetCurrentGameState(), raised);
     }
 
     [Fact]
@@ -489,7 +486,7 @@ public class GameManagerTests
         Assert.Empty(failures);
         Assert.All(snapshotSizes, size => Assert.InRange(size, 0, 15));
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.Equal(100, state.Player1Score);
         Assert.Equal(100, state.Player2Score);
     }
@@ -502,7 +499,7 @@ public class GameManagerTests
 
         manager.SetColorTheme(theme);
 
-        var stored = manager.GetCurrentGameState().ColorTheme;
+        var stored = manager.GetStateSnapshot().ColorTheme;
         Assert.Equal("#000000", stored.HomeBackground);
         Assert.Equal("#222222", stored.AwayBackground);
         Assert.Equal("#ff0000", stored.HomeAccent);
@@ -510,8 +507,9 @@ public class GameManagerTests
         Assert.Equal("#ffffff", stored.Text);
 
         // Stored as a copy, like the scoreboard style: a caller holding its own instance can't keep
-        // editing state off the lock, with no change event, after this returns.
-        Assert.NotSame(theme, stored);
+        // editing state off the lock, with no change event, after this returns. That is what the
+        // mutation below proves — a NotSame against a snapshot would pass either way, since every
+        // snapshot hands out its own copies.
         theme.HomeBackground = "#ff00ff";
         Assert.Equal("#000000", manager.GetStateSnapshot().ColorTheme.HomeBackground);
     }
@@ -525,7 +523,7 @@ public class GameManagerTests
 
         manager.ResetBalls();
 
-        Assert.Empty(manager.GetCurrentGameState().PocketedBalls);
+        Assert.Empty(manager.GetStateSnapshot().PocketedBalls);
     }
 
     [Fact]
@@ -533,7 +531,7 @@ public class GameManagerTests
     {
         var manager = NewMatch();
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.Equal(100, state.ScoreboardStyle.CornerRoundness);
         Assert.Equal(100, state.ScoreboardStyle.OverallScale);
         Assert.True(state.ScoreboardStyle.GlossyFinish);
@@ -559,7 +557,7 @@ public class GameManagerTests
 
         manager.SetScoreboardStyle(style);
 
-        var result = manager.GetCurrentGameState().ScoreboardStyle;
+        var result = manager.GetStateSnapshot().ScoreboardStyle;
         Assert.Equal(40, result.CornerRoundness);
         Assert.Equal(150, result.OverallScale);
         Assert.False(result.GlossyFinish);
@@ -576,7 +574,7 @@ public class GameManagerTests
 
         manager.SetScoreboardStyle(new ScoreboardStyle { CornerRoundness = input });
 
-        Assert.Equal(expected, manager.GetCurrentGameState().ScoreboardStyle.CornerRoundness);
+        Assert.Equal(expected, manager.GetStateSnapshot().ScoreboardStyle.CornerRoundness);
     }
 
     [Theory]
@@ -588,7 +586,7 @@ public class GameManagerTests
 
         manager.SetScoreboardStyle(new ScoreboardStyle { OverallScale = input });
 
-        Assert.Equal(expected, manager.GetCurrentGameState().ScoreboardStyle.OverallScale);
+        Assert.Equal(expected, manager.GetStateSnapshot().ScoreboardStyle.OverallScale);
     }
 
     [Fact]
@@ -600,7 +598,7 @@ public class GameManagerTests
 
         manager.SetScoreBarVisible(false);
 
-        Assert.False(manager.GetCurrentGameState().Visibility.ScoreBarVisible);
+        Assert.False(manager.GetStateSnapshot().Visibility.ScoreBarVisible);
         Assert.Equal(1, raised);
     }
 
@@ -611,7 +609,7 @@ public class GameManagerTests
 
         manager.SetBallTrackerVisible(false);
 
-        Assert.False(manager.GetCurrentGameState().Visibility.BallTrackerVisible);
+        Assert.False(manager.GetStateSnapshot().Visibility.BallTrackerVisible);
     }
 
     [Fact]
@@ -621,7 +619,7 @@ public class GameManagerTests
 
         manager.SetMatchPreview(GameType.EightBall, RaceToMode.Split);
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.Equal(GameType.EightBall, state.GameType);
         Assert.Equal(RaceToMode.Split, state.RaceToMode);
         Assert.False(state.IsGameActive);
@@ -634,7 +632,7 @@ public class GameManagerTests
 
         manager.SetMatchPreview(GameType.TenBall, RaceToMode.Split);
 
-        var state = manager.GetCurrentGameState();
+        var state = manager.GetStateSnapshot();
         Assert.Equal("Alice", state.Player1.Name);
         Assert.Equal("Bob", state.Player2.Name);
         Assert.Equal(GameType.NineBall, state.GameType);
@@ -750,7 +748,7 @@ public class GameManagerTests
 
         manager.SetWinnerBannerVisible(false);
 
-        Assert.False(manager.GetCurrentGameState().Visibility.WinnerBannerVisible);
+        Assert.False(manager.GetStateSnapshot().Visibility.WinnerBannerVisible);
     }
 
     [Fact]
@@ -760,7 +758,7 @@ public class GameManagerTests
 
         manager.SetCueBallSpin(0.25, 0.75);
 
-        var spin = manager.GetCurrentGameState().CueBallSpin;
+        var spin = manager.GetStateSnapshot().CueBallSpin;
         Assert.NotNull(spin);
         Assert.Equal(0.25, spin!.X);
         Assert.Equal(0.75, spin.Y);
@@ -773,7 +771,7 @@ public class GameManagerTests
 
         manager.SetCueBallSpin(-0.5, 1.5);
 
-        var spin = manager.GetCurrentGameState().CueBallSpin;
+        var spin = manager.GetStateSnapshot().CueBallSpin;
         Assert.NotNull(spin);
         Assert.Equal(0.0, spin!.X);
         Assert.Equal(1.0, spin.Y);
@@ -787,7 +785,7 @@ public class GameManagerTests
 
         manager.ClearCueBallSpin();
 
-        Assert.Null(manager.GetCurrentGameState().CueBallSpin);
+        Assert.Null(manager.GetStateSnapshot().CueBallSpin);
     }
 
     [Fact]
@@ -798,6 +796,6 @@ public class GameManagerTests
 
         manager.AddPoint(isPlayer1: true);
 
-        Assert.Null(manager.GetCurrentGameState().CueBallSpin);
+        Assert.Null(manager.GetStateSnapshot().CueBallSpin);
     }
 }

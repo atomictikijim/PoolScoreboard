@@ -191,6 +191,32 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Remove the unsynchronised state accessor and the unused state id
+
+- `GameManager.GetCurrentGameState()` returned the live `GameState` with no lock. Its last three
+  callers (the icon route and the two SSE connect frames) moved to `GetStateSnapshot()` during the
+  review, leaving it test-only — and it was the exact footgun that produced those unlocked reads, so
+  it is gone rather than documented. The tests now read `GetStateSnapshot()` too: the identity
+  assertions they depend on still hold, because `Clone()` remaps `CurrentShooter` and `Winner` onto
+  its own player copies, and `Assert.NotSame(snapshot, raised)` still proves the event payload is a
+  separate object.
+- `GameState.Id` (a `Guid` string regenerated per state) had no reader anywhere — not in the DTO,
+  the SSE payload, the pages or the tests; only `Player.Id` is actually used, by the end-cap icon
+  URL. Removed, along with its copy line in `Clone()`.
+- Net effect: every path to state is now either a lock-taking mutation or `GetStateSnapshot()`; there
+  is no way to hold the live object from outside the class.
+- Tests: 39 call sites switched, 47/47 still pass, build clean.
+- Reviewing that switch turned up two assertions that had quietly gone vacuous, since a snapshot
+  always hands out fresh copies: `Assert.NotSame(snapshot, raised)` in the payload-isolation test
+  and `Assert.NotSame(theme, stored)` in the colour-theme test. Both could only have failed for a
+  different reason than the one they were written for. They are replaced by value checks that still
+  bite — a later point and a later pocket must not reach the captured payload, and mutating the
+  caller's theme must not reach state — and the single-use `CreatePlayer` test helper is inlined.
+- Still dead, deliberately left alone: `GameState.StartTime` is written by `InitializeGame` and
+  copied by `Clone()` but never read anywhere (the DTO has no start time, and no screen shows a
+  match duration). It is a candidate for the same treatment as `Id` if a duration display isn't
+  planned; unlike `Id` it at least records something an operator might want later.
+
 ### 2026-11-26 — README/CLAUDE.md drift: overlay URL, control API, GameState shape
 
 - README's Quick Start pointed OBS at `http://localhost:5000/...`, which is neither the port nor

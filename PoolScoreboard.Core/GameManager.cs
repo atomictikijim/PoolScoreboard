@@ -374,13 +374,6 @@ public class GameManager
         }
     }
 
-    /// <summary>
-    /// The live instance, for reading single fields (tests mostly). It is not a point-in-time view:
-    /// anything that copies collections, serializes, or runs on another thread should use
-    /// <see cref="GetStateSnapshot"/> instead.
-    /// </summary>
-    public GameState GetCurrentGameState() => _currentGame;
-
     /// <summary>A copied view of the current state, safe to read or serialize on any thread.</summary>
     public GameState GetStateSnapshot()
     {

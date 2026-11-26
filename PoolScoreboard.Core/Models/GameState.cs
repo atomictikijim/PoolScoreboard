@@ -4,7 +4,6 @@ namespace PoolScoreboard.Core.Models;
 
 public class GameState
 {
-    public string Id { get; set; } = Guid.NewGuid().ToString();
     public Player Player1 { get; set; } = new();
     public Player Player2 { get; set; } = new();
     public GameType GameType { get; set; }
@@ -33,7 +32,6 @@ public class GameState
 
         return new GameState
         {
-            Id = Id,
             Player1 = player1,
             Player2 = player2,
             GameType = GameType,
