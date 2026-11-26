@@ -114,8 +114,12 @@ dotnet clean
   (8-ball only) or ball display (9/10-ball), new-rack/reset-match controls.
 - On startup, starts the Overlay's Kestrel host in-process, passing it the same
   `GameManager` instance the UI is bound to. `OverlayHostRunner.Start` returns null when the host cannot bind
-  (`127.0.0.1:51234` already taken, usually a leftover Controller) and logs the reason, so startup continues
+  (  `127.0.0.1:51234` already taken, usually a leftover Controller) and logs the reason, so startup continues
   without the overlay instead of dying before a window exists.
+- Only one Controller runs per desktop session (`SingleInstanceGuard`): a named mutex elects the first process,
+  and a second launch sets a named event so the running window comes to the front, logs that it is exiting and
+  shuts down before restoring or saving the profile — a duplicate must never write defaults over the running
+  instance's `settings.json`/`roster.json`.
 - `Persistence/OperatorSettingsStore` reads/writes `%AppData%\PoolScoreboard\settings.json` plus the
   end-cap icon files; `App` applies the saved profile before the window exists, then saves on a
   750 ms debounce and on exit.

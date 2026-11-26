@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
@@ -32,6 +33,12 @@ public partial class App : System.Windows.Application
     private IHost? _overlayHost;
 
     /// <summary>
+    /// Non-null only while this process is the one running Controller. A duplicate launch leaves it null,
+    /// asks the running window to come forward and exits before touching any saved state.
+    /// </summary>
+    private SingleInstanceGuard? _instanceGuard;
+
+    /// <summary>
     /// A warning raised during shutdown has no window left to appear in, so everything written to Trace
     /// (including OverlayHostRunner's give-up warnings) also goes to
     /// <c>%AppData%\PoolScoreboard\controller.log</c> for reading after the fact.
@@ -46,6 +53,24 @@ public partial class App : System.Windows.Application
         base.OnStartup(e);
 
         _traceLog.Attach();
+
+        // Attached before anything reads settings or binds the overlay port: a second copy would share
+        // %AppData% with the first (last save wins) and could never host the overlay on 51234 anyway.
+        _instanceGuard = SingleInstanceGuard.TryAcquire(
+            SingleInstanceGuard.DefaultMutexName,
+            SingleInstanceGuard.DefaultActivationName,
+            FocusRunningWindow);
+
+        if (_instanceGuard == null)
+        {
+            // The running instance owns the profile, so this launch must not restore or save anything; say
+            // why it is going away and leave.
+            Trace.TraceWarning(
+                "Another PoolScoreboard Controller is already running; it was brought to the front and this " +
+                "launch will exit.");
+            Shutdown(0);
+            return;
+        }
 
         // From here on a crash explains itself in the log instead of leaving it ending at whatever warning
         // came before. None of these marks the exception handled: the app still fails exactly as it did,
@@ -94,6 +119,42 @@ public partial class App : System.Windows.Application
             state.Player2.EndCapIcon);
     }
 
+    /// <summary>
+    /// Runs on a thread-pool thread when another launch asks for the window. Activate alone does not always
+    /// raise a window that is already behind another app, so the topmost flip forces it forward without
+    /// leaving it pinned.
+    /// </summary>
+    private void FocusRunningWindow()
+    {
+        var dispatcher = Dispatcher;
+
+        // A second launch can arrive while this instance is closing. This runs on a pool thread, so posting
+        // to a dispatcher that has already begun shutting down would throw there and take the process down
+        // with an error instead of letting it exit cleanly.
+        if (dispatcher.HasShutdownStarted)
+            return;
+
+        try
+        {
+            dispatcher.BeginInvoke(() =>
+            {
+                if (MainWindow is not { IsLoaded: true } window)
+                    return;
+
+                if (window.WindowState == WindowState.Minimized)
+                    window.WindowState = WindowState.Normal;
+
+                window.Activate();
+                window.Topmost = true;
+                window.Topmost = false;
+            });
+        }
+        catch (InvalidOperationException)
+        {
+            // Shutdown began between the check and the post; the signal is simply dropped.
+        }
+    }
+
     private void RestoreOperatorProfile()
     {
         var loaded = _settingsStore.Load();
@@ -102,6 +163,16 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        var guard = _instanceGuard;
+        if (guard == null)
+        {
+            // A duplicate launch never restored the profile, so saving here would replace the running
+            // instance's settings with defaults. It has no host to stop either.
+            _traceLog.Dispose();
+            base.OnExit(e);
+            return;
+        }
+
         SaveOperatorProfile();
 
         try
@@ -113,8 +184,9 @@ public partial class App : System.Windows.Application
         }
         finally
         {
-            // Last, so a warning from the stop above still reaches the file (the writer flushes per
+            // Log last, so a warning from the stop above still reaches the file (the writer flushes per
             // line), and in a finally so an unexpected throw can't leave the log handle open.
+            guard.Dispose();
             _traceLog.Dispose();
         }
 

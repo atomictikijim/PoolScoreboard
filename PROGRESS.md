@@ -194,6 +194,29 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — A second Controller launch brings the running window forward and exits
+
+- Two copies of the app shared `%AppData%\PoolScoreboard` (settings and roster are last-writer-wins) and both
+  wanted 127.0.0.1:51234, so the second could not host its overlay and could overwrite the first's saved setup.
+  `SingleInstanceGuard` now holds a session-scoped named mutex; a launch that finds it taken signals a named
+  auto-reset event, which the running instance listens on and turns into `Activate()` — restoring a minimized
+  window, with a topmost flick to raise one that is behind another app — then logs "Another PoolScoreboard
+  Controller is already running…" and shuts down.
+- The duplicate exits through `OnExit` without restoring or saving the profile: saving there would replace the
+  running instance's settings with defaults, so `OnExit` has an explicit early path that only closes the log.
+  The guard is created right after the log attaches, so the exit reason is in `controller.log`.
+- The activation callback runs on a pool thread, so it checks that the dispatcher has not begun shutting down
+  and that the window is still loaded before posting: a signal arriving as the Controller closes is dropped
+  instead of throwing into a closed window or a dead dispatcher.
+- Election is `Local\`-scoped: another Windows session cannot raise this session's window, and this is a
+  single-operator console. The kernel object disappears with its last handle, so a crashed Controller leaves no
+  stale lock; if the running instance has not created its event yet, the duplicate retries for up to 500 ms and
+  then exits anyway.
+- Tests: a second guard is refused and wakes the first, a released guard lets the next launch become primary,
+  and a duplicate whose activation event does not exist still exits instead of throwing. Window activation
+  itself is WPF-only and was checked by hand.
+- Build 0 warnings; 156/156 tests (93 Core + 63 Controller).
+
 ### 2026-11-26 — A rejected roster keeps its artwork too
 
 - The recovery path from the previous entry preserved `roster.corrupt.json` but left its icons in `icons\`, where

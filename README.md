@@ -66,6 +66,9 @@ dotnet build
 dotnet run --project PoolScoreboard.Controller/PoolScoreboard.Controller.csproj
 ```
 
+Start one Controller at a time: a second launch brings the running window to the front, records why it is
+leaving in the log and exits — two copies would otherwise share `%AppData%` and compete for port 51234.
+
 Add the overlay as an OBS **Browser Source** pointed at the local URL the Controller
 prints on startup — `http://127.0.0.1:51234/overlay/scoreboard` — and the cue-ball
 overlay as a second, separate Browser Source at
