@@ -154,18 +154,6 @@ public class GameManager
         }
     }
 
-    public void SetCurrentShooter(Player player)
-    {
-        lock (_sync)
-        {
-            if (!_currentGame.IsGameActive)
-                return;
-
-            _currentGame.CurrentShooter = player;
-            RaiseGameStateChanged(_currentGame.Clone());
-        }
-    }
-
     /// <summary>
     /// Switches to the other player as one atomic step, so two overlapping button presses can't both
     /// act on the same stale read.

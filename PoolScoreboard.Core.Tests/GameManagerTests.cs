@@ -329,34 +329,6 @@ public class GameManagerTests
         Assert.True(state.Visibility.WinnerBannerVisible);
     }
 
-    [Fact]
-    public void SetCurrentShooter_UpdatesCurrentShooterWhileGameActive()
-    {
-        var manager = new GameManager();
-        var player1 = CreatePlayer("Alice", 5);
-        var player2 = CreatePlayer("Bob", 5);
-        manager.InitializeGame(player1, player2, GameType.NineBall, RaceToMode.Single);
-
-        manager.SetCurrentShooter(player2);
-
-        Assert.Same(player2, manager.GetCurrentGameState().CurrentShooter);
-    }
-
-    [Fact]
-    public void SetCurrentShooter_DoesNothingAfterGameEnds()
-    {
-        var manager = new GameManager();
-        var player1 = CreatePlayer("Alice", 1);
-        var player2 = CreatePlayer("Bob", 5);
-        manager.InitializeGame(player1, player2, GameType.NineBall, RaceToMode.Split);
-
-        manager.AddPoint(true); // Alice wins, game ends
-
-        manager.SetCurrentShooter(player2);
-
-        Assert.Same(player1, manager.GetCurrentGameState().CurrentShooter);
-    }
-
     [Theory]
     [InlineData(BallGroup.Solids, BallGroup.Stripes)]
     [InlineData(BallGroup.Stripes, BallGroup.Solids)]

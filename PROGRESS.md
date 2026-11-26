@@ -215,6 +215,11 @@ live:
   caller that keeps its reference can't keep mutating state off the lock and without an event.
 - Tests (48 total): added `InitializeGame_KeepsTheOperatorsColorThemeStyleAndVisibility` next to
   the reset one; the rest of the suite was unchanged and still passes.
+- `SetCurrentShooter(Player)` and its two tests are gone (48 → 46 tests). Production only ever
+  called `ToggleCurrentShooter`; the setter was a test-only way to write the shooter from a
+  `Player` the caller had to read outside the lock first — the same read-then-act shape that
+  ball-group assignment already dropped. CLAUDE.md's list of `GameManager` operations and the
+  control API's comment about the atomic toggle now name `ToggleCurrentShooter`.
 
 ### 2026-11-26 — Setup-screen player fields now write through GameManager
 

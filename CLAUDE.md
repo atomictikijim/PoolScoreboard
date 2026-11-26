@@ -93,7 +93,7 @@ dotnet clean
 ### PoolScoreboard.Core (Game Logic)
 
 - `GameManager` — orchestrator for all game state and operations: `InitializeGame`,
-  `AddPoint`, `UndoPoint`, `SetCurrentShooter`, `AssignBallGroup`, `ResetGame`, `EndGame`.
+  `AddPoint`, `UndoPoint`, `ToggleCurrentShooter`, `AssignBallGroup`, `ResetGame`, `EndGame`.
   Raises `GameStateChanged` after every mutation.
 - No database, no async I/O — pure, fast, unit-testable.
 

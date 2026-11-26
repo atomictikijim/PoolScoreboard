@@ -35,8 +35,8 @@ internal static class ControlEndpoints
 
         app.MapGet("/api/control/shooter/toggle", () =>
         {
-            // Atomic inside GameManager: reading the current shooter here and calling
-            // SetCurrentShooter would let two overlapping button presses act on the same read.
+            // Atomic inside GameManager: reading the current shooter here and assigning it back
+            // would let two overlapping button presses act on the same read.
             gameManager.ToggleCurrentShooter();
             return Results.Ok();
         });
