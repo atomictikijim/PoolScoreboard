@@ -22,7 +22,16 @@ its own overlay server on localhost, so it keeps working with no network at all.
     needed.
 - **Current Shooter Indicator**: highlights whichever player is at the table right now.
 - **Customizable Color Scheme**: background, accent, and text colors are operator-set, not
-  hardcoded — so the overlay can match a stream's branding.
+  hardcoded — so the overlay can match a stream's branding. Home and Away text colors are
+  set separately, and the corner-roundness, scale and gloss finish are adjustable too.
+- **End-Cap Icons**: each player's end cap can show a team logo or a flag — bundled national
+  and state flags, or any image file the operator picks — instead of the plain accent-colored
+  dot. The overlay fetches the icon separately from the score data, so swapping artwork does
+  not re-send the whole scoreboard to OBS.
+- **Overlay Show/Hide**: the score bar, ball tracker and winner banner can each be turned off
+  from the Controller without touching the OBS scene; hiding the score bar hides the other two
+  with it. The same toggles are available on the Match Setup screen, so a stream can be
+  prepared before a match starts.
 - **Cue Ball Spin Overlay**: a second, independently placeable OBS browser source showing
   a cue ball graphic. The operator clicks it to drop a red contact-point dot showing the
   spin/english being used on a shot. Lives in its own browser source separate from the

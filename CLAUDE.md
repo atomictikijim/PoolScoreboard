@@ -194,5 +194,9 @@ Version format while pre-1.0: **`0.<major>.<ui>`**
   number under the current major: `0.1.1` → `0.1.2` ... Resets when the major bumps.
 - Trivial fixes (typos, comments, formatting) fold into the next functional/UI commit.
 
+The version itself lives in `Directory.Build.props` (`<VersionPrefix>`), which stamps every
+project; bump it there in the same commit as the change that earns it, and keep it in step with
+the `v0.<major>.<ui>-beta` tags.
+
 Commits are **not** auto-pushed in this repo — confirm with the developer before pushing,
 same as any other repo, unless they explicitly grant standing authorization for this project.
