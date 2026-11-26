@@ -113,7 +113,8 @@ overlay as a second, separate Browser Source at
   racks, pocketed balls — does not persist.
 - Diagnostics land in `%AppData%\PoolScoreboard\controller.log`, appended across runs with a
   "Controller started" line per session. Shutdown warnings (such as the overlay host missing its stop
-  timeout) go there, since by then there is no window to show them in.
+  timeout) go there, since by then there is no window to show them in. A log that grows past 1 MiB is
+  rotated at the next startup to `controller.old.log`, keeping one previous run.
 - Pushing runs the same Release build and full test suite as CI. Enable the committed hook once
   per clone with `git config core.hooksPath .githooks`; bypass it deliberately with
   `git push --no-verify`.

@@ -119,7 +119,8 @@ dotnet clean
   750 ms debounce and on exit.
 - `Diagnostics/TraceLogFile` appends every `Trace` line to `%AppData%\PoolScoreboard\controller.log`
   (attached first in `OnStartup`, disposed last in `OnExit`), so shutdown warnings can be read after the
-  fact. It never throws: an unopenable log just silences the file.
+  fact. At startup a log over 1 MiB is moved to `controller.old.log`, replacing the previous run's. It
+  never throws: an unopenable log just silences the file.
 - `Persistence/PlayerRosterStore` does the same for `roster.json` and one icon file per saved player.
   `GameViewModel` remembers both sides when a match starts and when the window closes, and each side's
   "Saved Player" dropdown fills name, team, Race-To and icon from a roster entry.
@@ -189,8 +190,8 @@ alignment, not a pixel match).
 - Persistence covers the operator profile only: `%AppData%\PoolScoreboard\settings.json` holds the
   colour theme, scoreboard style, element visibility and both players' setup fields, while match
   state (scores, racks, pocketed balls) stays in memory. There is no match history.
-- `controller.log` is append-only and never rotated; it only grows when a warning is raised, which is
-  rare, but a long-lived install will accumulate one.
+- `controller.log` is capped by size only, never by age: at startup a log over 1 MiB becomes
+  `controller.old.log`, so exactly one previous session survives and older ones are discarded.
 - The roster only holds players who have actually been on screen for a started match (or present
   when the window closed). A "Delete" button beside each side's picker drops an entry (and its icon);
   renaming means reusing the name, which updates that entry rather than adding one. The list is capped

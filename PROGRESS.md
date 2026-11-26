@@ -194,6 +194,21 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Cap controller.log and rotate the previous run
+
+- `TraceLogFile.Attach` now checks the log's size before opening it: over 1 MiB, the file moves to
+  `controller.old.log` (replacing whatever previous run was there) and a fresh log starts. Keeping exactly
+  one previous run is the point — the cap exists so a long-lived install cannot accumulate an unbounded
+  file, not to bound any realistic session.
+- Rotation failure is not fatal: if the move is blocked, the session appends to the large log instead.
+  Losing the log or refusing to start would both be worse than an oversized file.
+- Three tests (`TraceLogFileTests`) use a small cap so the fixtures stay tiny: an oversized log moves to
+  `controller.old.log` and the new session starts clean, a second rotation discards the older previous run,
+  and a log under the cap is appended to with no previous-run file created.
+- Verified in the running Controller: a 1.1 MiB `controller.log` became `controller.old.log` on launch with a
+  fresh 55-byte log beside it, and the next launch appended without rotating again.
+- Build 0 warnings; 138/138 tests (93 Core + 45 Controller).
+
 ### 2026-11-26 — Trace output goes to a log file
 
 - `Diagnostics/TraceLogFile` is a `TraceListener` that appends to `%AppData%\PoolScoreboard\controller.log`,
@@ -211,7 +226,7 @@ live:
   closed cleanly at exit. The warning path itself is covered by the unit tests, not triggered live — forcing
   sealed-host failure needs a hung host, which is exactly what the give-up path exists to avoid in production.
 - Build 0 warnings; 135/135 tests (93 Core + 42 Controller).
-- Known gap: the log is append-only with no rotation or size cap.
+- Known gap at the time: no rotation or size cap — capped by the rotation entry above.
 
 ### 2026-11-26 — Deleting saved players, and a trace when the overlay host outlives its timeout
 

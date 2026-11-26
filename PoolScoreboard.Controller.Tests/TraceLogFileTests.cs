@@ -15,6 +15,8 @@ public sealed class TraceLogFileTests : IDisposable
 
     private string LogPath => Path.Combine(_root, "controller.log");
 
+    private string PreviousLogPath => Path.Combine(_root, "controller.old.log");
+
     [Fact]
     public void Attach_WritesTraceOutputToTheLogFile()
     {
@@ -80,6 +82,52 @@ public sealed class TraceLogFileTests : IDisposable
         }
 
         Assert.True(Directory.Exists(LogPath));
+    }
+
+    [Fact]
+    public void Attach_RotatesAnOversizedLogToThePreviousRunFile()
+    {
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(LogPath, new string('x', 200) + "old session tail");
+
+        using (var log = new TraceLogFile(LogPath, rotateBeyondBytes: 64))
+        {
+            log.Attach();
+            Trace.TraceWarning("new session warning");
+        }
+
+        Assert.Contains("old session tail", File.ReadAllText(PreviousLogPath));
+        var current = File.ReadAllText(LogPath);
+        Assert.Contains("new session warning", current);
+        Assert.DoesNotContain("old session tail", current);
+    }
+
+    [Fact]
+    public void Attach_KeepsOnlyTheImmediatelyPreviousRun()
+    {
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(PreviousLogPath, "two sessions back");
+        File.WriteAllText(LogPath, new string('y', 200) + "last session tail");
+
+        using (var log = new TraceLogFile(LogPath, rotateBeyondBytes: 64))
+            log.Attach();
+
+        var previous = File.ReadAllText(PreviousLogPath);
+        Assert.Contains("last session tail", previous);
+        Assert.DoesNotContain("two sessions back", previous);
+    }
+
+    [Fact]
+    public void Attach_LeavesALogUnderTheCapInPlace()
+    {
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(LogPath, "small session tail");
+
+        using (var log = new TraceLogFile(LogPath, rotateBeyondBytes: 64))
+            log.Attach();
+
+        Assert.Contains("small session tail", File.ReadAllText(LogPath));
+        Assert.False(File.Exists(PreviousLogPath));
     }
 
     /// <summary><see cref="TraceListenerCollection"/> is not generic, so the assertions need this.</summary>

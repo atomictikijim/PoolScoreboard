@@ -10,18 +10,32 @@ namespace PoolScoreboard.Controller.Diagnostics;
 /// </summary>
 public sealed class TraceLogFile : TraceListener
 {
+    /// <summary>
+    /// Roughly a year of warnings for this app: the cap exists so an install that runs for months cannot
+    /// accumulate an unbounded file, not to bound any realistic session.
+    /// </summary>
+    public const long DefaultRotateBeyondBytes = 1 << 20;
+
     private readonly object _gate = new();
     private readonly string _logPath;
+    private readonly long _rotateBeyondBytes;
     private StreamWriter? _writer;
 
-    public TraceLogFile(string logPath) => _logPath = logPath;
+    public TraceLogFile(string logPath, long rotateBeyondBytes = DefaultRotateBeyondBytes)
+    {
+        _logPath = logPath;
+        _rotateBeyondBytes = rotateBeyondBytes;
+    }
 
     /// <summary>
-    /// Opens the log for appending and starts listening. A log that cannot be opened never stops the app
-    /// from starting: diagnostics must not be the reason startup fails, so the listener just goes quiet.
+    /// Opens the log for appending and starts listening, first rotating an oversized log out of the way.
+    /// A log that cannot be opened never stops the app from starting: diagnostics must not be the reason
+    /// startup fails, so the listener just goes quiet.
     /// </summary>
     public void Attach()
     {
+        RotateIfTooLarge();
+
         try
         {
             var folder = Path.GetDirectoryName(_logPath);
@@ -44,6 +58,35 @@ public sealed class TraceLogFile : TraceListener
 
         Trace.Listeners.Add(this);
     }
+
+    /// <summary>
+    /// Moves an oversized log to <c>controller.old.log</c>, replacing whatever previous run was there, so
+    /// exactly one earlier session is kept. If the move fails the current log is appended to and simply
+    /// stays large — the alternative is losing it.
+    /// </summary>
+    private void RotateIfTooLarge()
+    {
+        try
+        {
+            var file = new FileInfo(_logPath);
+            if (!file.Exists || file.Length <= _rotateBeyondBytes)
+                return;
+
+            var previous = PreviousLogPath;
+            if (File.Exists(previous))
+                File.Delete(previous);
+
+            File.Move(_logPath, previous);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Appending to the big log beats both losing it and refusing to start.
+        }
+    }
+
+    private string PreviousLogPath => Path.Combine(
+        Path.GetDirectoryName(_logPath) ?? string.Empty,
+        Path.GetFileNameWithoutExtension(_logPath) + ".old" + Path.GetExtension(_logPath));
 
     public override void Write(string? message) => WriteLine(message);
 
