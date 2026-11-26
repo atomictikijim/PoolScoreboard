@@ -1,4 +1,4 @@
-# Progress
+﻿# Progress
 
 Tracks what's changed and what's next during development. Newest entries at
 the top of each section.
@@ -189,6 +189,30 @@ live:
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-26 — Merge origin/master: editable after a win, per-side minus, per-side text
+
+- Merged `58cc003` ("Keep match editable after a win; add score-subtract and per-side text color")
+  into the local 17-commit series instead of pushing over it. Six files conflicted; both sides'
+  intent was kept, and their `SubtractPoint`/`UpdateWinner` model now runs inside the single lock
+  and raises its snapshot inside it, exactly like every other mutation — none of the thread-safety
+  work was given up to take their feature.
+- Behaviour now: reaching a Race-To target only sets `Winner`, recomputed after every score change,
+  and the match stays active — so +/−, undo, shooter toggle and ball buttons all keep working after
+  a win, and a mistaken final point can be corrected without a Reset. `EndGame` and its
+  `IsGameActive = false` are gone; adopted deliberately over the previous "a win ends the match"
+  rule, and the help window, both Stream Deck docs and the tests now say the win only shows the
+  banner.
+- `UndoPoint` gained a floor at zero. It could not go negative before only because it was the one
+  way to lower a score; now that a per-side minus can remove a point that is still on the undo
+  history, a later undo would have driven the score to −1. Pinned by a test.
+- `ColorTheme.Text` split into `HomeText`/`AwayText` (their change), threaded through
+  `ColorTheme.Copy()`, the DTO/mapper and the overlay CSS; tests assert both sides separately.
+- One of their doc lines did not survive review: "Reset Match is destructive, clears the loaded
+  players, theme and style" is the stale claim this branch had already corrected — `ResetGame`
+  keeps players, theme, style and visibility, and the merged docs say so.
+- Tests 47 → 52 (their four cases adapted to `NewMatch`/snapshots, plus one for the undo floor),
+  all passing; build clean, 0 warnings.
 
 ### 2026-11-26 — Remove GameState.StartTime
 

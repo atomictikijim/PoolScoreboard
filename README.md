@@ -1,4 +1,4 @@
-# Pool Scoreboard Controller & OBS Overlay
+﻿# Pool Scoreboard Controller & OBS Overlay
 
 A Windows desktop application for running a live pool-match scoreboard as an OBS Studio
 overlay, controlled from a desktop window, the keyboard, or an Elgato Stream Deck — with
@@ -81,9 +81,9 @@ overlay as a second, separate Browser Source at
 - `/overlay/scoreboard` — OBS browser source: scores, race-to, shooter indicator, ball
   display, operator-set colors.
 - `/overlay/cueball` — OBS browser source: cue ball + click-to-place red spin dot.
-- `/api/control/*` — local-only HTTP endpoints for Stream Deck buttons (add a point per side,
-  undo the last point, toggle shooter, assign ball group, toggle a ball's pocketed state, new
-  rack, reset match).
+- `/api/control/*` — local-only HTTP endpoints for Stream Deck buttons (add or subtract a
+  point per side, undo the last point, toggle shooter, assign ball group, toggle a ball's
+  pocketed state, new rack, reset match).
 - Bound to `localhost` only — never reaches out to the internet, and nothing outside the
   machine can reach it either.
 
