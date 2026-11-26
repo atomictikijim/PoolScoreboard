@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Extensions.Hosting;
+using PoolScoreboard.Controller.Diagnostics;
 using PoolScoreboard.Controller.Persistence;
 using PoolScoreboard.Core;
 using PoolScoreboard.Core.Persistence;
@@ -30,9 +31,21 @@ public partial class App : System.Windows.Application
 
     private IHost? _overlayHost;
 
+    /// <summary>
+    /// A warning raised during shutdown has no window left to appear in, so everything written to Trace
+    /// (including OverlayHostRunner's give-up warnings) also goes to
+    /// <c>%AppData%\PoolScoreboard\controller.log</c> for reading after the fact.
+    /// </summary>
+    private readonly TraceLogFile _traceLog = new(Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "PoolScoreboard",
+        "controller.log"));
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        _traceLog.Attach();
 
         // Restore before any window exists: GameViewModel reads GameManager's state when it is
         // constructed, so this is what makes both the setup screen and the overlay open with the
@@ -84,10 +97,19 @@ public partial class App : System.Windows.Application
     {
         SaveOperatorProfile();
 
-        // Off the UI thread, or the host's shutdown continuations would be queued to the Dispatcher this
-        // method is blocking — see OverlayHostRunner for why that deadlocks the process.
-        if (_overlayHost != null)
-            OverlayHostRunner.StopAndDispose(_overlayHost, TimeSpan.FromSeconds(2));
+        try
+        {
+            // Off the UI thread, or the host's shutdown continuations would be queued to the Dispatcher
+            // this method is blocking — see OverlayHostRunner for why that deadlocks the process.
+            if (_overlayHost != null)
+                OverlayHostRunner.StopAndDispose(_overlayHost, TimeSpan.FromSeconds(2));
+        }
+        finally
+        {
+            // Last, so a warning from the stop above still reaches the file (the writer flushes per
+            // line), and in a finally so an unexpected throw can't leave the log handle open.
+            _traceLog.Dispose();
+        }
 
         base.OnExit(e);
     }

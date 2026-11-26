@@ -111,6 +111,9 @@ overlay as a second, separate Browser Source at
   scoreboard style, show/hide state and the last two players, while `roster.json` holds the saved
   player list. End-cap artwork is stored as files under `icons\`, not inline. Match state — scores,
   racks, pocketed balls — does not persist.
+- Diagnostics land in `%AppData%\PoolScoreboard\controller.log`, appended across runs with a
+  "Controller started" line per session. Shutdown warnings (such as the overlay host missing its stop
+  timeout) go there, since by then there is no window to show them in.
 - Pushing runs the same Release build and full test suite as CI. Enable the committed hook once
   per clone with `git config core.hooksPath .githooks`; bypass it deliberately with
   `git push --no-verify`.

@@ -194,6 +194,25 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Trace output goes to a log file
+
+- `Diagnostics/TraceLogFile` is a `TraceListener` that appends to `%AppData%\PoolScoreboard\controller.log`,
+  opening with a timestamped "Controller started" line so runs can be told apart. `App` attaches it first in
+  `OnStartup` and disposes it last in `OnExit`, which is what puts the overlay host's give-up warnings
+  somewhere readable after the process is gone. Writes are locked and flushed per line, since the last
+  warning is raised from a background thread during shutdown.
+- It never throws: an unopenable log (permissions, or a folder sitting where the file should be) leaves the
+  listener attached but silent, and a failed write loses that line rather than the app. Logging is
+  diagnostics — it must not be able to break startup or exit.
+- Four tests (`TraceLogFileTests`) write real files in a temp folder: a `Trace.TraceWarning` reaches the
+  file with its timestamped start line, a second session appends instead of truncating, disposing both
+  stops listening and releases the handle (the file can be deleted), and an unopenable path stays quiet.
+- Verified in the running Controller: `controller.log` is created on startup with the session header and is
+  closed cleanly at exit. The warning path itself is covered by the unit tests, not triggered live — forcing
+  sealed-host failure needs a hung host, which is exactly what the give-up path exists to avoid in production.
+- Build 0 warnings; 135/135 tests (93 Core + 42 Controller).
+- Known gap: the log is append-only with no rotation or size cap.
+
 ### 2026-11-26 — Deleting saved players, and a trace when the overlay host outlives its timeout
 
 - `PlayerRoster.Forget(id)` returns whether an entry went, and each side's picker gained a **Delete**
