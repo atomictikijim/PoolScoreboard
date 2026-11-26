@@ -85,13 +85,10 @@ public class OverlayHostRunnerTests
                     TimeSpan.FromMilliseconds(100));
                 elapsed = stopwatch.Elapsed;
 
-                // Read while the listener is still attached: the warning has to be on disk already,
-                // because the process would be exiting at this point in a real shutdown. The reader has
-                // to permit the open writer (FileShare.ReadWrite) — File.ReadAllText's share mode would
-                // lock the live log out, which is the normal price of the listener holding it open.
-                using var stream = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                using var reader = new StreamReader(stream);
-                Assert.Contains("did not stop within", reader.ReadToEnd());
+                // Read while the listener is still attached, with the ordinary reader: the warning has to
+                // be on disk already, because the process would be exiting at this point in a real
+                // shutdown, so a line buffered anywhere would be lost.
+                Assert.Contains("did not stop within", File.ReadAllText(logPath));
             }
 
             Assert.False(stopped);

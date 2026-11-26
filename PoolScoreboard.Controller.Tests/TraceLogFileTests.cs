@@ -33,6 +33,46 @@ public sealed class TraceLogFileTests : IDisposable
     }
 
     [Fact]
+    public void Attach_LeavesTheLogReadableWhileItIsStillAttached()
+    {
+        using (var log = new TraceLogFile(LogPath))
+        {
+            log.Attach();
+            Trace.TraceWarning("readable while running");
+
+            // The ordinary reader a person or tool would use: FileShare.Read, which fails against a held
+            // writer. This is the whole point of appending per line.
+            var lines = File.ReadAllLines(LogPath);
+            // Exactly one line, and it carries Trace's "source Warning: id :" prefix: the prefix and the
+            // message are merged, not a stray half-line above every warning.
+            var warning = Assert.Single(lines.Where(line => line.Contains("readable while running")));
+            Assert.Contains("Warning:", warning);
+            Assert.StartsWith("20", warning);
+        }
+    }
+
+    [Fact]
+    public void WriteWithoutALineBreak_IsFlushedInsteadOfHeldForever()
+    {
+        var fragment = new string('z', 600);
+
+        using (var log = new TraceLogFile(LogPath))
+        {
+            log.Attach();
+            log.Write(fragment);
+
+            // A Write with no WriteLine behind it still has to reach the file rather than sitting in memory.
+            Assert.Contains(fragment, File.ReadAllText(LogPath));
+
+            Trace.TraceWarning("later warning");
+        }
+
+        // And the flushed fragment must not glue itself onto the next warning.
+        var warning = File.ReadAllLines(LogPath).Single(line => line.Contains("later warning"));
+        Assert.DoesNotContain("zzz", warning);
+    }
+
+    [Fact]
     public void Attach_AppendsToAnExistingLogRatherThanReplacingIt()
     {
         using (var first = new TraceLogFile(LogPath))
@@ -63,7 +103,7 @@ public sealed class TraceLogFileTests : IDisposable
         log.Dispose();
 
         Assert.DoesNotContain(log, Listeners());
-        // Deleting the file proves the writer was closed rather than left holding a handle.
+                    // Deleting the file proves no handle is left holding it.
         File.Delete(LogPath);
         Assert.False(File.Exists(LogPath));
     }

@@ -119,8 +119,9 @@ dotnet clean
   750 ms debounce and on exit.
 - `Diagnostics/TraceLogFile` appends every `Trace` line to `%AppData%\PoolScoreboard\controller.log`
   (attached first in `OnStartup`, disposed last in `OnExit`), so shutdown warnings can be read after the
-  fact. At startup a log over 1 MiB is moved to `controller.old.log`, replacing the previous run's. It
-  never throws: an unopenable log just silences the file.
+  fact. At startup a log over 1 MiB is moved to `controller.old.log`, replacing the previous run's. Each
+  line is opened, appended and closed — no handle is held — so the log stays readable while the app runs.
+  It never throws: an unopenable log just silences the file.
 - `Persistence/PlayerRosterStore` does the same for `roster.json` and one icon file per saved player.
   `GameViewModel` remembers both sides when a match starts and when the window closes, and each side's
   "Saved Player" dropdown fills name, team, Race-To and icon from a roster entry.

@@ -6,7 +6,9 @@ namespace PoolScoreboard.Controller.Diagnostics;
 
 /// <summary>
 /// Appends everything written to <see cref="Trace"/> to a log file, so a warning raised while the app is
-/// shutting down — when there is no window left to show it in — can still be read afterwards.
+/// shutting down — when there is no window left to show it in — can still be read afterwards. The file is
+/// opened, appended to and closed per line rather than held open, so the log stays readable by any tool
+/// while the app is running and no handle survives a crash.
 /// </summary>
 public sealed class TraceLogFile : TraceListener
 {
@@ -19,7 +21,18 @@ public sealed class TraceLogFile : TraceListener
     private readonly object _gate = new();
     private readonly string _logPath;
     private readonly long _rotateBeyondBytes;
-    private StreamWriter? _writer;
+    private bool _disposed;
+
+    /// <summary>
+    /// Trace raises a warning as two calls — the "source Warning: id :" prefix through <see cref="Write"/>,
+    /// then the message through <see cref="WriteLine"/>. Holding the prefix keeps that one line in the log
+    /// instead of a stray half-line above every warning. Bounded, because nothing promises a <c>Write</c>
+    /// will be followed by a <c>WriteLine</c>: past this length the prefix is written out on its own rather
+    /// than accumulating for the life of the process or gluing itself to an unrelated later line.
+    /// </summary>
+    private const int PendingFlushLength = 512;
+
+    private string _pending = string.Empty;
 
     public TraceLogFile(string logPath, long rotateBeyondBytes = DefaultRotateBeyondBytes)
     {
@@ -28,9 +41,9 @@ public sealed class TraceLogFile : TraceListener
     }
 
     /// <summary>
-    /// Opens the log for appending and starts listening, first rotating an oversized log out of the way.
-    /// A log that cannot be opened never stops the app from starting: diagnostics must not be the reason
-    /// startup fails, so the listener just goes quiet.
+    /// Rotates an oversized log out of the way, then starts listening. A log that cannot be opened never
+    /// stops the app from starting: diagnostics must not be the reason startup fails, so the listener just
+    /// goes quiet.
     /// </summary>
     public void Attach()
     {
@@ -41,22 +54,68 @@ public sealed class TraceLogFile : TraceListener
             var folder = Path.GetDirectoryName(_logPath);
             if (!string.IsNullOrEmpty(folder))
                 Directory.CreateDirectory(folder);
-
-            _writer = new StreamWriter(
-                new FileStream(_logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite),
-                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false))
-            {
-                AutoFlush = true
-            };
-
-            _writer.WriteLine($"--- Controller started {DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss zzz} ---");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            _writer = null;
+            // The per-line writes will fail and stay quiet; nothing else to do here.
         }
 
         Trace.Listeners.Add(this);
+        WriteLine("--- Controller started ---");
+    }
+
+    public override void Write(string? message)
+    {
+        if (message == null)
+            return;
+
+        lock (_gate)
+        {
+            if (_disposed)
+                return;
+
+            _pending += message;
+            if (_pending.Length >= PendingFlushLength)
+            {
+                var held = _pending;
+                _pending = string.Empty;
+                Append(held);
+            }
+        }
+    }
+
+    public override void WriteLine(string? message)
+    {
+        // Trace serialises listener calls, but this class does not rely on it: rotation and two app
+        // instances can share the file, and an append interleaved mid-line would be unreadable.
+        lock (_gate)
+        {
+            if (_disposed)
+                return;
+
+            var line = _pending + message;
+            _pending = string.Empty;
+            Append(line);
+        }
+    }
+
+    /// <summary>Writes one timestamped line. Callers hold <see cref="_gate"/>.</summary>
+    private void Append(string line)
+    {
+        try
+        {
+            using var stream = new FileStream(
+                _logPath,
+                FileMode.Append,
+                FileAccess.Write,
+                FileShare.ReadWrite | FileShare.Delete);
+            using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            writer.Write($"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss} {line}{Environment.NewLine}");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Losing a log line must not take the app down mid-stream.
+        }
     }
 
     /// <summary>
@@ -88,27 +147,6 @@ public sealed class TraceLogFile : TraceListener
         Path.GetDirectoryName(_logPath) ?? string.Empty,
         Path.GetFileNameWithoutExtension(_logPath) + ".old" + Path.GetExtension(_logPath));
 
-    public override void Write(string? message) => WriteLine(message);
-
-    public override void WriteLine(string? message)
-    {
-        lock (_gate)
-        {
-            if (_writer == null || message == null)
-                return;
-
-            try
-            {
-                _writer.WriteLine($"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss} {message}");
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                // Losing a log line must not take the app down mid-stream. A disposed writer cannot be
-                // reached here: Dispose takes _gate to null it, and this write holds _gate throughout.
-            }
-        }
-    }
-
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -119,8 +157,9 @@ public sealed class TraceLogFile : TraceListener
 
             lock (_gate)
             {
-                _writer?.Dispose();
-                _writer = null;
+                // A prefix with no line after it is dropped: half a warning is worse than none.
+                _pending = string.Empty;
+                _disposed = true;
             }
         }
 

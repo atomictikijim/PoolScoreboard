@@ -194,6 +194,29 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — controller.log can be read while the Controller runs
+
+- `TraceLogFile` used to hold one writer open for the whole session, so a reader that asks for the ordinary
+  `FileShare.Read` — `File.ReadAllText`, and plenty of editors — got a sharing violation until the app
+  exited. Each line is now opened, appended and closed with `FileShare.ReadWrite | FileShare.Delete`, so no
+  handle outlives a single write: the log reads normally mid-session, and a crash cannot leave a locked file.
+- Cold cost is one open/close per line, which is irrelevant at the volume this log sees (warnings only), and
+  the lock around writes stays so rotation or a second instance can never interleave a half line.
+- The header line lost its duplicated timestamp (`--- Controller started ---`), since every line is stamped.
+- Fixed while verifying: Trace raises a warning as a `Write` prefix ("… Warning: 0 :") and then the message
+  through `WriteLine`, so every warning had been producing a stray half-line above it. The prefix is now
+  buffered and emitted with its message — the live log reads
+  `2026-11-26 15:31:58 PoolScoreboard.Controller Warning: 0 : VERIFY shutdown probe` on one line.
+- Tests: a new one reads the log with plain `File.ReadAllText` while the listener is still attached; the
+  end-to-end shutdown-warning test dropped its `FileShare.ReadWrite` workaround and now reads the same way.
+- The buffered warning prefix is bounded (512 characters): a `Write` with no `WriteLine` behind it is written
+  out on its own instead of accumulating for the life of the process or gluing itself to an unrelated later
+  line. Tested both ways — the fragment reaches the file, and the next warning does not carry it.
+- Verified in the running Controller: the log reads with a plain reader mid-session, a warning written during
+  `OnExit` (a temporary probe, then removed) was on disk after the process exited, and the file deleted
+  cleanly afterwards.
+- Build 0 warnings; 141/141 tests (93 Core + 48 Controller).
+
 ### 2026-11-26 — End-to-end coverage for the shutdown warning reaching the log
 
 - One test joins the two halves that were only tested apart: a hung host (its stop never completes) goes
