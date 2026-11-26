@@ -124,8 +124,9 @@ internal sealed class OperatorSettingsStore
         {
             return File.Exists(path) && File.ReadAllBytes(path).AsSpan().SequenceEqual(bytes);
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
+            // Unreadable is treated as "different": rewriting it is the next best attempt.
             return false;
         }
     }

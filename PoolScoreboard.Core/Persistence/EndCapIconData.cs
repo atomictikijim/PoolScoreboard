@@ -27,7 +27,8 @@ public static class EndCapIconData
         if (marker <= DataPrefix.Length)
             return false;
 
-        var candidateMime = dataUri[DataPrefix.Length..marker];
+        // Trimmed so a stray space can't yield a data URI whose mime the browser then rejects.
+        var candidateMime = dataUri[DataPrefix.Length..marker].Trim();
         if (!IsSupportedMime(candidateMime))
             return false;
 

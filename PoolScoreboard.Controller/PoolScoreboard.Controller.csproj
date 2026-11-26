@@ -24,6 +24,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The persistence store is internal: its tests live in a separate project. -->
+    <InternalsVisibleTo Include="PoolScoreboard.Controller.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\PoolScoreboard.Core\PoolScoreboard.Core.csproj" />
     <ProjectReference Include="..\PoolScoreboard.Overlay\PoolScoreboard.Overlay.csproj" />
   </ItemGroup>

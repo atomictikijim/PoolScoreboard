@@ -188,10 +188,13 @@ alignment, not a pixel match).
 
 - Core logic (`GameManager`, models) is UI-free and unit-testable — put tests under
   `PoolScoreboard.Core.Tests` (xUnit or NUnit).
-- Controller UI would be tested end-to-end against a real `GameManager`.
+- `PoolScoreboard.Controller.Tests` covers the Controller's file-backed persistence
+  (`OperatorSettingsStore`) against a throwaway temp folder. It targets `net8.0-windows` because it
+  references the WPF project; the tests themselves touch no UI. Controller UI behaviour is still
+  checked by hand against a real `GameManager`.
 - Overlay/control-API endpoints should be tested against a `GameManager` test instance, not
   a live one.
-- `.githooks/pre-push` mirrors CI (Release build, then the Core tests) and is enabled per clone
+- `.githooks/pre-push` mirrors CI (Release build, then every test project) and is enabled per clone
   with `git config core.hooksPath .githooks`. `master` also has a required `build-and-test` check,
   which GitHub only enforces on merges — the hook is what covers direct pushes.
 

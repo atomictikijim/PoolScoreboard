@@ -44,6 +44,14 @@ public class EndCapIconDataTests
         Assert.Empty(bytes);
     }
 
+    [Fact]
+    public void TryParse_TrimsWhitespaceAroundTheMime()
+    {
+        Assert.True(EndCapIconData.TryParse("data: image/png ;base64,AAE=", out var mime, out var bytes));
+        Assert.Equal("image/png", mime);
+        Assert.Equal(new byte[] { 0, 1 }, bytes);
+    }
+
     [Theory]
     [InlineData("image/png", ".png")]
     [InlineData("image/PNG", ".png")]

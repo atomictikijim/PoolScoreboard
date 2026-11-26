@@ -105,6 +105,6 @@ overlay as a second, separate Browser Source at
 - Operator settings (colour theme, scoreboard style, show/hide state, and the last two players
   with their end-cap icons) persist to `%AppData%\PoolScoreboard\`. Match state — scores, racks,
   pocketed balls — does not.
-- Pushing runs the same Release build and Core tests as CI. Enable the committed hook once per
-  clone with `git config core.hooksPath .githooks`; bypass it deliberately with
+- Pushing runs the same Release build and full test suite as CI. Enable the committed hook once
+  per clone with `git config core.hooksPath .githooks`; bypass it deliberately with
   `git push --no-verify`.

@@ -44,5 +44,7 @@ jobs:
       - name: Build
         run: dotnet build PoolScoreboard.sln --configuration Release --no-restore
 
-      - name: Test (Core)
-        run: dotnet test PoolScoreboard.Core.Tests/PoolScoreboard.Core.Tests.csproj --configuration Release --no-build --logger "console;verbosity=normal"
+      # Runs every test project in the solution: Core logic, plus the Controller's file-backed
+      # persistence store (which is why the whole job needs a Windows runner).
+      - name: Test
+        run: dotnet test PoolScoreboard.sln --configuration Release --no-build --logger "console;verbosity=normal"

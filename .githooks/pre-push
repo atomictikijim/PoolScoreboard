@@ -31,9 +31,8 @@ if ! dotnet build --configuration Release > "$log" 2>&1; then
   exit 1
 fi
 
-echo "pre-push: running Core tests ..."
-if ! dotnet test PoolScoreboard.Core.Tests/PoolScoreboard.Core.Tests.csproj \
-  --configuration Release --no-build; then
+echo "pre-push: running tests ..."
+if ! dotnet test PoolScoreboard.sln --configuration Release --no-build; then
   echo "pre-push: TESTS FAILED - push blocked." >&2
   exit 1
 fi

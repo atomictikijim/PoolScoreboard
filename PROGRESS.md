@@ -193,6 +193,23 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Cover the settings store in CI, plus review fixes for the gate commit
+
+- Added `PoolScoreboard.Controller.Tests` (`net8.0-windows`, references the WPF project, no UI in the
+  tests) with 16 tests over `OperatorSettingsStore` against a throwaway temp folder: full profile and
+  both icons round-tripping, icons written as files with no base64 in the JSON, SVG mime preserved,
+  an unchanged icon not rewritten, a mime change replacing the old file, clearing removing it,
+  unusable data treated as no icon, no `.tmp` left behind, missing/corrupt/empty settings, a missing
+  icon file, a hand-edited `../escape.png` path and a `text/html` mime both ignored, overwriting, and
+  `ApplyTo` writing the loaded profile into a real `GameManager`.
+- The CI test step and the pre-push hook now run `dotnet test PoolScoreboard.sln`, so the new project
+  is gated in both places. `InternalsVisibleTo` is what lets the tests reach the internal store.
+- Review of `9339fc4` caught two smaller things: `HasSameBytes` swallowed only `IOException`, so a
+  file locked by another process threw `UnauthorizedAccessException` out of the save instead of being
+  treated as "different, rewrite"; and `EndCapIconData.TryParse` accepted a mime with stray spaces,
+  which would have produced a data URI the browser rejects. Both fixed, the latter with a test.
+- Build 0 warnings; 92/92 tests (76 Core + 16 Controller).
+
 ### 2026-11-26 — Block a red build at push time, and harden icon persistence on review
 
 - GitHub cannot reject a *direct push* on a check that runs after that push, so the required
