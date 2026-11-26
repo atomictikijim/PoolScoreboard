@@ -70,7 +70,10 @@ dotnet clean
 - `RaceToMode` — `Single` (one shared target) or `Split` (each player has their own target).
 - `BallGroup` — `Unassigned`, `Solids`, `Stripes`. Only meaningful for 8-ball; the 8-ball
   itself is never assigned to a group and always renders center.
-- `Player` — `Name`, `TeamName` (optional), `RaceToTarget`, `BallGroup` (8-ball only).
+- `Player` — `Id` (stable per player; the end-cap icon URL is keyed on it), `Name`,
+  `TeamName` (optional), `RaceToTarget`, `BallGroup` (8-ball only), `EndCapIcon` (the team logo
+  or flag the operator picked, held as a data URI) and `EndCapIconVersion`, which changes only
+  when the artwork does so the served icon URL can be cache-busted with `?v=`.
 - `GameState` — both `Player`s, `GameType`, `RaceToMode`, scores, `CurrentShooter`,
   `ColorTheme`, `ScoreboardStyle` (corner roundness, scale, gloss finish, end-cap style,
   shooter-indicator style), `Visibility` (score bar / ball tracker / winner banner shown or
@@ -159,11 +162,14 @@ detail. Concrete design tokens for the `/overlay/scoreboard` page in Phase 3:
   decision (see "Ball Display Detail" above) that pocketed balls render greyed out in place.
 - `ColorTheme.Accent` maps naturally to the score-badge/center-segment treatment.
 
-Open question, not yet resolved: the flag end-caps aren't backed by any field in the current
-domain model (`Player` only has `Name`/`TeamName`, no nationality) — revisit with the developer
-if/when this styling is actually adopted. This only informs the Overlay's own pages — the
-Controller's WPF operator console keeps its existing dark theme (CLAUDE.md's "consistent with
-the overlay's theme" is a soft aesthetic alignment, not a pixel match).
+Flag end-caps are now backed by data: `Player.EndCapIcon` holds whichever logo or flag the
+operator picks, served to the overlay from `/overlay/api/players/{id}/icon` rather than embedded
+in the state payload. What is still unresolved is nationality as *data* — there is no country
+field, so a flag is artwork the operator chose and nothing selects one from a player's name.
+
+This only informs the Overlay's own pages — the Controller's WPF operator console keeps its
+existing dark theme (CLAUDE.md's "consistent with the overlay's theme" is a soft aesthetic
+alignment, not a pixel match).
 
 ## Known Simplifications & Future Work
 

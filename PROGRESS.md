@@ -30,11 +30,10 @@ live:
   current shooter, ball groups, pocketed balls). `PlayerViewModel` is setup-only and holds no
   `Player` of its own: its team name, player name, Race-To and end-cap icon fields write straight
   into `GameManager` state, so the overlay previews them as they're typed. `MainWindow.xaml` has
-  two screens toggled by
-  `GameInitialized`: a match-setup screen (game type, Race-To mode + value(s), color theme
-  hex fields with swatch previews) and a live view (score +/-, current-shooter toggle, 8-ball
-  group-assignment buttons + shared center 8-ball, numeric 1-9/1-10 ball row for 9/10-ball,
-  new-rack and reset-match controls). Balls render as colored circular buttons
+  two screens toggled by `GameInitialized`: a match-setup screen (game type, Race-To mode +
+  value(s), color theme hex fields with swatch previews) and a live view (score +/-, current-shooter
+  toggle, 8-ball group-assignment buttons + shared center 8-ball, numeric 1-9/1-10 ball row for
+  9/10-ball, new-rack and reset-match controls). Balls render as colored circular buttons
   (`BallButtonStyle` in `Themes/Default.xaml`) that greyed out in place when pocketed —
   clicking toggles pocketed state through `GameManager.PocketBall`/`UnpocketBall`. Keyboard
   shortcuts (live view only): Q/P score home/away, A undoes the last point, Space toggles
