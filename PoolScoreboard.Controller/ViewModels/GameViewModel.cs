@@ -426,10 +426,11 @@ public partial class GameViewModel : ObservableObject
         HomeBallGroup = state.Player1.BallGroup;
         AwayBallGroup = state.Player2.BallGroup;
         // An unnamed winning player would otherwise render " wins!", so fall back to their side —
-        // the same fallback the overlay's name pills and winner banner use.
+        // the same fallback the overlay's name pills and winner banner use. GameManager trims names
+        // on write, so empty is the only blank case that can arrive here.
         WinnerAnnouncement = state.Winner == null
             ? null
-            : $"{(string.IsNullOrWhiteSpace(state.Winner.Name) ? (ReferenceEquals(state.Winner, state.Player1) ? "Home" : "Away") : state.Winner.Name)} wins!";
+            : $"{(string.IsNullOrEmpty(state.Winner.Name) ? (ReferenceEquals(state.Winner, state.Player1) ? "Home" : "Away") : state.Winner.Name)} wins!";
 
         ScoreBarVisible = state.Visibility.ScoreBarVisible;
         BallTrackerVisible = state.Visibility.BallTrackerVisible;

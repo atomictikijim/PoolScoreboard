@@ -154,11 +154,10 @@
     cap.classList.toggle('has-icon', !!url);
   }
 
-  // Operator text is free-form, so a name typed as spaces only has to fall back exactly like an
-  // empty one — otherwise the name pills go blank and the winner banner reads " WINS!".
+  // GameManager trims names at the single write path, so an unnamed player arrives as "" and the
+  // pills and winner banner only have to pick a fallback for that case.
   function displayText(value, fallback) {
-    const trimmed = (value || '').trim();
-    return (trimmed === '' ? fallback : trimmed).toUpperCase();
+    return (value || fallback).toUpperCase();
   }
 
   function render(state) {
@@ -166,8 +165,8 @@
 
     homeName.textContent = displayText(state.home.name, 'HOME');
     awayName.textContent = displayText(state.away.name, 'AWAY');
-    homeTeam.textContent = (state.home.teamName || '').trim().toUpperCase();
-    awayTeam.textContent = (state.away.teamName || '').trim().toUpperCase();
+    homeTeam.textContent = (state.home.teamName || '').toUpperCase();
+    awayTeam.textContent = (state.away.teamName || '').toUpperCase();
     applyCapIcon(capIconHome, capHome, state.home.endCapIconUrl);
     applyCapIcon(capIconAway, capAway, state.away.endCapIconUrl);
     homeScore.textContent = String(state.home.score);
@@ -180,8 +179,8 @@
     applyStyle(state.style, state.homeIsCurrentShooter);
 
     // A winner is present whenever the payload carries a winner name at all: an unnamed player
-    // sends "" rather than null, and that must still show the banner (the name pills fall back to
-    // HOME/AWAY the same way). A name of only spaces is treated as unnamed by displayText.
+    // sends "" rather than null, and that must still show the banner (displayText supplies HOME or
+    // AWAY, the same fallback the name pills use).
     const hasWinner = state.winnerName != null;
     const winnerLabel = hasWinner
       ? displayText(state.winnerName, state.winnerIsHome ? 'Home' : 'Away')

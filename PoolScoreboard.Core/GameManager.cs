@@ -152,8 +152,12 @@ public class GameManager
         {
             var player = isHome ? _currentGame.Player1 : _currentGame.Player2;
 
-            player.Name = name;
-            player.TeamName = teamName;
+            // Names are operator free text shown on three surfaces — the Controller's live view, the
+            // overlay's name pills and its winner banner — and each has to fall back to HOME/AWAY when
+            // a name is missing. Trim here, at the single write path, so none of them has to decide
+            // for itself what "blank" means; a spaces-only name is stored as an empty one.
+            player.Name = name.Trim();
+            player.TeamName = teamName.Trim();
             player.RaceToTarget = raceToTarget;
 
             // Only a real artwork change counts as one: assigning the icon on every keystroke would

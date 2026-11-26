@@ -190,6 +190,24 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Normalise names once, in Core, instead of in every consumer
+
+- Names are now trimmed in `SetPlayerDetails` — the single path operator-typed names take into
+  state — so a spaces-only name is stored as `""`. Before this, three surfaces each decided for
+  themselves what blank meant (overlay pills, winner banner, Controller winner line) and two of
+  them got it wrong: both bugs found in the previous entries were the same missing rule.
+- Consumers keep only their display fallback, which is presentation rather than normalisation:
+  the overlay's `displayText` lost its `.trim()`, its team-name lines lost their trim, and the
+  Controller's check became `IsNullOrEmpty` instead of `IsNullOrWhiteSpace`.
+- The rule is pinned by a Core test (`SetPlayerDetails_TrimsNamesAndStoresWhitespaceOnlyAsEmpty`),
+  which is the only place in the solution with a harness — the JS and the ViewModel have none, so
+  a rule living there was untestable by construction.
+- Deliberately unchanged: `Player.Name` itself is not trimmed, so a future writer that sets it
+  directly would bypass the rule; and the HOME/AWAY fallback strings stay in the UI, because state
+  should record what the operator typed, not a display placeholder.
+- Verified live: three spaces typed into the home Player Name field now arrive in state as `""`,
+  and the overlay shows "HOME"/"AWAY" pills with "HOME WINS!". Build clean, 53/53 tests.
+
 ### 2026-11-26 — Whitespace-only names fall back like empty ones on the overlay
 
 - The name pills used `state.home.name || 'HOME'`, which treats a name of only spaces as present, so

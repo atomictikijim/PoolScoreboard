@@ -571,6 +571,42 @@ public class GameManagerTests
     }
 
     [Fact]
+    public void SetPlayerDetails_TrimsNamesAndStoresWhitespaceOnlyAsEmpty()
+    {
+        var manager = NewMatch();
+
+        manager.SetPlayerDetails(isHome: true, "  Alice  ", "  Blue Cuers  ", 5, endCapIcon: null);
+
+        var padded = manager.GetStateSnapshot();
+        Assert.Equal("Alice", padded.Player1.Name);
+        Assert.Equal("Blue Cuers", padded.Player1.TeamName);
+
+        // The setup screen can be left holding spaces in a field, and every consumer (Controller
+        // winner line, overlay pills and banner) relies on this being "" rather than whitespace.
+        manager.SetPlayerDetails(isHome: true, "   ", " \t ", 5, endCapIcon: null);
+
+        var blank = manager.GetStateSnapshot();
+        Assert.Equal(string.Empty, blank.Player1.Name);
+        Assert.Equal(string.Empty, blank.Player1.TeamName);
+    }
+
+    [Fact]
+    public void WhitespaceOnlyWinnerNameIsStoredEmptySoTheBannerCanFallBack()
+    {
+        var manager = NewMatch(raceToMode: RaceToMode.Split, homeRaceTo: 1);
+        manager.SetPlayerDetails(isHome: true, "   ", string.Empty, 1, endCapIcon: null);
+
+        manager.AddPoint(isPlayer1: true);
+
+        // The overlay maps WinnerName from this and shows the banner when it is non-null, so an
+        // unnamed winner has to arrive as "" — whitespace here would render " WINS!".
+        var state = manager.GetStateSnapshot();
+        Assert.NotNull(state.Winner);
+        Assert.Same(state.Player1, state.Winner);
+        Assert.Equal(string.Empty, state.Winner!.Name);
+    }
+
+    [Fact]
     public void SetColorTheme_UpdatesGameStateColorTheme()
     {
         var manager = NewMatch();
