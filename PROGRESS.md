@@ -194,6 +194,23 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — A dead overlay is visible in the window, named, and retryable
+
+- A failed overlay start was only a log line: the window kept showing overlay URLs that answered nothing, and
+  the only way back was to restart the whole app. `OverlayHostSession` now owns the host and the reason it is
+  not running, and the main window's top bar shows that reason (visible on both the setup and live screens)
+  with a **Retry** button that starts the host again.
+- The reason names the process on the port: `Diagnostics/PortOwner` reads the listener table through
+  `GetExtendedTcpTable` (no managed API maps a port to a process) and formats "PoolScoreboard.Controller
+  (PID 21940)", falling back to the bare pid, or to a generic message when nothing listens. The same name is
+  added to the startup error in `controller.log`.
+- `OverlayHostRunner.Start` takes an optional port (tests use a throwaway one) and the retry path was verified
+  to free the port on stop. The Retry button is a no-op while the host is already running.
+- Tests: `PortOwnerTests` binds a listener in-process and asserts the lookup returns this process;
+  `OverlayHostSessionTests` holds a port with a `TcpListener`, asserts a failed start reports the port and
+  owning pid, then releases it and asserts Retry starts a real Kestrel host and stop releases it.
+- Build 0 warnings; 158/158 tests (93 Core + 65 Controller).
+
 ### 2026-11-26 — A second Controller launch brings the running window forward and exits
 
 - Two copies of the app shared `%AppData%\PoolScoreboard` (settings and roster are last-writer-wins) and both

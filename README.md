@@ -68,6 +68,8 @@ dotnet run --project PoolScoreboard.Controller/PoolScoreboard.Controller.csproj
 
 Start one Controller at a time: a second launch brings the running window to the front, records why it is
 leaving in the log and exits — two copies would otherwise share `%AppData%` and compete for port 51234.
+If the overlay cannot start because something else holds port 51234, the window says so — naming the process
+when it can identify it — and offers a **Retry**, so the overlay can come back without restarting the app.
 
 Add the overlay as an OBS **Browser Source** pointed at the local URL the Controller
 prints on startup — `http://127.0.0.1:51234/overlay/scoreboard` — and the cue-ball

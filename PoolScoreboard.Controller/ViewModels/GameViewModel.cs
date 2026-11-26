@@ -30,6 +30,7 @@ public partial class GameViewModel : ObservableObject
 
     private readonly GameManager _gameManager;
     private readonly Action? _persist;
+    private readonly OverlayHostSession? _overlaySession;
     private readonly PlayerRosterStore _rosterStore = new();
     private readonly PlayerRoster _roster;
 
@@ -138,14 +139,28 @@ public partial class GameViewModel : ObservableObject
     [ObservableProperty]
     private bool winnerBannerVisible = true;
 
+    /// <summary>
+    /// Set while the overlay host is not serving: the main window shows this reason beside a Retry button, so
+    /// a failed start is visible instead of only being a line in the log.
+    /// </summary>
+    [ObservableProperty]
+    private string? overlayStatus;
+
+    [ObservableProperty]
+    private bool overlayIsOffline;
+
     public bool IsEightBall => SelectedGameType == GameType.EightBall;
 
     public bool IsSplitRaceTo => SelectedRaceToMode == RaceToMode.Split;
 
-    public GameViewModel(GameManager gameManager, Action? persist = null)
+    public GameViewModel(
+        GameManager gameManager,
+        Action? persist = null,
+        OverlayHostSession? overlaySession = null)
     {
         _gameManager = gameManager;
         _persist = persist;
+        _overlaySession = overlaySession;
         _gameManager.GameStateChanged += OnGameStateChanged;
 
         // Start from whatever GameManager already holds: App restores the saved operator profile into
@@ -173,6 +188,7 @@ public partial class GameViewModel : ObservableObject
         RefreshSavedPlayers();
         RefreshBallLayout();
         ApplyMatchPreview();
+        RefreshOverlayStatus();
     }
 
     private void ApplyRestoredLook(GameState restored)
@@ -316,6 +332,30 @@ public partial class GameViewModel : ObservableObject
         });
 
         _persist?.Invoke();
+    }
+
+    /// <summary>
+    /// Tries the overlay host again after a failed start — usually another process held 51234 and has since
+    /// gone away. Success clears the banner; failure updates it with the current reason.
+    /// </summary>
+    [RelayCommand]
+    private void RetryOverlay()
+    {
+        _overlaySession?.Start(_gameManager);
+        RefreshOverlayStatus();
+    }
+
+    private void RefreshOverlayStatus()
+    {
+        if (_overlaySession is { } session && !session.IsRunning)
+        {
+            OverlayIsOffline = true;
+            OverlayStatus = session.FailureReason;
+            return;
+        }
+
+        OverlayIsOffline = false;
+        OverlayStatus = null;
     }
 
     [RelayCommand]

@@ -14,7 +14,7 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         var app = (App)Application.Current;
-        _viewModel = new GameViewModel(app.SharedGameManager, app.RequestProfileSave);
+        _viewModel = new GameViewModel(app.SharedGameManager, app.RequestProfileSave, app.OverlaySession);
 
         DataContext = _viewModel;
 

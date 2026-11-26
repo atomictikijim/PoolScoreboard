@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
-using Microsoft.Extensions.Hosting;
 using PoolScoreboard.Controller.Diagnostics;
 using PoolScoreboard.Controller.Persistence;
 using PoolScoreboard.Core;
@@ -30,7 +29,10 @@ public partial class App : System.Windows.Application
     /// </summary>
     private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(750) };
 
-    private IHost? _overlayHost;
+    /// <summary>
+    /// The overlay host and, when it could not bind, the reason the window shows next to a Retry button.
+    /// </summary>
+    public OverlayHostSession OverlaySession { get; } = new();
 
     /// <summary>
     /// Non-null only while this process is the one running Controller. A duplicate launch leaves it null,
@@ -94,7 +96,7 @@ public partial class App : System.Windows.Application
             SaveOperatorProfile();
         };
 
-        _overlayHost = OverlayHostRunner.Start(SharedGameManager);
+        OverlaySession.Start(SharedGameManager);
     }
 
     /// <summary>Asks for the profile to be saved shortly, after the current burst of edits.</summary>
@@ -179,8 +181,7 @@ public partial class App : System.Windows.Application
         {
             // Off the UI thread, or the host's shutdown continuations would be queued to the Dispatcher
             // this method is blocking — see OverlayHostRunner for why that deadlocks the process.
-            if (_overlayHost != null)
-                OverlayHostRunner.StopAndDispose(_overlayHost, TimeSpan.FromSeconds(2));
+            OverlaySession.Stop(TimeSpan.FromSeconds(2));
         }
         finally
         {

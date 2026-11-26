@@ -27,6 +27,7 @@
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
     <SolidColorBrush x:Key="AccentDarkBrush" Color="{StaticResource AccentDarkColor}" />
     <SolidColorBrush x:Key="InactiveBrush" Color="{StaticResource InactiveColor}" />
+    <SolidColorBrush x:Key="WarningBrush" Color="#ffb020" />
 
     <!-- Control Templates -->
     <ControlTemplate x:Key="ComboBoxToggleButtonTemplate" TargetType="ToggleButton">

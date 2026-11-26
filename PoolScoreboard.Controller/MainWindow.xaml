@@ -48,10 +48,22 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="POOLSCOREBOARD" FontSize="13" FontWeight="Bold"
                            Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Content="Help" Style="{StaticResource InactiveButtonStyle}"
+
+                <!-- Only present when the overlay host is not serving: the reason names the process on
+                     port 51234 when Windows can identify it, and Retry tries again without a restart. -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0"
+                            Visibility="{Binding OverlayIsOffline, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <TextBlock Text="{Binding OverlayStatus}" Foreground="{StaticResource WarningBrush}"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="520" />
+                    <Button Content="Retry" Style="{StaticResource InactiveButtonStyle}"
+                            Command="{Binding RetryOverlayCommand}" Padding="14,6" Margin="12,0,0,0" />
+                </StackPanel>
+
+                <Button Grid.Column="2" Content="Help" Style="{StaticResource InactiveButtonStyle}"
                         Command="{Binding ShowHelpCommand}" Padding="16,6" />
             </Grid>
 

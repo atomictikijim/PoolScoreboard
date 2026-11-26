@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
 using Microsoft.Extensions.Hosting;
+using PoolScoreboard.Controller.Diagnostics;
 using PoolScoreboard.Core;
 using PoolScoreboard.Overlay;
 
@@ -33,18 +34,20 @@ internal static class OverlayHostRunner
     /// <c>OnStartup</c> and take the whole app down before any window appeared, with nothing in the log; the
     /// scoreboard is still usable by hand, so startup continues and the reason goes to the log instead.
     /// </summary>
-    public static IHost? Start(GameManager gameManager)
+    public static IHost? Start(GameManager gameManager, int port = OverlayHost.Port)
     {
         try
         {
-            return Task.Run(() => OverlayHost.Start(gameManager)).GetAwaiter().GetResult();
+            return Task.Run(() => OverlayHost.Start(gameManager, port)).GetAwaiter().GetResult();
         }
         catch (Exception exception) when (exception.GetBaseException() is IOException or SocketException)
         {
+            var owner = PortOwner.Describe(port);
             Trace.TraceError(
-                $"Overlay host could not start on 127.0.0.1:{OverlayHost.Port}: " +
-                $"{exception.GetBaseException().Message} The overlay and Stream Deck control will not work " +
-                "until the Controller is restarted with that port free.");
+                $"Overlay host could not start on 127.0.0.1:{port}: {exception.GetBaseException().Message}" +
+                (owner == null ? string.Empty : $" The port is held by {owner}.") +
+                " The overlay and Stream Deck control will not work until the Controller is restarted with that " +
+                "port free.");
             return null;
         }
     }
