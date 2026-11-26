@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using PoolScoreboard.Controller.Persistence;
 using PoolScoreboard.Controller.ViewModels;
 
 namespace PoolScoreboard.Controller;
@@ -14,7 +15,14 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         var app = (App)Application.Current;
-        _viewModel = new GameViewModel(app.SharedGameManager, app.RequestProfileSave, app.OverlaySession);
+        // The window supplies itself and its dispatcher, so the view model never reads Application.Current.
+        _viewModel = new GameViewModel(
+            app.SharedGameManager,
+            app.RequestProfileSave,
+            app.OverlaySession,
+            new PlayerRosterStore(),
+            Dispatcher,
+            this);
 
         DataContext = _viewModel;
 

@@ -247,8 +247,12 @@ alignment, not a pixel match).
   `PoolScoreboard.Core.Tests` (xUnit or NUnit).
 - `PoolScoreboard.Controller.Tests` covers the Controller's file-backed persistence
   (`OperatorSettingsStore` and `PlayerRosterStore`) against a throwaway temp folder. It targets `net8.0-windows` because it
-  references the WPF project; the tests themselves touch no UI. Controller UI behaviour is still
-  checked by hand against a real `GameManager`.
+  references the WPF project; the tests themselves touch no UI. `GameViewModelTests` builds the view model through
+  its internal wiring constructor with a roster store in a throwaway folder, no dispatcher and no window, so what
+  the window shows at startup is assertable: a fresh launch stays on the screen's 9-ball default (a state at setup
+  carries the 8-ball enum default, which is not a choice anyone made), and a resumed 8-ball match shows its groups,
+  its 8-ball layout and the live view with the restored scores. Window layout, dialogs and live interaction are
+  still checked by hand against a real `GameManager`.
 - Overlay/control-API endpoints should be tested against a `GameManager` test instance, not
   a live one.
 - `.githooks/pre-push` mirrors CI (Release build, then every test project) and is enabled per clone

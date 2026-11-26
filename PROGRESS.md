@@ -194,6 +194,24 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — The window's startup state is testable, and tested
+
+- `GameViewModel` built its own `PlayerRosterStore` (reading `%AppData%`) and read `Application.Current` for its
+  dispatcher and its dialogs' owner, so nothing about what the window shows could be asserted. There is now one
+  internal wiring constructor taking the roster store, dispatcher and owner; `MainWindow`, its only producer, passes
+  itself and its dispatcher. A null dispatcher means "no UI thread", so state handlers run inline, which is what a
+  test wants. It is internal so no caller can leave the dispatcher out and end up writing bound state from a Kestrel
+  control thread — the convenience public overload it replaced had no callers left. The view model no longer reads
+  `Application.Current` at all (the flag picker's owner came from it too, which is why that method stopped being
+  static).
+- Tests: `GameViewModelTests` builds the view model with a roster store in a throwaway folder, no dispatcher and no
+  window. A fresh launch must stay on 9-ball (a state at setup carries the 8-ball enum default, which is not a
+  choice anyone made), and a resumed 8-ball match must come up on the live view with its restored scores, its
+  `Solids`/`Stripes` groups, the 7+7 group layout, the single centre 8-ball and no numeric row.
+- Re-introducing the unconditional "take the choices from state" line makes the first of those fail with
+  `Expected: NineBall / Actual: EightBall`, so the test guards the regression rather than restating the code.
+- Build 0 warnings; 171/171 tests (97 Core + 74 Controller).
+
 ### 2026-11-26 — A crash mid-match no longer costs the scores
 
 - A match lived only in memory, so a crash or a forced restart mid-stream lost the scoreboard with it — the app

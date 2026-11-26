@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
@@ -31,7 +32,17 @@ public partial class GameViewModel : ObservableObject
     private readonly GameManager _gameManager;
     private readonly Action? _persist;
     private readonly OverlayHostSession? _overlaySession;
-    private readonly PlayerRosterStore _rosterStore = new();
+    private readonly PlayerRosterStore _rosterStore;
+
+    /// <summary>
+    /// Where game-state events are marshalled to. Supplied rather than read from
+    /// <see cref="Application.Current"/>: a test has no running app and wants the handlers to run inline, which
+    /// is what null means here.
+    /// </summary>
+    private readonly Dispatcher? _dispatcher;
+
+    /// <summary>Owner for the dialogs this view model opens; null when there is no window (tests).</summary>
+    private readonly Window? _owner;
     private readonly PlayerRoster _roster;
 
     /// <summary>The saved players both sides' pickers bind to, most recently used first.</summary>
@@ -153,14 +164,31 @@ public partial class GameViewModel : ObservableObject
 
     public bool IsSplitRaceTo => SelectedRaceToMode == RaceToMode.Split;
 
-    public GameViewModel(
+    /// <summary>
+    /// The one constructor, wired by <see cref="MainWindow"/>: it passes its own window and dispatcher, and tests
+    /// pass a roster store rooted in a throwaway folder and no dispatcher, which means "apply state changes
+    /// inline". Nothing here reads <see cref="Application.Current"/>, so a view model can be built without a
+    /// running app — which is what makes the state the screen shows for a fresh launch or a resumed match
+    /// assertable.
+    /// <para>
+    /// Internal on purpose: a caller that left the dispatcher out would get a view model writing WPF-bound state
+    /// from whatever thread raised the event, the Kestrel control API's threads included.
+    /// </para>
+    /// </summary>
+    internal GameViewModel(
         GameManager gameManager,
-        Action? persist = null,
-        OverlayHostSession? overlaySession = null)
+        Action? persist,
+        OverlayHostSession? overlaySession,
+        PlayerRosterStore rosterStore,
+        Dispatcher? dispatcher,
+        Window? owner)
     {
         _gameManager = gameManager;
         _persist = persist;
         _overlaySession = overlaySession;
+        _rosterStore = rosterStore;
+        _dispatcher = dispatcher;
+        _owner = owner;
         _gameManager.GameStateChanged += OnGameStateChanged;
 
         // The host can stop serving after a successful start too, and the session probes for that, so the
@@ -377,7 +405,7 @@ public partial class GameViewModel : ObservableObject
     /// </summary>
     private void OnOverlayStopped(object? sender, EventArgs e)
     {
-        var dispatcher = Application.Current?.Dispatcher;
+        var dispatcher = _dispatcher;
         if (dispatcher != null && !dispatcher.CheckAccess())
         {
             try
@@ -474,12 +502,12 @@ public partial class GameViewModel : ObservableObject
     [RelayCommand]
     private void PickAwayFlag() => PickFlag(AwayPlayer);
 
-    private static void PickFlag(PlayerViewModel? player)
+    private void PickFlag(PlayerViewModel? player)
     {
         if (player == null)
             return;
 
-        var picker = new FlagPickerWindow { Owner = Application.Current.MainWindow };
+        var picker = new FlagPickerWindow { Owner = _owner };
         if (picker.ShowDialog() != true || picker.SelectedEntry == null)
             return;
 
@@ -568,7 +596,7 @@ public partial class GameViewModel : ObservableObject
     private void ResetMatch() => _gameManager.ResetGame();
 
     [RelayCommand]
-    private void ShowHelp() => new HelpWindow { Owner = Application.Current.MainWindow }.ShowDialog();
+    private void ShowHelp() => new HelpWindow { Owner = _owner }.ShowDialog();
 
     private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e)
     {
@@ -578,7 +606,7 @@ public partial class GameViewModel : ObservableObject
         // which may only be written on the UI thread; without this hop those writes throw
         // "The calling thread cannot access this object" straight back out of the HTTP request as
         // a 500. The event payload is a snapshot, so it stays valid while the dispatch is queued.
-        var dispatcher = Application.Current?.Dispatcher;
+        var dispatcher = _dispatcher;
         if (dispatcher != null && !dispatcher.CheckAccess())
         {
             dispatcher.BeginInvoke(new Action(() => ApplyGameState(e.GameState)));
