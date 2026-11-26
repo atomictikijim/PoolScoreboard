@@ -34,7 +34,9 @@ internal static class ScoreboardEndpoints
         // from the player's current icon, so an old `v` still returns current artwork.
         app.MapGet("/overlay/api/players/{id}/icon", (string id) =>
         {
-            var state = gameManager.GetCurrentGameState();
+            // Snapshot: this runs on a Kestrel thread while the UI can be assigning a new icon, and
+            // reading the live player could pair one field with another player's/version's.
+            var state = gameManager.GetStateSnapshot();
             var player = state.Player1.Id == id ? state.Player1
                 : state.Player2.Id == id ? state.Player2
                 : null;
@@ -58,7 +60,7 @@ internal static class ScoreboardEndpoints
             gameManager.GameStateChanged += OnGameStateChanged;
             try
             {
-                await WriteEvent(context.Response, Serialize(gameManager.GetCurrentGameState()), ct);
+                await WriteEvent(context.Response, Serialize(gameManager.GetStateSnapshot()), ct);
 
                 await foreach (var json in channel.Reader.ReadAllAsync(ct))
                 {

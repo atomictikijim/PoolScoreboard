@@ -52,21 +52,33 @@ public class GameManager
     {
         _pointHistory.Clear();
 
-        _currentGame = new GameState
+        var next = new GameState
         {
             Player1 = player1,
             Player2 = player2,
             GameType = gameType,
             RaceToMode = raceToMode,
-            Player1Score = 0,
-            Player2Score = 0,
             CurrentShooter = player1,
             IsGameActive = true,
-            StartTime = DateTime.UtcNow,
-            Winner = null
+            StartTime = DateTime.UtcNow
         };
+        CarryOperatorStyling(_currentGame, next);
 
+        _currentGame = next;
         RaiseGameStateChanged(_currentGame.Clone());
+    }
+
+    /// <summary>
+    /// Moves the operator's look — colour theme, scoreboard style, show/hide settings — onto a new
+    /// state, as copies. Both ways of leaving a match (starting one and resetting one) keep these,
+    /// because they describe the show rather than the score, and the HTTP control API paths have no
+    /// screen behind them to re-apply anything.
+    /// </summary>
+    private static void CarryOperatorStyling(GameState from, GameState to)
+    {
+        to.ColorTheme = from.ColorTheme.Copy();
+        to.ScoreboardStyle = from.ScoreboardStyle.Copy();
+        to.Visibility = from.Visibility.Copy();
     }
 
     public void AddPoint(bool isPlayer1)
@@ -285,22 +297,15 @@ public class GameManager
         {
             var player1 = _currentGame.Player1;
             var player2 = _currentGame.Player2;
-            var colorTheme = _currentGame.ColorTheme.Copy();
-            var scoreboardStyle = _currentGame.ScoreboardStyle.Copy();
-            var visibility = _currentGame.Visibility.Copy();
 
             player1.BallGroup = BallGroup.Unassigned;
             player2.BallGroup = BallGroup.Unassigned;
             _pointHistory.Clear();
 
-            _currentGame = new GameState
-            {
-                Player1 = player1,
-                Player2 = player2,
-                ColorTheme = colorTheme,
-                ScoreboardStyle = scoreboardStyle,
-                Visibility = visibility
-            };
+            var next = new GameState { Player1 = player1, Player2 = player2 };
+            CarryOperatorStyling(_currentGame, next);
+
+            _currentGame = next;
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }
@@ -309,7 +314,9 @@ public class GameManager
     {
         lock (_sync)
         {
-            _currentGame.ColorTheme = theme;
+            // Copied like the scoreboard style, so a caller that keeps its own reference can't go on
+            // mutating state — off the lock, with no change event — after this returns.
+            _currentGame.ColorTheme = theme.Copy();
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }

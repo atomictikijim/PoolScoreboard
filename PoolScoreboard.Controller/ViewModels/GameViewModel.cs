@@ -28,7 +28,6 @@ public partial class GameViewModel : ObservableObject
     private readonly GameManager _gameManager;
     private readonly Dictionary<int, BallItemViewModel> _allBalls = new();
 
-
     // --- Match setup (editable before the match starts) ---
 
     [ObservableProperty]
@@ -241,12 +240,7 @@ public partial class GameViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void StartMatch()
-    {
-        _gameManager.InitializeGame(SelectedGameType, SelectedRaceToMode);
-        ApplyColorTheme();
-        ApplyScoreboardStyle();
-    }
+    private void StartMatch() => _gameManager.InitializeGame(SelectedGameType, SelectedRaceToMode);
 
     [RelayCommand]
     private void AddHomePoint() => _gameManager.AddPoint(isPlayer1: true);
@@ -375,22 +369,12 @@ public partial class GameViewModel : ObservableObject
     [RelayCommand]
     private void ResetMatch()
     {
+        // ResetGame keeps the player fields and the styling and raises a snapshot, so ApplyGameState
+        // has already cleared the score, groups, winner and pocketed balls by the time this
+        // returns (the raise happens on this thread). Only the preview needs re-stating: the reset
+        // state is back to the default 8-ball, while the setup screen may be showing 9-ball.
         _gameManager.ResetGame();
-        ApplyColorTheme();
-        ApplyScoreboardStyle();
         ApplyMatchPreview();
-
-        HomeScore = 0;
-        AwayScore = 0;
-        HomeIsCurrentShooter = true;
-        HomeBallGroup = BallGroup.Unassigned;
-        AwayBallGroup = BallGroup.Unassigned;
-        WinnerAnnouncement = null;
-
-        foreach (var ball in _allBalls.Values)
-            ball.IsPocketed = false;
-
-        RefreshBallLayout();
     }
 
     [RelayCommand]
@@ -416,7 +400,6 @@ public partial class GameViewModel : ObservableObject
 
     private void ApplyGameState(GameState state)
     {
-
         // Derived rather than only set by local button clicks — a remote Stream Deck call to
         // /api/control/match/reset mutates GameManager directly, so this is what lets the
         // Controller's own screen flip back to Match Setup in that case too. A finished match
@@ -445,8 +428,11 @@ public partial class GameViewModel : ObservableObject
     {
         HomePlayer = new PlayerViewModel(_gameManager, isHome: true);
         AwayPlayer = new PlayerViewModel(_gameManager, isHome: false);
+
+        // Only for the Race-To mirror: the fields themselves already reach state (and the overlay)
+        // through SetPlayerDetails, so pushing the match preview on every keystroke would just
+        // re-send an unchanged game type and Race-To mode.
         HomePlayer.PropertyChanged += OnHomePlayerPropertyChanged;
-        AwayPlayer.PropertyChanged += OnAwayPlayerPropertyChanged;
     }
 
     private void OnHomePlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -457,11 +443,7 @@ public partial class GameViewModel : ObservableObject
         {
             AwayPlayer.RaceToTarget = HomePlayer.RaceToTarget;
         }
-
-        ApplyMatchPreview();
     }
-
-    private void OnAwayPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e) => ApplyMatchPreview();
 
     private void BuildBalls()
     {

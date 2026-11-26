@@ -50,7 +50,7 @@ internal static class CueBallEndpoints
             gameManager.GameStateChanged += OnGameStateChanged;
             try
             {
-                await WriteEvent(context.Response, Serialize(gameManager.GetCurrentGameState()), ct);
+                await WriteEvent(context.Response, Serialize(gameManager.GetStateSnapshot()), ct);
 
                 await foreach (var json in channel.Reader.ReadAllAsync(ct))
                 {

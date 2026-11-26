@@ -306,6 +306,30 @@ public class GameManagerTests
     }
 
     [Fact]
+    public void InitializeGame_KeepsTheOperatorsColorThemeStyleAndVisibility()
+    {
+        var manager = new GameManager();
+        manager.SetColorTheme(new ColorTheme { HomeBackground = "#111111", Text = "#eeeeee" });
+        manager.SetScoreboardStyle(new ScoreboardStyle { CornerRoundness = 40, OverallScale = 150 });
+        manager.SetScoreBarVisible(false);
+        manager.SetBallTrackerVisible(false);
+
+        // Starting a match resets the scoreboard's contents, not the operator's look — the same
+        // rule ResetGame follows, so hiding the score bar before START MATCH sticks.
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+
+        var state = manager.GetStateSnapshot();
+        Assert.True(state.IsGameActive);
+        Assert.Equal("#111111", state.ColorTheme.HomeBackground);
+        Assert.Equal("#eeeeee", state.ColorTheme.Text);
+        Assert.Equal(40, state.ScoreboardStyle.CornerRoundness);
+        Assert.Equal(150, state.ScoreboardStyle.OverallScale);
+        Assert.False(state.Visibility.ScoreBarVisible);
+        Assert.False(state.Visibility.BallTrackerVisible);
+        Assert.True(state.Visibility.WinnerBannerVisible);
+    }
+
+    [Fact]
     public void SetCurrentShooter_UpdatesCurrentShooterWhileGameActive()
     {
         var manager = new GameManager();
@@ -499,7 +523,18 @@ public class GameManagerTests
 
         manager.SetColorTheme(theme);
 
-        Assert.Same(theme, manager.GetCurrentGameState().ColorTheme);
+        var stored = manager.GetCurrentGameState().ColorTheme;
+        Assert.Equal("#000000", stored.HomeBackground);
+        Assert.Equal("#222222", stored.AwayBackground);
+        Assert.Equal("#ff0000", stored.HomeAccent);
+        Assert.Equal("#0000ff", stored.AwayAccent);
+        Assert.Equal("#ffffff", stored.Text);
+
+        // Stored as a copy, like the scoreboard style: a caller holding its own instance can't keep
+        // editing state off the lock, with no change event, after this returns.
+        Assert.NotSame(theme, stored);
+        theme.HomeBackground = "#ff00ff";
+        Assert.Equal("#000000", manager.GetStateSnapshot().ColorTheme.HomeBackground);
     }
 
     [Fact]

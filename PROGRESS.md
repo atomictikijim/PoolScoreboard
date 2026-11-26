@@ -178,13 +178,43 @@ live:
 - No player database: names/teams are typed in per match.
 - Ball colors in the Controller's live view are placeholder standard billiard-ball colors,
   not yet informed by the WNT visual reference.
-- No persistence for `ScoreboardStyle`/element-visibility choices between app runs — they reset
-  to defaults every time a new match starts, same as `ColorTheme` today.
+- No persistence for `ScoreboardStyle`/element-visibility/`ColorTheme` choices between app runs —
+  they survive starting and resetting matches, but a Controller restart drops back to defaults.
 - Flag end-caps from the WNT reference are still not implemented as real flags (no nationality
   field on `Player`) — `EndCapStyle` only offers `Dot`/`Hidden` for now.
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-26 — Review pass: reads back under the lock, one styling rule for both exits
+
+- Three overlay endpoints read `GetCurrentGameState()` — the live instance, no lock — from Kestrel
+  threads: the end-cap icon route (picking a player, then decoding their icon) and the initial
+  frame of both SSE streams (serialising the live `PocketedBalls` set). All three now take
+  `GetStateSnapshot()`, which is what the doc comment on `GetCurrentGameState()` already said to
+  do for anything that copies, serialises or runs off the UI thread. Left as-is: the Core tests,
+  which read single fields on one thread.
+- Starting a match and resetting one now follow the same rule about the operator's look.
+  `InitializeGame` builds a fresh state like `ResetGame` does, and both move the colour theme,
+  scoreboard style and show/hide settings onto it as copies (one shared
+  `CarryOperatorStyling(from, to)`). That fixes a real gap: pressing START MATCH after hiding the
+  score bar silently brought it back, because the view model only re-applied the theme and style,
+  never the visibility.
+- Because state now carries the styling, `StartMatch`'s theme/style re-push and `ResetMatch`'s
+  theme/style re-push, score/group/winner/pocketed-ball re-zeroing and `RefreshBallLayout()` are
+  gone — `ResetGame` raises a snapshot synchronously on the UI thread, so `ApplyGameState` has
+  already done exactly that by the time `ResetMatch` continues. `ResetMatch` keeps only
+  `ApplyMatchPreview()`, which is still needed because a reset state goes back to the default
+  8-ball while the setup screen may be showing 9-ball.
+- Dropped the match-preview push from both `PlayerViewModel.PropertyChanged` handlers. Player
+  fields already reach state (and the overlay) through `SetPlayerDetails`; the extra
+  `SetMatchPreview` only re-wrote an unchanged game type and Race-To mode, doubling the SSE
+  traffic for every keystroke. The away handler had nothing left, so it and its subscription are
+  gone; the home one now only mirrors Race-To in single mode.
+- `SetColorTheme` now copies the incoming theme the way `SetScoreboardStyle` already did, so a
+  caller that keeps its reference can't keep mutating state off the lock and without an event.
+- Tests (48 total): added `InitializeGame_KeepsTheOperatorsColorThemeStyleAndVisibility` next to
+  the reset one; the rest of the suite was unchanged and still passes.
 
 ### 2026-11-26 — Setup-screen player fields now write through GameManager
 
