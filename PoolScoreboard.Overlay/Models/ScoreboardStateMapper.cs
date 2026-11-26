@@ -21,7 +21,8 @@ public static class ScoreboardStateMapper
             AwayBackground = state.ColorTheme.AwayBackground,
             HomeAccent = state.ColorTheme.HomeAccent,
             AwayAccent = state.ColorTheme.AwayAccent,
-            Text = state.ColorTheme.Text
+            HomeText = state.ColorTheme.HomeText,
+            AwayText = state.ColorTheme.AwayText
         },
         Style = new ScoreboardStyleDto
         {

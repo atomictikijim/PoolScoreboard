@@ -1,4 +1,4 @@
-using PoolScoreboard.Core.Enums;
+﻿using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
 
 namespace PoolScoreboard.Core;
@@ -80,17 +80,42 @@ public class GameManager
             {
                 _currentGame.Player1Score++;
                 _pointHistory.Add(true);
-                if (_currentGame.Player1Score >= _currentGame.Player1.RaceToTarget)
-                    EndGame(_currentGame.Player1);
             }
             else
             {
                 _currentGame.Player2Score++;
                 _pointHistory.Add(false);
-                if (_currentGame.Player2Score >= _currentGame.Player2.RaceToTarget)
-                    EndGame(_currentGame.Player2);
             }
 
+            UpdateWinner();
+            RaiseGameStateChanged(_currentGame.Clone());
+        }
+    }
+
+    /// <summary>
+    /// Corrects one side's score downwards, without touching undo history: this is an explicit
+    /// per-side minus, not "undo the last point". Reaching Race-To only sets the winner banner, so
+    /// the match stays editable and a mistake can be corrected here without a full reset.
+    /// </summary>
+    public void SubtractPoint(bool isPlayer1)
+    {
+        lock (_sync)
+        {
+            if (!_currentGame.IsGameActive)
+                return;
+
+            if (isPlayer1)
+            {
+                if (_currentGame.Player1Score > 0)
+                    _currentGame.Player1Score--;
+            }
+            else
+            {
+                if (_currentGame.Player2Score > 0)
+                    _currentGame.Player2Score--;
+            }
+
+            UpdateWinner();
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }
@@ -169,19 +194,23 @@ public class GameManager
             var wasPlayer1 = _pointHistory[^1];
             _pointHistory.RemoveAt(_pointHistory.Count - 1);
 
+            // Floored, like SubtractPoint: a per-side minus can already have taken off the point
+            // this history entry recorded, and undo must not drive a score negative.
             if (wasPlayer1)
-                _currentGame.Player1Score--;
-            else
-                _currentGame.Player2Score--;
-
-            // A point that ended the match is undoable too, so a mis-clicked winning point doesn't
-            // force a full Reset Match. (An empty history is the only "nothing to undo" case, and
-            // ResetGame clears it, so this can't resurrect an already-reset match.)
-            if (_currentGame.Winner != null)
             {
-                _currentGame.Winner = null;
-                _currentGame.IsGameActive = true;
+                if (_currentGame.Player1Score > 0)
+                    _currentGame.Player1Score--;
             }
+            else
+            {
+                if (_currentGame.Player2Score > 0)
+                    _currentGame.Player2Score--;
+            }
+
+            // Undo can drop a score back below Race-To, which clears the winner banner. (An empty
+            // history is the only "nothing to undo" case, and ResetGame clears it, so this can't
+            // resurrect an already-reset match.)
+            UpdateWinner();
 
             RaiseGameStateChanged(_currentGame.Clone());
         }
@@ -382,10 +411,19 @@ public class GameManager
         }
     }
 
-    private void EndGame(Player winner)
+    /// <summary>
+    /// Recomputes the winner from the scores after every score change rather than latching it: a
+    /// reached Race-To only shows the banner, and the match stays active so a later correction can
+    /// move or clear it.
+    /// </summary>
+    private void UpdateWinner()
     {
-        _currentGame.Winner = winner;
-        _currentGame.IsGameActive = false;
+        if (_currentGame.Player1Score >= _currentGame.Player1.RaceToTarget)
+            _currentGame.Winner = _currentGame.Player1;
+        else if (_currentGame.Player2Score >= _currentGame.Player2.RaceToTarget)
+            _currentGame.Winner = _currentGame.Player2;
+        else
+            _currentGame.Winner = null;
     }
 
     private void RaiseGameStateChanged(GameState snapshot)

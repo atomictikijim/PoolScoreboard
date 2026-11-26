@@ -1,4 +1,4 @@
-# Stream Deck setup guide
+﻿# Stream Deck setup guide
 
 Step-by-step instructions for wiring a physical Elgato Stream Deck to control PoolScoreboard.
 No plugin install is required — every button is a built-in **Website** action pointed at a local
@@ -125,9 +125,13 @@ A few layout suggestions, entirely up to you:
    effect of each press.
 3. Press through every button once, confirming:
    - **Home +1** / **Away +1** increase the correct side's score.
+   - **Home -1** / **Away -1** take a point off that same side (it does nothing below 0 — that's
+     expected, not a bug).
    - **Undo** removes the most recently scored point, taking it off whichever side scored it —
-     including at a tie, and including a point that just ended the match (which resumes the
-     match). It does nothing once the board is back to 0–0, or after Reset Match.
+     including at a tie. It does nothing once the board is back to 0–0, or after Reset Match.
+   - Pushing a side to their Race-To target shows the winner banner but doesn't lock anything —
+     confirm the +1/-1 buttons still work afterward, so a mistaken final point can be corrected
+     without a full "Reset Match".
    - **Toggle Shooter** flips the shooter indicator to the other player.
    - **Home/Away: Solids/Stripes** (8-ball only) assigns the ball group and auto-flips the other
      player's group.

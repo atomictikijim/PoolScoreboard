@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
 
@@ -79,7 +79,7 @@ public class GameManagerTests
         manager.AddPoint(true);
 
         var state = manager.GetStateSnapshot();
-        Assert.False(state.IsGameActive);
+        Assert.True(state.IsGameActive);
         Assert.Same(state.Player1, state.Winner);
     }
 
@@ -92,23 +92,99 @@ public class GameManagerTests
         manager.AddPoint(true);
 
         var state = manager.GetStateSnapshot();
-        Assert.False(state.IsGameActive);
+        Assert.True(state.IsGameActive);
         Assert.Same(state.Player1, state.Winner);
         Assert.Equal(2, state.Player1Score);
     }
 
     [Fact]
-    public void AddPoint_DoesNothingWhenGameIsNotActive()
+    public void AddPoint_StillWorksAfterAPlayerReachesRaceToTarget()
     {
         var manager = NewMatch(raceToMode: RaceToMode.Split, homeRaceTo: 1);
 
         manager.AddPoint(true); // Alice wins immediately at race-to 1
 
-        Assert.False(manager.GetStateSnapshot().IsGameActive);
+        var won = manager.GetStateSnapshot();
+        Assert.True(won.IsGameActive);
+        Assert.Same(won.Player1, won.Winner);
 
+        // The match must stay fully editable after a win, in case of a scoring mistake.
         manager.AddPoint(false);
 
-        Assert.Equal(0, manager.GetStateSnapshot().Player2Score);
+        Assert.Equal(1, manager.GetStateSnapshot().Player2Score);
+    }
+
+    [Fact]
+    public void ToggleCurrentShooter_StillWorksAfterAPlayerReachesRaceToTarget()
+    {
+        var manager = NewMatch(raceToMode: RaceToMode.Split, homeRaceTo: 1);
+
+        manager.AddPoint(true); // Alice wins immediately at race-to 1
+
+        manager.ToggleCurrentShooter();
+
+        var state = manager.GetStateSnapshot();
+        Assert.Same(state.Player2, state.CurrentShooter);
+    }
+
+    [Fact]
+    public void SubtractPoint_DecrementsCorrectPlayersScore()
+    {
+        var manager = NewMatch();
+
+        manager.AddPoint(isPlayer1: true);
+        manager.AddPoint(isPlayer1: true);
+        manager.AddPoint(isPlayer1: false);
+
+        manager.SubtractPoint(isPlayer1: true);
+
+        var state = manager.GetStateSnapshot();
+        Assert.Equal(1, state.Player1Score);
+        Assert.Equal(1, state.Player2Score);
+    }
+
+    [Fact]
+    public void SubtractPoint_DoesNotGoBelowZero()
+    {
+        var manager = NewMatch();
+
+        manager.SubtractPoint(isPlayer1: true);
+        manager.SubtractPoint(isPlayer1: false);
+
+        var state = manager.GetStateSnapshot();
+        Assert.Equal(0, state.Player1Score);
+        Assert.Equal(0, state.Player2Score);
+    }
+
+    [Fact]
+    public void SubtractPoint_ClearsWinnerWhenScoreDropsBelowRaceToTarget()
+    {
+        var manager = NewMatch(raceToMode: RaceToMode.Split, homeRaceTo: 1);
+
+        manager.AddPoint(isPlayer1: true); // Alice wins immediately at race-to 1
+        Assert.NotNull(manager.GetStateSnapshot().Winner);
+
+        manager.SubtractPoint(isPlayer1: true);
+
+        var state = manager.GetStateSnapshot();
+        Assert.Null(state.Winner);
+        Assert.True(state.IsGameActive);
+        Assert.Equal(0, state.Player1Score);
+    }
+
+    [Fact]
+    public void SubtractPoint_DoesNotMakeALaterUndoGoNegative()
+    {
+        var manager = NewMatch();
+
+        manager.AddPoint(isPlayer1: true);
+        manager.SubtractPoint(isPlayer1: true);
+        Assert.Equal(0, manager.GetStateSnapshot().Player1Score);
+
+        // The point is still on the undo history; undoing it afterwards must not push the score
+        // below zero just because the minus got there first.
+        manager.UndoPoint();
+        Assert.Equal(0, manager.GetStateSnapshot().Player1Score);
     }
 
     [Fact]
@@ -161,12 +237,12 @@ public class GameManagerTests
     }
 
     [Fact]
-    public void UndoPoint_AfterTheWinningPoint_ReactivatesTheMatch()
+    public void UndoPoint_AfterTheWinningPoint_ClearsTheWinner()
     {
         var manager = NewMatch(raceToMode: RaceToMode.Split, homeRaceTo: 1);
 
-        manager.AddPoint(true); // Alice reaches race-to 1, match ends
-        Assert.False(manager.GetStateSnapshot().IsGameActive);
+        manager.AddPoint(true); // Alice reaches race-to 1
+        Assert.NotNull(manager.GetStateSnapshot().Winner);
 
         manager.UndoPoint();
 
@@ -255,7 +331,8 @@ public class GameManagerTests
             AwayBackground = "#222222",
             HomeAccent = "#00ff00",
             AwayAccent = "#ff00ff",
-            Text = "#eeeeee"
+            HomeText = "#eeeeee",
+            AwayText = "#cccccc"
         });
         manager.SetScoreboardStyle(new ScoreboardStyle
         {
@@ -281,7 +358,8 @@ public class GameManagerTests
         Assert.Equal("#222222", state.ColorTheme.AwayBackground);
         Assert.Equal("#00ff00", state.ColorTheme.HomeAccent);
         Assert.Equal("#ff00ff", state.ColorTheme.AwayAccent);
-        Assert.Equal("#eeeeee", state.ColorTheme.Text);
+        Assert.Equal("#eeeeee", state.ColorTheme.HomeText);
+        Assert.Equal("#cccccc", state.ColorTheme.AwayText);
 
         Assert.Equal(40, state.ScoreboardStyle.CornerRoundness);
         Assert.Equal(150, state.ScoreboardStyle.OverallScale);
@@ -321,7 +399,7 @@ public class GameManagerTests
     public void InitializeGame_KeepsTheOperatorsColorThemeStyleAndVisibility()
     {
         var manager = new GameManager();
-        manager.SetColorTheme(new ColorTheme { HomeBackground = "#111111", Text = "#eeeeee" });
+        manager.SetColorTheme(new ColorTheme { HomeBackground = "#111111", HomeText = "#eeeeee", AwayText = "#cccccc" });
         manager.SetScoreboardStyle(new ScoreboardStyle { CornerRoundness = 40, OverallScale = 150 });
         manager.SetScoreBarVisible(false);
         manager.SetBallTrackerVisible(false);
@@ -333,7 +411,8 @@ public class GameManagerTests
         var state = manager.GetStateSnapshot();
         Assert.True(state.IsGameActive);
         Assert.Equal("#111111", state.ColorTheme.HomeBackground);
-        Assert.Equal("#eeeeee", state.ColorTheme.Text);
+        Assert.Equal("#eeeeee", state.ColorTheme.HomeText);
+        Assert.Equal("#cccccc", state.ColorTheme.AwayText);
         Assert.Equal(40, state.ScoreboardStyle.CornerRoundness);
         Assert.Equal(150, state.ScoreboardStyle.OverallScale);
         Assert.False(state.Visibility.ScoreBarVisible);
@@ -495,7 +574,7 @@ public class GameManagerTests
     public void SetColorTheme_UpdatesGameStateColorTheme()
     {
         var manager = NewMatch();
-        var theme = new ColorTheme { HomeBackground = "#000000", AwayBackground = "#222222", HomeAccent = "#ff0000", AwayAccent = "#0000ff", Text = "#ffffff" };
+        var theme = new ColorTheme { HomeBackground = "#000000", AwayBackground = "#222222", HomeAccent = "#ff0000", AwayAccent = "#0000ff", HomeText = "#ffffff", AwayText = "#dddddd" };
 
         manager.SetColorTheme(theme);
 
@@ -504,7 +583,8 @@ public class GameManagerTests
         Assert.Equal("#222222", stored.AwayBackground);
         Assert.Equal("#ff0000", stored.HomeAccent);
         Assert.Equal("#0000ff", stored.AwayAccent);
-        Assert.Equal("#ffffff", stored.Text);
+        Assert.Equal("#ffffff", stored.HomeText);
+        Assert.Equal("#dddddd", stored.AwayText);
 
         // Stored as a copy, like the scoreboard style: a caller holding its own instance can't keep
         // editing state off the lock, with no change event, after this returns. That is what the

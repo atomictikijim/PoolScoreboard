@@ -7,7 +7,8 @@
   --bg-away-dark: #0f1520;
   --accent-home: #00d4ff;
   --accent-away: #00d4ff;
-  --text: #f0f0f0;
+  --text-home: #f0f0f0;
+  --text-away: #f0f0f0;
   --radius-scale: 1;
   --ui-scale: 1;
 }
@@ -61,11 +62,18 @@ html, body {
 .side-home {
   justify-content: flex-start;
   background: linear-gradient(180deg, var(--bg-home-light) 0%, var(--bg-home) 55%, var(--bg-home-dark) 100%);
+  /* Matches .pill's own radius so the shooter glow's inset box-shadow (which only curves to its
+     own element's border-radius, not an ancestor's) hugs the same curve as the pill itself
+     instead of clipping into a hard corner when caps are hidden or roundness changes. */
+  border-top-left-radius: calc(42px * var(--radius-scale));
+  border-bottom-left-radius: calc(42px * var(--radius-scale));
 }
 
 .side-away {
   justify-content: flex-end;
   background: linear-gradient(180deg, var(--bg-away-light) 0%, var(--bg-away) 55%, var(--bg-away-dark) 100%);
+  border-top-right-radius: calc(42px * var(--radius-scale));
+  border-bottom-right-radius: calc(42px * var(--radius-scale));
 }
 
 .flat-finish .side-home {
@@ -102,7 +110,6 @@ html, body {
 }
 
 .team-name {
-  color: var(--text);
   opacity: 0.7;
   font-weight: 600;
   font-size: 11px;
@@ -119,7 +126,6 @@ html, body {
 }
 
 .name {
-  color: var(--text);
   font-weight: 700;
   font-size: 26px;
   letter-spacing: 0.5px;
@@ -128,6 +134,16 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+}
+
+.side-home .team-name,
+.side-home .name {
+  color: var(--text-home);
+}
+
+.side-away .team-name,
+.side-away .name {
+  color: var(--text-away);
 }
 
 .score-badge {
@@ -158,7 +174,9 @@ html, body {
 }
 
 .center-label {
-  color: var(--text);
+  /* Always white — the center segment is always black (see .center above), regardless of the
+     operator's chosen Home/Away text colors. */
+  color: #ffffff;
   font-weight: 700;
   font-size: 15px;
   letter-spacing: 1.5px;

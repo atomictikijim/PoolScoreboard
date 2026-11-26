@@ -1,4 +1,4 @@
-# Stream Deck button mapping
+﻿# Stream Deck button mapping
 
 For a step-by-step walkthrough of actually setting this up in the Stream Deck app, see
 [SETUP.md](SETUP.md). This file is the reference table of endpoints — what each button hits and
@@ -19,9 +19,11 @@ using the mapping below, then export/share it from there if needed.
 
 | Button label     | Endpoint                                | Effect |
 |-------------------|------------------------------------------|--------|
-| Home +1           | `/api/control/score/home/add`             | Adds one point to the home player. Ends the match if it reaches their Race-To target. |
-| Away +1           | `/api/control/score/away/add`             | Adds one point to the away player. Ends the match if it reaches their Race-To target. |
-| Undo              | `/api/control/score/undo`                 | Reverses the most recently scored point, taking it off whichever player scored it — including a point that just ended the match, which resumes it. Does nothing once the board is back to 0–0. |
+| Home +1           | `/api/control/score/home/add`             | Adds one point to the home player. Sets the winner banner if it reaches their Race-To target — the match stays fully editable afterward. |
+| Away +1           | `/api/control/score/away/add`             | Adds one point to the away player. Sets the winner banner if it reaches their Race-To target — the match stays fully editable afterward. |
+| Home -1           | `/api/control/score/home/subtract`        | Removes one point from the home player (does nothing below 0). Clears the winner banner if their score drops back below their Race-To target. |
+| Away -1           | `/api/control/score/away/subtract`        | Removes one point from the away player (does nothing below 0). Clears the winner banner if their score drops back below their Race-To target. |
+| Undo              | `/api/control/score/undo`                 | Reverses the most recently scored point, taking it off whichever player scored it — including at a tie. Does nothing once the board is back to 0–0. |
 | Toggle Shooter    | `/api/control/shooter/toggle`              | Switches the current-shooter indicator to the other player. |
 | Home: Solids      | `/api/control/balls/home/solids`           | 8-ball only. Assigns Solids to the home player (away player auto-flips to Stripes). |
 | Home: Stripes     | `/api/control/balls/home/stripes`          | 8-ball only. Assigns Stripes to the home player (away player auto-flips to Solids). |
@@ -39,6 +41,9 @@ using the mapping below, then export/share it from there if needed.
 - Score/undo/shooter-toggle/ball-assignment buttons no-op safely if no match is active yet (e.g.
   pressed while the Controller is still on the Match Setup screen) — pressing them won't crash or
   desync anything, they just have no effect until "Start Match" has been clicked.
+- A player reaching their Race-To target only sets the winner banner — it does not lock the match.
+  Home +1/-1, Away +1/-1, Undo, shooter-toggle and ball buttons all keep working after a win, so a
+  scoring mistake spotted afterwards can still be corrected without "Reset Match".
 - "Reset Match" ends the match and returns the Controller to Match Setup, exactly like the in-app
   button — but it is not a factory reset. Scores, undo history, pocketed balls and the winner are
   cleared; the loaded players and their end-cap icons, the color theme, scoreboard style, overlay

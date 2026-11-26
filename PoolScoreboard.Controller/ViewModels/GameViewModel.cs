@@ -55,7 +55,10 @@ public partial class GameViewModel : ObservableObject
     private string awayAccentColor = "#00d4ff";
 
     [ObservableProperty]
-    private string textColor = "#f0f0f0";
+    private string homeTextColor = "#f0f0f0";
+
+    [ObservableProperty]
+    private string awayTextColor = "#f0f0f0";
 
     [ObservableProperty]
     private int cornerRoundness = 100;
@@ -84,7 +87,10 @@ public partial class GameViewModel : ObservableObject
     private int awayScore;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CurrentShooterButtonText))]
     private bool homeIsCurrentShooter = true;
+
+    public string CurrentShooterButtonText => HomeIsCurrentShooter ? "HOME Shooting" : "AWAY Shooting";
 
     [ObservableProperty]
     private BallGroup homeBallGroup = BallGroup.Unassigned;
@@ -160,7 +166,9 @@ public partial class GameViewModel : ObservableObject
 
     partial void OnAwayAccentColorChanged(string? oldValue, string newValue) => ApplyColorTheme();
 
-    partial void OnTextColorChanged(string? oldValue, string newValue) => ApplyColorTheme();
+    partial void OnHomeTextColorChanged(string? oldValue, string newValue) => ApplyColorTheme();
+
+    partial void OnAwayTextColorChanged(string? oldValue, string newValue) => ApplyColorTheme();
 
     private void ApplyColorTheme()
     {
@@ -170,7 +178,8 @@ public partial class GameViewModel : ObservableObject
             AwayBackground = AwayBackgroundColor,
             HomeAccent = HomeAccentColor,
             AwayAccent = AwayAccentColor,
-            Text = TextColor
+            HomeText = HomeTextColor,
+            AwayText = AwayTextColor
         });
     }
 
@@ -186,7 +195,8 @@ public partial class GameViewModel : ObservableObject
             "AwayBackground" => AwayBackgroundColor,
             "HomeAccent" => HomeAccentColor,
             "AwayAccent" => AwayAccentColor,
-            "Text" => TextColor,
+            "HomeText" => HomeTextColor,
+            "AwayText" => AwayTextColor,
             _ => (string?)null
         };
         if (current == null)
@@ -213,7 +223,8 @@ public partial class GameViewModel : ObservableObject
             case "AwayBackground": AwayBackgroundColor = hex; break;
             case "HomeAccent": HomeAccentColor = hex; break;
             case "AwayAccent": AwayAccentColor = hex; break;
-            case "Text": TextColor = hex; break;
+            case "HomeText": HomeTextColor = hex; break;
+            case "AwayText": AwayTextColor = hex; break;
         }
     }
 
@@ -247,6 +258,12 @@ public partial class GameViewModel : ObservableObject
 
     [RelayCommand]
     private void AddAwayPoint() => _gameManager.AddPoint(isPlayer1: false);
+
+    [RelayCommand]
+    private void SubtractHomePoint() => _gameManager.SubtractPoint(isPlayer1: true);
+
+    [RelayCommand]
+    private void SubtractAwayPoint() => _gameManager.SubtractPoint(isPlayer1: false);
 
     [RelayCommand]
     private void UndoLastPoint() => _gameManager.UndoPoint();

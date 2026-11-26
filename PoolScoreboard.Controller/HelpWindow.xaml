@@ -1,4 +1,4 @@
-<Window x:Class="PoolScoreboard.Controller.HelpWindow"
+﻿<Window x:Class="PoolScoreboard.Controller.HelpWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="PoolScoreboard Help"
@@ -156,9 +156,10 @@
                         <TextBlock Text="Live View screen" Style="{StaticResource HelpSubHeadingStyle}" />
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
                             • <Bold>Score + / −</Bold> — the + button on each side adds a point for that
-                            player (ending the match if they reach their Race-To target). The − button removes
-                            the most recently scored point, whichever side scored it — including a point that
-                            ended the match, which resumes it. It does nothing once the board is back to 0–0.
+                            player; the − button takes one off that same side (never below 0), so it edits
+                            that score directly rather than undoing the last point. Reaching a Race-To
+                            target shows the winner banner but doesn't lock anything: + / − keep working
+                            afterward, so a mistaken final point can be corrected without a reset.
                         </TextBlock>
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
                             • <Bold>Shooter toggle</Bold> — the button at the top-right switches which player
