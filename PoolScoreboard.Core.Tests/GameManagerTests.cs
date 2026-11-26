@@ -306,6 +306,25 @@ public class GameManagerTests
     }
 
     [Fact]
+    public void ResetGame_KeepsTheChosenGameTypeAndRaceToMode()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 7), GameType.NineBall, RaceToMode.Split);
+        manager.AddPoint(isPlayer1: true);
+
+        // The overlay previews these two after a reset, so they have to survive it — otherwise the
+        // preview falls back to the enum defaults (8-ball, single) while the setup screen still
+        // shows what was selected, and an HTTP reset has no screen to correct it.
+        manager.ResetGame();
+
+        var state = manager.GetStateSnapshot();
+        Assert.False(state.IsGameActive);
+        Assert.Equal(0, state.Player1Score);
+        Assert.Equal(GameType.NineBall, state.GameType);
+        Assert.Equal(RaceToMode.Split, state.RaceToMode);
+    }
+
+    [Fact]
     public void InitializeGame_KeepsTheOperatorsColorThemeStyleAndVisibility()
     {
         var manager = new GameManager();

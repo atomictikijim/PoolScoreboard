@@ -366,16 +366,12 @@ public partial class GameViewModel : ObservableObject
     [RelayCommand]
     private void NewRack() => _gameManager.ResetBalls();
 
+    // Nothing to re-push afterwards: ResetGame keeps the player fields, the styling and the chosen
+    // game type and Race-To mode, and raises a snapshot synchronously on this thread, so
+    // ApplyGameState has already cleared the score, groups, winner and pocketed balls and the
+    // overlay's preview already matches this screen.
     [RelayCommand]
-    private void ResetMatch()
-    {
-        // ResetGame keeps the player fields and the styling and raises a snapshot, so ApplyGameState
-        // has already cleared the score, groups, winner and pocketed balls by the time this
-        // returns (the raise happens on this thread). Only the preview needs re-stating: the reset
-        // state is back to the default 8-ball, while the setup screen may be showing 9-ball.
-        _gameManager.ResetGame();
-        ApplyMatchPreview();
-    }
+    private void ResetMatch() => _gameManager.ResetGame();
 
     [RelayCommand]
     private void ShowHelp() => new HelpWindow { Owner = Application.Current.MainWindow }.ShowDialog();

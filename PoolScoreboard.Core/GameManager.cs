@@ -275,9 +275,11 @@ public class GameManager
     /// screen. What the operator configured rather than played is carried over: the two players
     /// (they are the ones the setup screen writes through <see cref="SetPlayerDetails" />, so
     /// replacing them would blank the names typed in whenever the reset comes from the HTTP control
-    /// API, which has no screen state to restore them from) and the colour theme, scoreboard style
-    /// and show/hide settings (a reset ends a match, it doesn't restyle the show). Their ball groups
-    /// are cleared, so the next 8-ball rack starts unassigned exactly as a brand-new state would.
+    /// API, which has no screen state to restore them from), the chosen game type and Race-To mode
+    /// (so the overlay's preview still matches the setup screen), and the colour theme, scoreboard
+    /// style and show/hide settings (a reset ends a match, it doesn't restyle the show). Their ball
+    /// groups are cleared, so the next 8-ball rack starts unassigned exactly as a brand-new state
+    /// would.
     /// </summary>
     public void ResetGame()
     {
@@ -290,7 +292,18 @@ public class GameManager
             player2.BallGroup = BallGroup.Unassigned;
             _pointHistory.Clear();
 
-            var next = new GameState { Player1 = player1, Player2 = player2 };
+            var next = new GameState
+            {
+                Player1 = player1,
+                Player2 = player2,
+
+                // Setup, not play. Without this the reset state fell back to the enum defaults —
+                // 8-ball, single Race-To — while the setup screen still showed what was selected, so
+                // a reset over HTTP (which has no screen to re-push anything) left the overlay
+                // previewing 8-ball until the operator started a new match.
+                GameType = _currentGame.GameType,
+                RaceToMode = _currentGame.RaceToMode
+            };
             CarryOperatorStyling(_currentGame, next);
 
             _currentGame = next;

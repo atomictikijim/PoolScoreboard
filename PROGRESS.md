@@ -186,6 +186,25 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Reset keeps the chosen game type and Race-To mode
+
+- `ResetGame` builds a fresh state, and `GameType`/`RaceToMode` were going back to the enum defaults
+  (`EightBall`/`Single`) while the setup screen kept showing whatever was selected. `ResetMatch`
+  therefore had to re-push a preview with `SetMatchPreview`, and a reset from
+  `/api/control/match/reset` — which has no screen behind it to re-push anything — left the overlay
+  previewing 8-ball until the operator started a new match.
+- Reset now carries both alongside the players and the styling, so "keep what the operator
+  configured, clear what was played" holds for every field, and `ResetMatch` is one call to
+  `ResetGame()`. The review entry above still says `ResetMatch` keeps `ApplyMatchPreview()`; that was
+  true when written and is superseded here.
+- Test: `ResetGame_KeepsTheChosenGameTypeAndRaceToMode` starts a NineBall/Split match, scores,
+  resets, and asserts the inactive state still reports NineBall/Split (the old defaults were
+  `EightBall`/`Single`, so the assertion would have failed before this change). 46 → 47 tests.
+- Not done, deliberately: an early return in `SetPlayerDetails` when all four fields are unchanged.
+  No caller can produce that call any more — the per-keystroke preview push is gone (see the review
+  entry) and the view model's settable properties skip equal values — so the comparison would be
+  untested dead code in the state lock.
+
 ### 2026-11-26 — OVERLAY show/hide toggles also on the match-setup screen
 
 - The three toggles (Score Bar, Ball Tracker, Winner Banner) only existed on the live view, so the
