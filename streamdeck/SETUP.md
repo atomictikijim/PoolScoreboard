@@ -125,8 +125,9 @@ A few layout suggestions, entirely up to you:
    effect of each press.
 3. Press through every button once, confirming:
    - **Home +1** / **Away +1** increase the correct side's score.
-   - **Undo** decreases whichever side is currently ahead (it does nothing at a tie — that's
-     expected, not a bug).
+   - **Undo** removes the most recently scored point, taking it off whichever side scored it —
+     including at a tie, and including a point that just ended the match (which resumes the
+     match). It does nothing once the board is back to 0–0, or after Reset Match.
    - **Toggle Shooter** flips the shooter indicator to the other player.
    - **Home/Away: Solids/Stripes** (8-ball only) assigns the ball group and auto-flips the other
      player's group.

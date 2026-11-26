@@ -26,6 +26,23 @@ internal static class ScoreboardEndpoints
         app.MapGet("/overlay/api/scoreboard/state", () =>
             Results.Json(ScoreboardStateMapper.ToDto(gameManager.GetCurrentGameState()), JsonOptions));
 
+        // End-cap icons are served here instead of riding inside the state payload: the SSE
+        // snapshot goes out on every operator action, so an embedded base64 logo meant re-sending
+        // it on every score change. The `v` query is cache-busting only — the bytes always come
+        // from the player's current icon, so an old `v` still returns current artwork.
+        app.MapGet("/overlay/api/players/{id}/icon", (string id) =>
+        {
+            var state = gameManager.GetCurrentGameState();
+            var player = state.Player1.Id == id ? state.Player1
+                : state.Player2.Id == id ? state.Player2
+                : null;
+
+            if (player == null || !EndCapIconDataUri.TryDecode(player.EndCapIcon, out var bytes, out var contentType))
+                return Results.NotFound();
+
+            return Results.Bytes(bytes, contentType);
+        });
+
         app.MapGet("/overlay/api/scoreboard/stream", async (HttpContext context, CancellationToken ct) =>
         {
             context.Response.Headers.CacheControl = "no-cache";

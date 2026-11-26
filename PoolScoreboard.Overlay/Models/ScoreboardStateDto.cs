@@ -28,7 +28,15 @@ public class PlayerDto
     public int Score { get; init; }
     public int RaceToTarget { get; init; }
     public required string BallGroup { get; init; }
-    public string? EndCapIcon { get; init; }
+
+    /// <summary>
+    /// Relative URL of this player's end-cap icon (team logo / flag), or null when none is set.
+    /// A reference rather than the image itself: the bytes are served by
+    /// <c>/overlay/api/players/{id}/icon</c> so a multi-megabyte base64 logo isn't re-sent inside
+    /// every SSE snapshot. The <c>v</c> query changes with the artwork, which cache-busts the
+    /// image only when the operator actually picks a new one.
+    /// </summary>
+    public string? EndCapIconUrl { get; init; }
 }
 
 public class ColorThemeDto

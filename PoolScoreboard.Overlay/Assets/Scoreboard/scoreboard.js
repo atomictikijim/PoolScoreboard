@@ -144,6 +144,15 @@
     }
   }
 
+  // End-cap icons come from their own endpoint — the state payload only carries a URL.
+  // Only touch `src` when that reference actually changes, so a score update doesn't
+  // re-request an unchanged image; a new `v` (i.e. the operator picked a new icon) does.
+  function applyCapIcon(img, cap, url) {
+    if (img.getAttribute('src') === url) return;
+    if (url) img.src = url; else img.removeAttribute('src');
+    cap.classList.toggle('has-icon', !!url);
+  }
+
   function render(state) {
     applyTheme(state.colors);
 
@@ -151,10 +160,8 @@
     awayName.textContent = (state.away.name || 'AWAY').toUpperCase();
     homeTeam.textContent = state.home.teamName ? state.home.teamName.toUpperCase() : '';
     awayTeam.textContent = state.away.teamName ? state.away.teamName.toUpperCase() : '';
-    capIconHome.src = state.home.endCapIcon || '';
-    capHome.classList.toggle('has-icon', !!state.home.endCapIcon);
-    capIconAway.src = state.away.endCapIcon || '';
-    capAway.classList.toggle('has-icon', !!state.away.endCapIcon);
+    applyCapIcon(capIconHome, capHome, state.home.endCapIconUrl);
+    applyCapIcon(capIconAway, capAway, state.away.endCapIconUrl);
     homeScore.textContent = String(state.home.score);
     awayScore.textContent = String(state.away.score);
     raceToLabel.textContent = raceToText(state);

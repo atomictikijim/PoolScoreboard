@@ -40,9 +40,6 @@ public partial class GameViewModel : ObservableObject
     private RaceToMode selectedRaceToMode = RaceToMode.Single;
 
     [ObservableProperty]
-    private string? matchTitle;
-
-    [ObservableProperty]
     private PlayerViewModel? homePlayer;
 
     [ObservableProperty]

@@ -186,6 +186,88 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — End-cap icons moved out of the SSE state payload
+
+- `ScoreboardStateDto.PlayerDto` no longer carries the base64 data URI (`EndCapIcon`); it carries
+  `EndCapIconUrl`, a relative reference to the new `GET /overlay/api/players/{id}/icon` endpoint
+  (or `null` when that player has no icon). The icon bytes are decoded from the player's data URI
+  and served with their declared MIME type by a small `EndCapIconDataUri` helper; unknown player
+  ids and players without an icon both answer `404`.
+- `Player.EndCapIcon` gained a custom setter that bumps a new `EndCapIconVersion`, and the DTO
+  appends it as a `?v=` query. That's cache-busting only — the browser can cache the image across
+  score updates, and picking new artwork gives the page a new URL so a stale logo can't stick. An
+  old `?v=` URL still serves the current bytes, so the query is never load-bearing.
+- `scoreboard.js` reads `endCapIconUrl` and only reassigns `img.src` when that reference changes,
+  so a score click no longer re-requests an unchanged image.
+- **Measured** with a throwaway harness (Core + Overlay, real Kestrel on a scratch port, not
+  committed): with a 400,174-character inline data URI, one `/overlay/api/scoreboard/state`
+  snapshot — the same serialization the SSE stream pushes on every operator action — is now
+  **776 bytes**, down from ~400 KB, and contains no `data:image` substring. The icon endpoint
+  returned `200 image/svg+xml` with bytes identical to the original (300,110), `404` for an
+  unknown player id, and `404` for a player with no icon. Changing the artwork moved the URL
+  `?v=1` → `?v=2` while the old URL still returned the new bytes. Payload size was unchanged
+  (776 bytes) after scoring a point.
+- Trimmed after a review pass: the setter no longer carries an equality guard (the Controller
+  only assigns from `PlayerViewModel`, which raises change notifications solely on a real change,
+  so the branch was unreachable), the endpoint looks the player up directly instead of allocating
+  a LINQ array, the decoder no longer treats an empty payload as a separate case, and
+  `scoreboard.js` compares the `src` attribute to the URL directly instead of via a temp variable.
+- Core test added: `EndCapIconVersion_BumpsWheneverIconIsAssigned`. `dotnet build` clean
+  (0 warnings, 0 errors); `dotnet test` 38/38.
+- Verified end to end in the real Controller and a browser (2026-11-26), replacing the earlier
+  "not verified visually" caveat: a player's end cap was set through the app's own "Choose
+  Icon..." file dialog, after which the state payload carried
+  `/overlay/api/players/{playerId}/icon?v=1` (and no data URI). The endpoint answered
+  `200 image/png` with bytes identical to the picked file (`cmp` clean, 910 bytes), and the
+  already-open `/overlay/scoreboard` page rendered the logo at that end cap — `src` set to that
+  URL, natural 128×128, rendered 28×28, the accent-colored `.cap-dot` hidden — with the browser
+  network log showing only the icon request and no page reload. Picking different artwork moved
+  the URL to `?v=2`; the page fetched it over the existing SSE connection without reloading and
+  the rendered pixels changed (canvas centre pixel (20,40,110) blue → (150,20,30) red), so the
+  logo updates live rather than sticking on the cached one. Unknown player id still answered
+  `404`. Verification captures: `overlay-endcap-a.png` / `overlay-endcap-b.png` in the repo root
+  (screenshots only, not committed assets).
+- Observed while driving that check, unrelated to this change: `GET /api/control/match/reset`
+  returned `500` once, then `200` on three consecutive retries, with nothing in the app's console
+  log. Not reproduced, so not investigated further. The plausible shape is a cross-thread race —
+  the Stream Deck endpoints mutate `GameManager` from a Kestrel thread while
+  `GameViewModel.OnGameStateChanged` runs synchronously on that thread and touches WPF-bound
+  state. Worth a look if it recurs.
+
+### 2026-11-26 — Undo reverses the most recent point
+
+- `GameManager.UndoPoint()` used to decrement whichever player was *ahead*, which was wrong
+  whenever the trailing player had scored last (2–0 → away scores → undo gave 1–1 instead of
+  2–0) and did nothing at all at a tie. It now records which player scored each point in a
+  private `List<bool> _pointHistory` and pops the most recent entry, so undo always reverses the
+  action the operator actually took. The history is internal to `GameManager` — not on
+  `GameState` or the overlay DTO, so the SSE payload is unchanged — and is cleared by
+  `InitializeGame` and `ResetGame`.
+- Undo now also reverses the point that *ended* the match, clearing `Winner` and re-enabling
+  `IsGameActive`. The old `if (!IsGameActive) return;` guard meant the `Winner = null;
+  IsGameActive = true;` lines already sitting inside `UndoPoint` were unreachable; recovering
+  from a mis-clicked winning point no longer requires a full Reset Match (which also drops the
+  players and styling).
+- Tests: replaced `UndoPoint_DecrementsLeadingPlayersScore` with
+  `UndoPoint_ReversesTheMostRecentlyScoredPoint_NotTheLeader`, and added coverage for walking
+  back points in reverse order, undoing at a tie, undoing the winning point (match resumes), and
+  undo after `ResetGame` (a reset match can't be resurrected).
+- Docs updated to match: the endpoint table in `streamdeck/README.md`, the Step 5 test pass in
+  `streamdeck/SETUP.md`, and the in-app Help window's "Score + / −" bullet.
+- `dotnet build` clean (0 warnings, 0 errors); `dotnet test` 37/37 (was 33/33 — five new undo
+  cases replace the one old leader-decrement test). The Controller/overlay behavior itself was
+  not exercised by hand this pass; the change is confined to `GameManager.UndoPoint` and the
+  docs, and `GameViewModel`/`ControlEndpoints` both just call through to it.
+
+### 2026-11-26 — Removed unused `GameViewModel.MatchTitle`
+
+- Deleted the `[ObservableProperty] private string? matchTitle;` field from `GameViewModel`. It
+  was never bound in `MainWindow.xaml`, never copied into `Player`/`GameState`, and never included
+  in `ScoreboardStateDto`, so it was dead state that suggested a per-match title feature existed
+  when nothing displayed one. Removing it rather than wiring it through — no doc, mockup, or
+  changelog entry ever called for a match title on the overlay. No version bump (trivial removal,
+  no behavior change).
+
 ### 2026-08-15 — Single-file self-contained publish (Phase 6)
 
 - Added `<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>` to `PoolScoreboard.Controller.csproj`

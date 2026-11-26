@@ -7,10 +7,20 @@ public class GameManager
 {
     private GameState _currentGame = new();
 
+    /// <summary>
+    /// Which player scored each point, in order, so <see cref="UndoPoint"/> can reverse the most
+    /// recent point rather than inferring it from the scores. Internal bookkeeping only — not part
+    /// of <see cref="GameState"/>/the overlay payload — and cleared whenever a match starts or is
+    /// reset.
+    /// </summary>
+    private readonly List<bool> _pointHistory = new();
+
     public event EventHandler<GameStateChangedEventArgs>? GameStateChanged;
 
     public void InitializeGame(Player player1, Player player2, GameType gameType, RaceToMode raceToMode)
     {
+        _pointHistory.Clear();
+
         _currentGame = new GameState
         {
             Player1 = player1,
@@ -38,6 +48,7 @@ public class GameManager
         if (isPlayer1)
         {
             _currentGame.Player1Score++;
+            _pointHistory.Add(true);
             if (_currentGame.Player1Score >= _currentGame.Player1.RaceToTarget)
             {
                 EndGame(_currentGame.Player1);
@@ -47,6 +58,7 @@ public class GameManager
         else
         {
             _currentGame.Player2Score++;
+            _pointHistory.Add(false);
             if (_currentGame.Player2Score >= _currentGame.Player2.RaceToTarget)
             {
                 EndGame(_currentGame.Player2);
@@ -80,20 +92,27 @@ public class GameManager
 
     public void UndoPoint()
     {
-        if (!_currentGame.IsGameActive)
+        if (_pointHistory.Count == 0)
             return;
 
-        if (_currentGame.Player1Score > 0 || _currentGame.Player2Score > 0)
-        {
-            if (_currentGame.Player1Score > _currentGame.Player2Score)
-                _currentGame.Player1Score--;
-            else if (_currentGame.Player2Score > _currentGame.Player1Score)
-                _currentGame.Player2Score--;
+        var wasPlayer1 = _pointHistory[^1];
+        _pointHistory.RemoveAt(_pointHistory.Count - 1);
 
+        if (wasPlayer1)
+            _currentGame.Player1Score--;
+        else
+            _currentGame.Player2Score--;
+
+        // A point that ended the match is undoable too, so a mis-clicked winning point doesn't
+        // force a full Reset Match. (An empty history is the only "nothing to undo" case, and
+        // ResetGame clears it, so this can't resurrect an already-reset match.)
+        if (_currentGame.Winner != null)
+        {
             _currentGame.Winner = null;
             _currentGame.IsGameActive = true;
-            RaiseGameStateChanged();
         }
+
+        RaiseGameStateChanged();
     }
 
     public void AssignBallGroup(Player player, BallGroup group)
@@ -140,6 +159,7 @@ public class GameManager
 
     public void ResetGame()
     {
+        _pointHistory.Clear();
         _currentGame = new();
         RaiseGameStateChanged();
     }

@@ -109,12 +109,47 @@ public class GameManagerTests
     }
 
     [Fact]
-    public void UndoPoint_DecrementsLeadingPlayersScore()
+    public void UndoPoint_ReversesTheMostRecentlyScoredPoint_NotTheLeader()
     {
         var manager = new GameManager();
         manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
 
         manager.AddPoint(true);
+        manager.AddPoint(true);
+        manager.AddPoint(false); // away scores last, but home is still ahead
+
+        manager.UndoPoint();
+
+        var state = manager.GetCurrentGameState();
+        Assert.Equal(2, state.Player1Score);
+        Assert.Equal(0, state.Player2Score);
+    }
+
+    [Fact]
+    public void UndoPoint_WalksBackThroughPointsInReverseOrder()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+
+        manager.AddPoint(true);
+        manager.AddPoint(false);
+        manager.AddPoint(true);
+
+        manager.UndoPoint(); // undoes home's second point
+        Assert.Equal(1, manager.GetCurrentGameState().Player1Score);
+        Assert.Equal(1, manager.GetCurrentGameState().Player2Score);
+
+        manager.UndoPoint(); // undoes away's point
+        Assert.Equal(1, manager.GetCurrentGameState().Player1Score);
+        Assert.Equal(0, manager.GetCurrentGameState().Player2Score);
+    }
+
+    [Fact]
+    public void UndoPoint_AtATie_ReversesTheMostRecentPoint()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+
         manager.AddPoint(true);
         manager.AddPoint(false);
 
@@ -122,7 +157,41 @@ public class GameManagerTests
 
         var state = manager.GetCurrentGameState();
         Assert.Equal(1, state.Player1Score);
-        Assert.Equal(1, state.Player2Score);
+        Assert.Equal(0, state.Player2Score);
+    }
+
+    [Fact]
+    public void UndoPoint_AfterTheWinningPoint_ReactivatesTheMatch()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 1), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Split);
+
+        manager.AddPoint(true); // Alice reaches race-to 1, match ends
+        Assert.False(manager.GetCurrentGameState().IsGameActive);
+
+        manager.UndoPoint();
+
+        var state = manager.GetCurrentGameState();
+        Assert.True(state.IsGameActive);
+        Assert.Null(state.Winner);
+        Assert.Equal(0, state.Player1Score);
+    }
+
+    [Fact]
+    public void UndoPoint_DoesNothingAfterResetGame()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        manager.AddPoint(true);
+        manager.AddPoint(true);
+
+        manager.ResetGame();
+        manager.UndoPoint();
+
+        var state = manager.GetCurrentGameState();
+        Assert.False(state.IsGameActive);
+        Assert.Equal(0, state.Player1Score);
+        Assert.Null(state.Winner);
     }
 
     [Fact]
@@ -246,6 +315,20 @@ public class GameManagerTests
         state = manager.GetCurrentGameState();
         Assert.DoesNotContain(7, state.PocketedBalls);
         Assert.Contains(9, state.PocketedBalls);
+    }
+
+    [Fact]
+    public void EndCapIconVersion_BumpsWheneverIconIsAssigned()
+    {
+        var player = CreatePlayer("Alice", 5);
+
+        Assert.Equal(0, player.EndCapIconVersion);
+
+        player.EndCapIcon = "data:image/png;base64,AAAA";
+        Assert.Equal(1, player.EndCapIconVersion);
+
+        player.EndCapIcon = null;
+        Assert.Equal(2, player.EndCapIconVersion);
     }
 
     [Fact]

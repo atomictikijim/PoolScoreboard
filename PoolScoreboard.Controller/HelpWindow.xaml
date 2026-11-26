@@ -149,9 +149,9 @@
                         <TextBlock Text="Live View screen" Style="{StaticResource HelpSubHeadingStyle}" />
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
                             • <Bold>Score + / −</Bold> — the + button on each side adds a point for that
-                            player (ending the match if they reach their Race-To target). The − button undoes
-                            the last scored point, decrementing whichever player is currently ahead — it does
-                            nothing at a tie.
+                            player (ending the match if they reach their Race-To target). The − button removes
+                            the most recently scored point, whichever side scored it — including a point that
+                            ended the match, which resumes it. It does nothing once the board is back to 0–0.
                         </TextBlock>
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
                             • <Bold>Shooter toggle</Bold> — the button at the top-right switches which player

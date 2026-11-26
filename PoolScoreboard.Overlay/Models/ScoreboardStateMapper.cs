@@ -46,6 +46,8 @@ public static class ScoreboardStateMapper
         Score = score,
         RaceToTarget = player.RaceToTarget,
         BallGroup = player.BallGroup.ToString(),
-        EndCapIcon = player.EndCapIcon
+        EndCapIconUrl = string.IsNullOrEmpty(player.EndCapIcon)
+            ? null
+            : $"/overlay/api/players/{player.Id}/icon?v={player.EndCapIconVersion}"
     };
 }
