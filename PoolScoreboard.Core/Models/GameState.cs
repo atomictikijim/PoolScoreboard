@@ -40,10 +40,10 @@ public class GameState
             RaceToMode = RaceToMode,
             Player1Score = Player1Score,
             Player2Score = Player2Score,
-            CurrentShooter = CopyPlayerReference(CurrentShooter, player1, player2),
+            CurrentShooter = CurrentShooter == Player1 ? player1 : CurrentShooter == Player2 ? player2 : null,
             IsGameActive = IsGameActive,
             StartTime = StartTime,
-            Winner = CopyPlayerReference(Winner, player1, player2),
+            Winner = Winner == Player1 ? player1 : Winner == Player2 ? player2 : null,
             ColorTheme = ColorTheme.Copy(),
             PocketedBalls = new HashSet<int>(PocketedBalls),
             ScoreboardStyle = ScoreboardStyle.Copy(),
@@ -51,10 +51,4 @@ public class GameState
             CueBallSpin = CueBallSpin?.Copy()
         };
     }
-
-    private Player? CopyPlayerReference(Player? source, Player player1Copy, Player player2Copy) =>
-        source == null ? null
-        : ReferenceEquals(source, Player1) ? player1Copy
-        : ReferenceEquals(source, Player2) ? player2Copy
-        : null;
 }

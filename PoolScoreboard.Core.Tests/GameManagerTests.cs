@@ -263,7 +263,7 @@ public class GameManagerTests
         var player2 = CreatePlayer("Bob", 5);
         manager.InitializeGame(player1, player2, GameType.EightBall, RaceToMode.Single);
 
-        manager.AssignBallGroup(player1, assigned);
+        manager.AssignBallGroup(isHome: true, assigned);
 
         Assert.Equal(assigned, player1.BallGroup);
         Assert.Equal(expectedOther, player2.BallGroup);
@@ -277,7 +277,7 @@ public class GameManagerTests
         var player2 = CreatePlayer("Bob", 5);
         manager.InitializeGame(player1, player2, GameType.NineBall, RaceToMode.Single);
 
-        manager.AssignBallGroup(player1, BallGroup.Solids);
+        manager.AssignBallGroup(isHome: true, BallGroup.Solids);
 
         Assert.Equal(BallGroup.Unassigned, player1.BallGroup);
         Assert.Equal(BallGroup.Unassigned, player2.BallGroup);
@@ -291,8 +291,8 @@ public class GameManagerTests
         var player2 = CreatePlayer("Bob", 5);
         manager.InitializeGame(player1, player2, GameType.EightBall, RaceToMode.Single);
 
-        manager.AssignBallGroup(player1, BallGroup.Solids);
-        manager.AssignBallGroup(player2, BallGroup.Solids);
+        manager.AssignBallGroup(isHome: true, BallGroup.Solids);
+        manager.AssignBallGroup(isHome: false, BallGroup.Solids);
 
         Assert.Equal(BallGroup.Stripes, player1.BallGroup);
         Assert.Equal(BallGroup.Solids, player2.BallGroup);
@@ -352,6 +352,23 @@ public class GameManagerTests
         Assert.Equal(1, raised!.Player1Score);
         Assert.Empty(raised.PocketedBalls);
         Assert.NotSame(manager.GetCurrentGameState(), raised);
+    }
+
+    [Fact]
+    public void ConcurrentPoints_RaiseSnapshotsInMutationOrder()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 10_000), CreatePlayer("Bob", 10_000), GameType.NineBall, RaceToMode.Single);
+
+        // Events are raised under the state lock, so this list is appended to by one thread at a
+        // time and the scores must arrive as 1,2,3... — an out-of-order delivery would show up as a
+        // score that goes backwards.
+        var observedScores = new List<int>();
+        manager.GameStateChanged += (_, e) => observedScores.Add(e.GameState.Player1Score);
+
+        Parallel.For(0, 200, _ => manager.AddPoint(isPlayer1: true));
+
+        Assert.Equal(Enumerable.Range(1, 200), observedScores);
     }
 
     [Fact]

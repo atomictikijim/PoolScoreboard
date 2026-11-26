@@ -186,6 +186,31 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Thread-safety follow-up: in-lock delivery, side-based group assignment
+
+- **Snapshot ordering fixed.** Raising `GameStateChanged` after leaving the lock let a later mutation
+  notify before an earlier one (thread A snapshots, thread B snapshots, B raises first), so the UI or
+  an overlay could apply an older snapshot last and show stale scores until the next event. The event
+  is now raised *inside* the mutation lock, which makes delivery order match mutation order without
+  sequence numbers; subscribers just must not block (the current ones marshal to a dispatcher or
+  write into an SSE channel). Covered by
+  `ConcurrentPoints_RaiseSnapshotsInMutationOrder`: 200 parallel points must arrive as 1..200, so any
+  backwards step fails the test.
+- **Last read-then-act race in the control API closed.** `/api/control/balls/{side}/{group}` used to
+  read `GetCurrentGameState()`, pick the player by side, then call `AssignBallGroup(player, group)` —
+  a reset in between meant acting on a player that had already been replaced (silent no-op).
+  `AssignBallGroup(bool isHome, BallGroup)` now resolves the side inside the lock, the endpoints call
+  it directly, the private `AssignGroup` helper and the player-based overload are gone.
+- **Simplifications in the committed change:** every mutator raises `_currentGame.Clone()` inline
+  instead of the `GameState snapshot; … snapshot = …; } Raise(snapshot);` dance; `GameState.Clone`
+  inlines its player-reference remapping instead of a helper method; `GetCurrentGameState()` no longer
+  takes the lock for what is only a reference return (it's documented as the live view, and
+  production code now goes through `GetStateSnapshot()`); and `GameViewModel` lost its
+  `_homePlayerModel`/`_awayPlayerModel` fields plus its own `AssignGroup` wrapper now that shooter
+  toggling and group assignment are atomic, side-based calls.
+- Verified: `dotnet build` clean, `dotnet test` 41/41, and a 1070-request concurrent stress across
+  ball toggles, shooter, score, reset, group assignment and state reads returned zero non-200s.
+
 ### 2026-11-26 — Fixed: HTTP control API 500s from cross-thread UI updates
 
 **Root cause.** The Stream Deck endpoints run on Kestrel threads and call straight into the shared

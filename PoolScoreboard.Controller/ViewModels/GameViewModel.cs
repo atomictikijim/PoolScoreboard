@@ -28,8 +28,6 @@ public partial class GameViewModel : ObservableObject
     private readonly GameManager _gameManager;
     private readonly Dictionary<int, BallItemViewModel> _allBalls = new();
 
-    private Player? _homePlayerModel;
-    private Player? _awayPlayerModel;
 
     // --- Match setup (editable before the match starts) ---
 
@@ -254,10 +252,7 @@ public partial class GameViewModel : ObservableObject
         if (HomePlayer == null || AwayPlayer == null)
             return;
 
-        _homePlayerModel = HomePlayer.GetPlayer();
-        _awayPlayerModel = AwayPlayer.GetPlayer();
-
-        _gameManager.InitializeGame(_homePlayerModel, _awayPlayerModel, SelectedGameType, SelectedRaceToMode);
+        _gameManager.InitializeGame(HomePlayer.GetPlayer(), AwayPlayer.GetPlayer(), SelectedGameType, SelectedRaceToMode);
         ApplyColorTheme();
         ApplyScoreboardStyle();
     }
@@ -272,33 +267,19 @@ public partial class GameViewModel : ObservableObject
     private void UndoLastPoint() => _gameManager.UndoPoint();
 
     [RelayCommand]
-    private void ToggleCurrentShooter()
-    {
-        if (_homePlayerModel == null || _awayPlayerModel == null)
-            return;
-
-        _gameManager.SetCurrentShooter(HomeIsCurrentShooter ? _awayPlayerModel : _homePlayerModel);
-    }
+    private void ToggleCurrentShooter() => _gameManager.ToggleCurrentShooter();
 
     [RelayCommand]
-    private void AssignHomeSolids() => AssignGroup(_homePlayerModel, BallGroup.Solids);
+    private void AssignHomeSolids() => _gameManager.AssignBallGroup(isHome: true, BallGroup.Solids);
 
     [RelayCommand]
-    private void AssignHomeStripes() => AssignGroup(_homePlayerModel, BallGroup.Stripes);
+    private void AssignHomeStripes() => _gameManager.AssignBallGroup(isHome: true, BallGroup.Stripes);
 
     [RelayCommand]
-    private void AssignAwaySolids() => AssignGroup(_awayPlayerModel, BallGroup.Solids);
+    private void AssignAwaySolids() => _gameManager.AssignBallGroup(isHome: false, BallGroup.Solids);
 
     [RelayCommand]
-    private void AssignAwayStripes() => AssignGroup(_awayPlayerModel, BallGroup.Stripes);
-
-    private void AssignGroup(Player? player, BallGroup group)
-    {
-        if (player == null)
-            return;
-
-        _gameManager.AssignBallGroup(player, group);
-    }
+    private void AssignAwayStripes() => _gameManager.AssignBallGroup(isHome: false, BallGroup.Stripes);
 
     [RelayCommand]
     private void PickHomeIcon() => PickIcon(HomePlayer);
@@ -408,8 +389,6 @@ public partial class GameViewModel : ObservableObject
         ApplyScoreboardStyle();
         ApplyMatchPreview();
 
-        _homePlayerModel = null;
-        _awayPlayerModel = null;
         HomeScore = 0;
         AwayScore = 0;
         HomeIsCurrentShooter = true;

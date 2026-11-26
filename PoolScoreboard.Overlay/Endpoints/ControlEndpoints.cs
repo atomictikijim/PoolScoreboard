@@ -43,25 +43,25 @@ internal static class ControlEndpoints
 
         app.MapGet("/api/control/balls/home/solids", () =>
         {
-            AssignGroup(gameManager, isHome: true, BallGroup.Solids);
+            gameManager.AssignBallGroup(isHome: true, BallGroup.Solids);
             return Results.Ok();
         });
 
         app.MapGet("/api/control/balls/home/stripes", () =>
         {
-            AssignGroup(gameManager, isHome: true, BallGroup.Stripes);
+            gameManager.AssignBallGroup(isHome: true, BallGroup.Stripes);
             return Results.Ok();
         });
 
         app.MapGet("/api/control/balls/away/solids", () =>
         {
-            AssignGroup(gameManager, isHome: false, BallGroup.Solids);
+            gameManager.AssignBallGroup(isHome: false, BallGroup.Solids);
             return Results.Ok();
         });
 
         app.MapGet("/api/control/balls/away/stripes", () =>
         {
-            AssignGroup(gameManager, isHome: false, BallGroup.Stripes);
+            gameManager.AssignBallGroup(isHome: false, BallGroup.Stripes);
             return Results.Ok();
         });
 
@@ -85,12 +85,5 @@ internal static class ControlEndpoints
             gameManager.ResetGame();
             return Results.Ok();
         });
-    }
-
-    private static void AssignGroup(GameManager gameManager, bool isHome, BallGroup group)
-    {
-        var state = gameManager.GetCurrentGameState();
-        var player = isHome ? state.Player1 : state.Player2;
-        gameManager.AssignBallGroup(player, group);
     }
 }
