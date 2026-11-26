@@ -7,7 +7,7 @@
     published app and both libraries agree. Bump it in the commit that earns it.
   -->
   <PropertyGroup>
-    <VersionPrefix>0.21.0</VersionPrefix>
+    <VersionPrefix>0.22.0</VersionPrefix>
   </PropertyGroup>
 
 </Project>

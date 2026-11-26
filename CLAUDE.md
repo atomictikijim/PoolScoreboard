@@ -102,9 +102,13 @@ dotnet clean
   Raises `GameStateChanged` after every mutation.
 - No database, no async I/O — pure, fast, unit-testable.
 - `Persistence/OperatorProfile` (capture/apply of the saved profile), `Persistence/PlayerRoster`
-  (saved-player identity — a name, ignoring case — ordering and the 100-entry cap) and
-  `Persistence/EndCapIconData` (data-URI ↔ icon bytes) live here too, deliberately I/O-free so all
-  three are unit-tested.
+  (saved-player identity — a name, ignoring case — ordering and the 100-entry cap),
+  `Persistence/EndCapIconData` (data-URI ↔ icon bytes) and `Persistence/ResumableMatch` (the part of a match in
+  progress worth surviving a crash: scores, game type and Race-To mode, ball groups, pocketed balls, shooter,
+  with a file version) live here too, deliberately I/O-free so all four are unit-tested.
+  `GameManager.RestoreMatch` puts one back atomically — floors scores at zero, drops ball numbers off the
+  table, clears the undo history (the points it would undo are no longer on screen) and recomputes the winner
+  from the scores rather than trusting the file.
 
 ### PoolScoreboard.Controller (WPF Desktop Application)
 
@@ -129,6 +133,15 @@ dotnet clean
 - `Persistence/OperatorSettingsStore` reads/writes `%AppData%\PoolScoreboard\settings.json` plus the
   end-cap icon files; `App` applies the saved profile before the window exists, then saves on a
   750 ms debounce and on exit.
+- `Persistence/MatchStateStore` keeps the match in progress in `match.json`: `App` subscribes to
+  `GameStateChanged` and re-arms a pool timer, so a burst of points costs one small write 500 ms later (the
+  event arrives inside `GameManager`'s lock, often from an HTTP control thread, and the write never runs on the
+  UI thread); a final snapshot is written in `OnExit`, and a state back at setup deletes the file so a reset
+  match is not resumed. Restore happens at startup after the profile and before the window.
+  `GameViewModel` therefore takes the game type and Race-To mode from state — a resumed 8-ball match shows its
+  groups — and fills the live view from the restored snapshot, since no event fires until the operator touches
+  something. An unreadable `match.json` is moved to `match.corrupt.json`; one written by another version is
+  left in place and ignored.
 - `Diagnostics/TraceLogFile` appends every `Trace` line to `%AppData%\PoolScoreboard\controller.log`
   (attached first in `OnStartup`, disposed last in `OnExit`), so shutdown warnings can be read after the
   fact. At startup a log over 1 MiB is moved to `controller.old.log`, replacing the previous run's. Each
@@ -160,6 +173,11 @@ dotnet clean
 - `Diagnostics/TraceLoggerProvider` forwards the host's own `ILogger` warnings and errors to `Trace`, which the
   Controller's log file records — without it they went to the Console/Debug providers and a WPF process has no
   console to write them to.
+- Both pages subscribe with a plain `EventSource` and nothing else, so an outage of the host is survivable on the
+  OBS side: the page keeps its last frame while the stream is down, `EventSource` retries on its own, and the
+  reconnected stream replays the current snapshot, so it catches up within a few seconds of a Retry without a
+  refresh in OBS. Measured on the scoreboard page in Chromium, not OBS's CEF; the cue-ball page shares the
+  pattern but was not exercised.
 
 ## Stream Deck Integration
 
@@ -211,9 +229,11 @@ alignment, not a pixel match).
 
 ## Known Simplifications & Future Work
 
-- Persistence covers the operator profile only: `%AppData%\PoolScoreboard\settings.json` holds the
-  colour theme, scoreboard style, element visibility and both players' setup fields, while match
-  state (scores, racks, pocketed balls) stays in memory. There is no match history.
+- Persistence covers the operator profile (`settings.json`: colour theme, scoreboard style, element visibility,
+  both players' setup fields) and the match in progress (`match.json`: scores, game type and Race-To mode, ball
+  groups, pocketed balls, shooter), which is restored automatically on the next launch — there is no prompt, so
+  RESET MATCH is how an operator discards a resumed match. There is no match history: a finished match is not
+  kept anywhere.
 - `controller.log` is capped by size only, never by age: at startup a log over 1 MiB becomes
   `controller.old.log`, so exactly one previous session survives and older ones are discarded.
 - The roster only holds players who have actually been on screen for a started match (or present

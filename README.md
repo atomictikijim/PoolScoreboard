@@ -73,6 +73,12 @@ when it can identify it — and offers a **Retry**, so the overlay can come back
 same banner returns if the host stops serving mid-session — the state endpoint is probed every few seconds
 while it runs — so a dead overlay is noticed during a match rather than after it.
 
+An OBS browser source that was already connected rides out that outage by itself: the page holds its last
+frame while the server is down, and within a few seconds of **Retry** it is live again with no refresh in OBS
+and no lost score change. The pages use `EventSource`, which reconnects on its own and is handed a fresh
+snapshot when it does. That was checked against the scoreboard page in Chromium (not OBS's own CEF); the
+cue-ball page uses the same pattern but was not exercised.
+
 Add the overlay as an OBS **Browser Source** pointed at the local URL the Controller
 prints on startup — `http://127.0.0.1:51234/overlay/scoreboard` — and the cue-ball
 overlay as a second, separate Browser Source at
@@ -116,8 +122,10 @@ overlay as a second, separate Browser Source at
 - Core stays UI-free and fully unit-testable.
 - Persistence lives in `%AppData%\PoolScoreboard\`: `settings.json` holds the colour theme,
   scoreboard style, show/hide state and the last two players, while `roster.json` holds the saved
-  player list. End-cap artwork is stored as files under `icons\`, not inline. Match state — scores,
-  racks, pocketed balls — does not persist.
+  player list. End-cap artwork is stored as files under `icons\`, not inline. The match in progress is
+  written to `match.json` after every change — scores, game type and Race-To mode, ball groups, pocketed balls
+  and whose turn it is — and removed when the match is reset, so a crash mid-match resumes where it was on the
+  next launch. There is still no match history.
 - Diagnostics land in `%AppData%\PoolScoreboard\controller.log`, appended across runs with a
   "Controller started" line per session. Shutdown warnings (such as the overlay host missing its stop
   timeout) go there, since by then there is no window to show them in. ASP.NET Core's own warnings and errors

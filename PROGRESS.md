@@ -194,6 +194,36 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — A crash mid-match no longer costs the scores
+
+- A match lived only in memory, so a crash or a forced restart mid-stream lost the scoreboard with it — the app
+  already had crash hooks precisely because it can die. `App` now subscribes to `GameStateChanged` and re-arms a
+  pool timer, so the burst of changes a point produces becomes one small `match.json` write 500 ms later (never
+  on the UI thread: the event arrives inside `GameManager`'s lock, often from the Stream Deck's HTTP calls); a
+  final snapshot is written in `OnExit`. A state back at setup deletes the file, so a reset match is not resumed.
+- `Core.Persistence.ResumableMatch` captures what a resumed overlay would otherwise get wrong: scores, game type
+  and Race-To mode, ball groups, pocketed balls and whose turn it is. The players' names, Race-To targets and
+  artwork are not duplicated — the operator profile carries them and is restored first, which is what the scores
+  are judged against.
+- `GameManager.RestoreMatch` puts a saved match back atomically: scores floored at zero, ball numbers outside
+  1-15 dropped, ball groups only on 8-ball, the winner recomputed from the scores instead of trusted from the
+  file, and the undo history cleared — the points it would undo are no longer on screen, so the first undo after
+  a restart does nothing rather than removing a point the resumed match never recorded.
+- `GameViewModel` takes the game type and Race-To mode from state — but only when a match was actually resumed,
+  so a resumed 8-ball match shows its groups and its ball layout — and fills the live view from the restored
+  snapshot, because no event fires until the operator touches something. A state at setup holds the 8-ball enum
+  default, which is not a choice anyone made, so a fresh launch keeps the screen's own 9-ball default. Restore
+  is automatic, not prompted: RESET MATCH returns to setup and clears the file.
+- `Persistence/MatchStateStore` writes through a temporary file and moves it into place, as the other stores do,
+  and serializes its saves and deletes: the debounce timer and `OnExit` can both reach it when a point is scored
+  just before the app closes, and two writers sharing one temporary file would lose one of the snapshots.
+  An unreadable `match.json` is kept as `match.corrupt.json`; a file written by another version is left where it
+  is and ignored, so a newer build can still read it.
+- Tests: Core covers capture before a match starts, a full capture/restore round trip, winner recomputation with
+  junk ball numbers and a negative score, and the cleared undo history; the Controller store covers round trip,
+  delete (including when there is nothing to delete), the preserved corrupt file and the version mismatch.
+- Build 0 warnings; 169/169 tests (97 Core + 72 Controller).
+
 ### 2026-11-26 — An overlay that dies mid-session shows the banner again
 
 - The banner only reflected startup and manual retries: a host that came up and then stopped serving left the

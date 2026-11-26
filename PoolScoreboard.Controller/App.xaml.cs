@@ -23,11 +23,23 @@ public partial class App : System.Windows.Application
 
     private readonly OperatorSettingsStore _settingsStore = new();
 
+    private readonly MatchStateStore _matchStore = new();
+
     /// <summary>
     /// Coalesces the burst of changes a slider drag or a typed name produces into one file write,
     /// rather than rewriting the settings on every keystroke.
     /// </summary>
     private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(750) };
+
+    /// <summary>
+    /// Coalesces the burst of changes one scored point produces into a single small <c>match.json</c> write. A
+    /// pool timer rather than a dispatcher one because the state event arrives inside <c>GameManager</c>'s lock,
+    /// often from an HTTP control thread, and the write should not run on the UI thread at all.
+    /// </summary>
+    private readonly System.Threading.Timer _matchSaveTimer;
+
+    public App() =>
+        _matchSaveTimer = new System.Threading.Timer(_ => SaveMatch(), null, Timeout.Infinite, Timeout.Infinite);
 
     /// <summary>
     /// The overlay host and, when it could not bind, the reason the window shows next to a Retry button.
@@ -90,11 +102,19 @@ public partial class App : System.Windows.Application
         // saved colours, style, visibility and last players instead of the defaults.
         RestoreOperatorProfile();
 
+        // After the profile — it supplies the players and Race-To targets the scores are judged against — and
+        // before the window, which reads state when it is constructed.
+        RestoreMatch();
+
         _saveTimer.Tick += (_, _) =>
         {
             _saveTimer.Stop();
             SaveOperatorProfile();
         };
+
+        // Every mutation schedules a match snapshot, wherever it came from: the UI, the keyboard, or the
+        // Stream Deck's HTTP calls. A state back at setup deletes the file instead (see SaveMatch).
+        SharedGameManager.GameStateChanged += OnGameStateChanged;
 
         OverlaySession.Start(SharedGameManager);
     }
@@ -119,6 +139,33 @@ public partial class App : System.Windows.Application
             OperatorProfile.Capture(state),
             state.Player1.EndCapIcon,
             state.Player2.EndCapIcon);
+    }
+
+    /// <summary>
+    /// Schedules a match snapshot shortly after the current burst of changes. This runs inside
+    /// <c>GameManager</c>'s lock, on whichever thread mutated state, so it only re-arms the timer — never the
+    /// file write itself.
+    /// </summary>
+    private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e) =>
+        _matchSaveTimer.Change(TimeSpan.FromMilliseconds(500), Timeout.InfiniteTimeSpan);
+
+    /// <summary>
+    /// Writes the match in progress to <c>match.json</c>, or deletes it when state is back at setup (a reset,
+    /// or a fresh launch), so the next start resumes nothing. Never throws: it runs right after a point was
+    /// scored, and a locked or full disk must not take the app down mid-match.
+    /// </summary>
+    private void SaveMatch()
+    {
+        if (ResumableMatch.Capture(SharedGameManager.GetStateSnapshot()) is { } match)
+            _matchStore.TrySave(match);
+        else
+            _matchStore.Delete();
+    }
+
+    private void RestoreMatch()
+    {
+        if (_matchStore.Load() is { } match)
+            SharedGameManager.RestoreMatch(match);
     }
 
     /// <summary>
@@ -177,6 +224,10 @@ public partial class App : System.Windows.Application
 
         SaveOperatorProfile();
 
+        // The debounced snapshot may not have run yet, and the last point scored is exactly what has to
+        // survive a crash or a forced restart.
+        SaveMatch();
+
         try
         {
             // Off the UI thread, or the host's shutdown continuations would be queued to the Dispatcher
@@ -187,6 +238,7 @@ public partial class App : System.Windows.Application
         {
             // Log last, so a warning from the stop above still reaches the file (the writer flushes per
             // line), and in a finally so an unexpected throw can't leave the log handle open.
+            _matchSaveTimer.Dispose();
             guard.Dispose();
             _traceLog.Dispose();
         }

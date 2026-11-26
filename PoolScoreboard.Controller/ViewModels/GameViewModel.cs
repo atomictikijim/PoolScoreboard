@@ -174,8 +174,9 @@ public partial class GameViewModel : ObservableObject
         // each property back through SetColorTheme/SetScoreboardStyle would only re-raise it.
         _roster = _rosterStore.Load();
 
-        // Game type and Race-To mode are per-match choices, not part of the saved profile, so this
-        // screen's own defaults stay in charge of them (ApplyMatchPreview below pushes them).
+        // Game type and Race-To mode are per-match choices rather than part of the saved profile, but a
+        // resumed match carries its own, and this screen, the ball layout and the overlay preview all read
+        // them back from state.
         var restored = _gameManager.GetStateSnapshot();
 
         _restoring = true;
@@ -189,10 +190,30 @@ public partial class GameViewModel : ObservableObject
         }
 
         BuildBalls();
+
+        // Only a resumed match carries choices worth honouring. A state at setup holds the enum default —
+        // 8-ball — which is not something anyone picked, so this screen's own default stays in charge of the
+        // game type and Race-To mode exactly as it did before matches were resumed. Set after the balls exist:
+        // both change handlers refresh the ball layout, which reads them.
+        var resumed = restored.IsGameActive || restored.Winner != null;
+        if (resumed)
+        {
+            SelectedGameType = restored.GameType;
+            SelectedRaceToMode = restored.RaceToMode;
+        }
+
         SetupPlayers(restored);
         RefreshSavedPlayers();
-        RefreshBallLayout();
         ApplyMatchPreview();
+
+        // A resumed match arrives with scores, groups, pocketed balls and a shooter already set, and nothing
+        // raises an event until the operator touches something — so the live view is filled here from the same
+        // snapshot the event handlers use. A state at setup has nothing beyond the preview pushed above.
+        if (resumed)
+            ApplyGameState(restored);
+        else
+            RefreshBallLayout();
+
         RefreshOverlayStatus();
     }
 

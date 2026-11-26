@@ -1,5 +1,6 @@
 ﻿using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
+using PoolScoreboard.Core.Persistence;
 
 namespace PoolScoreboard.Core;
 
@@ -326,6 +327,53 @@ public class GameManager
             CarryOperatorStyling(_currentGame, next);
 
             _currentGame = next;
+            RaiseGameStateChanged(_currentGame.Clone());
+        }
+    }
+
+    /// <summary>
+    /// Puts a saved match back, for the autosave that has to survive a crash mid-match. Scores are floored at
+    /// zero and the winner is recomputed from them rather than trusted from the file; the undo history starts
+    /// empty, because the points it would undo are no longer on screen. Players, styling and show/hide settings
+    /// are left alone — the operator profile restored them moments earlier, and the scores are judged against
+    /// those players' Race-To targets.
+    /// </summary>
+    public void RestoreMatch(ResumableMatch match)
+    {
+        lock (_sync)
+        {
+            _pointHistory.Clear();
+
+            var next = new GameState
+            {
+                Player1 = _currentGame.Player1,
+                Player2 = _currentGame.Player2,
+                GameType = match.GameType,
+                RaceToMode = match.RaceToMode,
+                Player1Score = Math.Max(0, match.HomeScore),
+                Player2Score = Math.Max(0, match.AwayScore),
+                CurrentShooter = match.HomeIsCurrentShooter ? _currentGame.Player1 : _currentGame.Player2,
+                IsGameActive = true
+            };
+
+            // Groups are an 8-ball idea; a stale or hand-edited file must not put them on a 9-ball match where
+            // nothing reads them.
+            if (match.GameType == GameType.EightBall)
+            {
+                next.Player1.BallGroup = match.HomeBallGroup;
+                next.Player2.BallGroup = match.AwayBallGroup;
+            }
+
+            foreach (var ball in match.PocketedBalls)
+            {
+                if (ball is >= 1 and <= 15)
+                    next.PocketedBalls.Add(ball);
+            }
+
+            CarryOperatorStyling(_currentGame, next);
+
+            _currentGame = next;
+            UpdateWinner();
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }
