@@ -194,6 +194,30 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Overlay host errors reach the log, and a taken port no longer kills startup
+
+- New `PoolScoreboard.Overlay/Diagnostics/TraceLoggerProvider` forwards the host's `ILogger` records at Warning
+  and above to `Trace` — errors as `TraceError`, with the exception type and message appended — registered
+  in `OverlayHost.Start` next to the existing minimum level. Until now Kestrel's failures and endpoint faults
+  went only to the Console and Debug providers, and a WPF process has no console, so a control-API 500 or a
+  failed bind left no evidence anywhere.
+- `OverlayHostRunner.Start` returns `IHost?` and catches a bind failure (`IOException`/`SocketException`,
+  including one wrapped in an `AggregateException`), tracing "Overlay host could not start on
+  127.0.0.1:51234: …" and letting the app open without the overlay. Previously that exception escaped
+  `App.OnStartup`, so a leftover Controller holding the port meant no window, no log line and no explanation.
+- Deliberately narrow: only IO/socket failures are absorbed; any other exception still surfaces rather than
+  being disguised as "couldn't start".
+- Tests: three for the provider (warning keeps its category, error carries the exception and reads as Error,
+  Information/Debug are dropped) and one for the start path that holds the port with a `TcpListener`, asserts
+  `Start` returns null and that the log names the port and the reason.
+- Verified live in the real app: one instance bound 51234 and served state 200, then a second was launched — it
+  opened its window and logged both `Microsoft.Extensions.Hosting.Internal.Host: Hosting failed to start
+  [IOException: Failed to bind to address http://127.0.0.1:51234 …]` (the bridge working) and `Overlay host
+  could not start on 127.0.0.1:51234: …` (the new guard), while the first kept serving 200.
+- Build 0 warnings; 145/145 tests (93 Core + 52 Controller).
+- Known gap: a failed start is only logged — the Controller still shows the overlay URLs in Help as if they
+  worked, and there is no retry short of restarting with the port free.
+
 ### 2026-11-26 — controller.log can be read while the Controller runs
 
 - `TraceLogFile` used to hold one writer open for the whole session, so a reader that asks for the ordinary

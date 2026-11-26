@@ -1,8 +1,12 @@
 using System.Diagnostics;
 using System.IO;
+using System.Net;
+using System.Net.Sockets;
 using Microsoft.Extensions.Hosting;
 using PoolScoreboard.Controller;
 using PoolScoreboard.Controller.Diagnostics;
+using PoolScoreboard.Core;
+using PoolScoreboard.Overlay;
 
 namespace PoolScoreboard.Controller.Tests;
 
@@ -96,6 +100,49 @@ public class OverlayHostRunnerTests
         }
         finally
         {
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Start_ReturnsNullAndTracesAnErrorWhenThePortIsAlreadyTaken()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "poolscoreboard-start-tests", Guid.NewGuid().ToString("n"));
+        var logPath = Path.Combine(folder, "controller.log");
+
+        // Hold the port the overlay wants. If something else already holds it the situation is the same, so
+        // the assertions below still describe what should happen.
+        TcpListener? blocker = null;
+        try
+        {
+            blocker = new TcpListener(IPAddress.Loopback, OverlayHost.Port);
+            blocker.Start();
+        }
+        catch (SocketException)
+        {
+            blocker = null;
+        }
+
+        try
+        {
+            IHost? host = null;
+
+            using (var log = new TraceLogFile(logPath))
+            {
+                log.Attach();
+                host = OverlayHostRunner.Start(new GameManager());
+
+                var text = File.ReadAllText(logPath);
+                Assert.Contains($"127.0.0.1:{OverlayHost.Port}", text);
+                Assert.Contains("could not start", text);
+            }
+
+            Assert.Null(host);
+        }
+        finally
+        {
+            blocker?.Stop();
             if (Directory.Exists(folder))
                 Directory.Delete(folder, recursive: true);
         }

@@ -113,7 +113,9 @@ dotnet clean
 - Live view: score +/- per player, current-shooter toggle, ball-group assignment buttons
   (8-ball only) or ball display (9/10-ball), new-rack/reset-match controls.
 - On startup, starts the Overlay's Kestrel host in-process, passing it the same
-  `GameManager` instance the UI is bound to.
+  `GameManager` instance the UI is bound to. `OverlayHostRunner.Start` returns null when the host cannot bind
+  (`127.0.0.1:51234` already taken, usually a leftover Controller) and logs the reason, so startup continues
+  without the overlay instead of dying before a window exists.
 - `Persistence/OperatorSettingsStore` reads/writes `%AppData%\PoolScoreboard\settings.json` plus the
   end-cap icon files; `App` applies the saved profile before the window exists, then saves on a
   750 ms debounce and on exit.
@@ -137,6 +139,9 @@ dotnet clean
 - `/api/control/*` — local HTTP endpoints for Stream Deck buttons (add a point per side, undo
   the last point, shooter toggle, ball assignment, per-ball pocketed toggle, new rack, reset
   match). Same `GameManager` instance as the UI.
+- `Diagnostics/TraceLoggerProvider` forwards the host's own `ILogger` warnings and errors to `Trace`, which the
+  Controller's log file records — without it they went to the Console/Debug providers and a WPF process has no
+  console to write them to.
 
 ## Stream Deck Integration
 

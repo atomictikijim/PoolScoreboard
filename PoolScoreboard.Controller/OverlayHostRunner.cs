@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.IO;
+using System.Net.Sockets;
 using Microsoft.Extensions.Hosting;
 using PoolScoreboard.Core;
 using PoolScoreboard.Overlay;
@@ -25,8 +27,27 @@ internal static class OverlayHostRunner
     /// <summary>How long past the requested timeout to wait for the stop task to finish.</summary>
     private static readonly TimeSpan SettleMargin = TimeSpan.FromSeconds(1);
 
-    public static IHost Start(GameManager gameManager) =>
-        Task.Run(() => OverlayHost.Start(gameManager)).GetAwaiter().GetResult();
+    /// <summary>
+    /// Starts the overlay host, returning null when it could not start — almost always because something else
+    /// owns 127.0.0.1:51234, such as a leftover Controller process. A failed bind used to throw out of
+    /// <c>OnStartup</c> and take the whole app down before any window appeared, with nothing in the log; the
+    /// scoreboard is still usable by hand, so startup continues and the reason goes to the log instead.
+    /// </summary>
+    public static IHost? Start(GameManager gameManager)
+    {
+        try
+        {
+            return Task.Run(() => OverlayHost.Start(gameManager)).GetAwaiter().GetResult();
+        }
+        catch (Exception exception) when (exception.GetBaseException() is IOException or SocketException)
+        {
+            Trace.TraceError(
+                $"Overlay host could not start on 127.0.0.1:{OverlayHost.Port}: " +
+                $"{exception.GetBaseException().Message} The overlay and Stream Deck control will not work " +
+                "until the Controller is restarted with that port free.");
+            return null;
+        }
+    }
 
     /// <summary>
     /// Stops and disposes the host, waiting no longer than <paramref name="timeout"/> plus a settle
