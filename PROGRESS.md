@@ -190,6 +190,19 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Whitespace-only names fall back like empty ones on the overlay
+
+- The name pills used `state.home.name || 'HOME'`, which treats a name of only spaces as present, so
+  the pill rendered blank; the winner label went through the same check, so a race-to win by a
+  spaces-only name read " WINS!" instead of a side. Both now share one `displayText(value,
+  fallback)` helper that trims before deciding, giving HOME/AWAY pills and "HOME WINS!" /
+  "AWAY WINS!" — the same fallback the Controller applies with `IsNullOrWhiteSpace`.
+- Team names are trimmed as well, so a spaces-only team name renders nothing instead of blank
+  layout space above the score.
+- Verified live with the home player's name set to three spaces: state carried `'   '` in both
+  `home.name` and `winnerName`, and the overlay showed "HOME"/"AWAY" pills with "HOME WINS!".
+  (The Core does not trim names, so this state really is reachable from the setup screen.)
+
 ### 2026-11-26 — Controller winner line falls back to the side, never a blank name
 
 - `GameViewModel.WinnerAnnouncement` was `$"{state.Winner.Name} wins!"`, so with the name fields
