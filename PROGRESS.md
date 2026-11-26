@@ -194,6 +194,16 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — End-to-end coverage for the shutdown warning reaching the log
+
+- One test joins the two halves that were only tested apart: a hung host (its stop never completes) goes
+  through `OverlayHostRunner.StopAndDispose` with a real `TraceLogFile` attached, then the log file is read
+  back *while the listener is still attached* — in a real shutdown the process exits right after, so a line
+  buffered only in memory would be lost. The same test asserts the call still returns `false` inside its
+  bound (under two seconds for a 100 ms timeout plus the settle margin), which is what stops a hung host from
+  turning the log listener into a hang.
+- Build 0 warnings; 139/139 tests (93 Core + 46 Controller).
+
 ### 2026-11-26 — Cap controller.log and rotate the previous run
 
 - `TraceLogFile.Attach` now checks the log's size before opening it: over 1 MiB, the file moves to

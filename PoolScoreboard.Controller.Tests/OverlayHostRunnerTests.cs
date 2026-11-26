@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.IO;
 using Microsoft.Extensions.Hosting;
 using PoolScoreboard.Controller;
+using PoolScoreboard.Controller.Diagnostics;
 
 namespace PoolScoreboard.Controller.Tests;
 
@@ -60,6 +62,46 @@ public class OverlayHostRunnerTests
         var host = new FakeHost(() => throw new InvalidOperationException("host already gone"));
 
         Assert.False(OverlayHostRunner.StopAndDispose(host, Timeout));
+    }
+
+    [Fact]
+    public void StopAndDispose_WritesTheGiveUpWarningIntoTheLogFileAndStillReturnsWithinItsBound()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "poolscoreboard-hostlog-tests", Guid.NewGuid().ToString("n"));
+        var logPath = Path.Combine(folder, "controller.log");
+
+        try
+        {
+            var stopped = true;
+            var elapsed = TimeSpan.Zero;
+
+            using (var log = new TraceLogFile(logPath))
+            {
+                log.Attach();
+
+                var stopwatch = Stopwatch.StartNew();
+                stopped = OverlayHostRunner.StopAndDispose(
+                    new FakeHost(() => new TaskCompletionSource().Task),
+                    TimeSpan.FromMilliseconds(100));
+                elapsed = stopwatch.Elapsed;
+
+                // Read while the listener is still attached: the warning has to be on disk already,
+                // because the process would be exiting at this point in a real shutdown. The reader has
+                // to permit the open writer (FileShare.ReadWrite) — File.ReadAllText's share mode would
+                // lock the live log out, which is the normal price of the listener holding it open.
+                using var stream = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var reader = new StreamReader(stream);
+                Assert.Contains("did not stop within", reader.ReadToEnd());
+            }
+
+            Assert.False(stopped);
+            Assert.True(elapsed < TimeSpan.FromSeconds(2), $"stop took {elapsed.TotalMilliseconds:0}ms");
+        }
+        finally
+        {
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, recursive: true);
+        }
     }
 
     [Fact]
