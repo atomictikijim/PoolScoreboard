@@ -8,4 +8,11 @@ public class ScoreboardVisibility
     public bool ScoreBarVisible { get; set; } = true;
     public bool BallTrackerVisible { get; set; } = true;
     public bool WinnerBannerVisible { get; set; } = true;
+
+    public ScoreboardVisibility Copy() => new()
+    {
+        ScoreBarVisible = ScoreBarVisible,
+        BallTrackerVisible = BallTrackerVisible,
+        WinnerBannerVisible = WinnerBannerVisible
+    };
 }

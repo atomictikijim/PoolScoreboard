@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
 
@@ -329,6 +330,67 @@ public class GameManagerTests
 
         player.EndCapIcon = null;
         Assert.Equal(2, player.EndCapIconVersion);
+    }
+
+    [Fact]
+    public void GameStateChanged_CarriesASnapshotThatLaterMutationsCannotChange()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+
+        GameState? raised = null;
+        void Capture(object? sender, GameStateChangedEventArgs e) => raised = e.GameState;
+
+        manager.GameStateChanged += Capture;
+        manager.AddPoint(isPlayer1: true);
+        manager.GameStateChanged -= Capture;
+
+        // Mutate afterwards: the snapshot handed to the subscriber must not follow along.
+        manager.PocketBall(3);
+
+        Assert.NotNull(raised);
+        Assert.Equal(1, raised!.Player1Score);
+        Assert.Empty(raised.PocketedBalls);
+        Assert.NotSame(manager.GetCurrentGameState(), raised);
+    }
+
+    [Fact]
+    public void ConcurrentMutations_AreSerializedAndEveryEventCarriesAConsistentSnapshot()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 10_000), CreatePlayer("Bob", 10_000), GameType.NineBall, RaceToMode.Single);
+
+        // Enumerating the pocketed set is what the overlay's SSE serializer does on the raising
+        // thread. Before the lock/snapshot change this threw "Collection was modified" under load,
+        // which surfaced as an HTTP 500 from whichever control endpoint was mutating state.
+        var snapshotSizes = new ConcurrentQueue<int>();
+        manager.GameStateChanged += (_, e) => snapshotSizes.Enqueue(new List<int>(e.GameState.PocketedBalls).Count);
+
+        var failures = new ConcurrentQueue<Exception>();
+        Parallel.For(0, 400, i =>
+        {
+            try
+            {
+                switch (i % 4)
+                {
+                    case 0: manager.AddPoint(isPlayer1: true); break;
+                    case 1: manager.AddPoint(isPlayer1: false); break;
+                    case 2: manager.ToggleBall((i % 15) + 1); break;
+                    default: manager.ToggleCurrentShooter(); break;
+                }
+            }
+            catch (Exception ex)
+            {
+                failures.Enqueue(ex);
+            }
+        });
+
+        Assert.Empty(failures);
+        Assert.All(snapshotSizes, size => Assert.InRange(size, 0, 15));
+
+        var state = manager.GetCurrentGameState();
+        Assert.Equal(100, state.Player1Score);
+        Assert.Equal(100, state.Player2Score);
     }
 
     [Fact]

@@ -428,7 +428,24 @@ public partial class GameViewModel : ObservableObject
 
     private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e)
     {
-        var state = e.GameState;
+        // State changes can be raised from a Kestrel thread — the HTTP control API the Stream Deck
+        // drives mutates the same GameManager the UI is bound to. Everything below touches
+        // WPF-bound state and, through MainWindow's PropertyChanged handler, dependency objects,
+        // which may only be written on the UI thread; without this hop those writes throw
+        // "The calling thread cannot access this object" straight back out of the HTTP request as
+        // a 500. The event payload is a snapshot, so it stays valid while the dispatch is queued.
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
+        {
+            dispatcher.BeginInvoke(new Action(() => ApplyGameState(e.GameState)));
+            return;
+        }
+
+        ApplyGameState(e.GameState);
+    }
+
+    private void ApplyGameState(GameState state)
+    {
 
         // Derived rather than only set by local button clicks — a remote Stream Deck call to
         // /api/control/match/reset mutates GameManager directly, so this is what lets the

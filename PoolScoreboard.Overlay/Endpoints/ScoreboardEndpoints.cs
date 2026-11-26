@@ -23,8 +23,10 @@ internal static class ScoreboardEndpoints
         app.MapGet("/overlay/scoreboard/app.js", () =>
             Results.Content(ReadEmbeddedAsset("scoreboard.js"), "application/javascript"));
 
+        // A snapshot, not the live instance: the mapper copies the pocketed-ball set, and the UI
+        // thread (or a concurrent control-API call) can be mutating that set at the same time.
         app.MapGet("/overlay/api/scoreboard/state", () =>
-            Results.Json(ScoreboardStateMapper.ToDto(gameManager.GetCurrentGameState()), JsonOptions));
+            Results.Json(ScoreboardStateMapper.ToDto(gameManager.GetStateSnapshot()), JsonOptions));
 
         // End-cap icons are served here instead of riding inside the state payload: the SSE
         // snapshot goes out on every operator action, so an embedded base64 logo meant re-sending

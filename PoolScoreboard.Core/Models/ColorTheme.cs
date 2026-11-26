@@ -10,4 +10,13 @@ public class ColorTheme
     public string HomeAccent { get; set; } = "#00d4ff";
     public string AwayAccent { get; set; } = "#00d4ff";
     public string Text { get; set; } = "#f0f0f0";
+
+    public ColorTheme Copy() => new()
+    {
+        HomeBackground = HomeBackground,
+        AwayBackground = AwayBackground,
+        HomeAccent = HomeAccent,
+        AwayAccent = AwayAccent,
+        Text = Text
+    };
 }

@@ -186,6 +186,48 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Fixed: HTTP control API 500s from cross-thread UI updates
+
+**Root cause.** The Stream Deck endpoints run on Kestrel threads and call straight into the shared
+`GameManager`, which raises `GameStateChanged` synchronously on the calling thread. `GameViewModel`
+handled that event on the same thread and raised `PropertyChanged`, and `MainWindow`'s handler for
+`HomeIsCurrentShooter` writes `CurrentShooterToggleButton.Content` — a `DependencyObject` — so WPF's
+thread-affinity check threw `InvalidOperationException: The calling thread cannot access this object
+because a different thread owns it`, from `MainWindow.UpdateCurrentShooterButton`, up through
+`GameViewModel.OnGameStateChanged` and `GameManager.RaiseGameStateChanged`, and back out of the
+endpoint as HTTP 500. Worse than a failed request: the throw aborted `OnGameStateChanged` partway,
+so the live view could be left half-updated (score changed, ball layout not).
+
+**Reproduced** by hammering `/api/control/*` and `/overlay/api/*` concurrently: 6 of 1480 requests
+failed — `shooter/toggle` ×4, `balls/{n}/toggle` ×1, `match/reset` ×1 — matching the one-off 500
+noted during the end-cap verification. The exception text came from a throwaway request-logging
+middleware (removed again once captured).
+
+**Fix, in three layers.**
+- `GameManager` serializes every mutation on a private lock (one instance is driven by the WPF UI,
+  keyboard shortcuts and HTTP at once) and `GameStateChanged` now carries a `GameState.Clone()`
+  snapshot taken under that lock instead of the live instance. Subscribers can hold and read it on
+  any thread, which also removes the latent "Collection was modified" race where an SSE handler
+  enumerated `PocketedBalls` while another request mutated it.
+- `ScoreboardEndpoints`/`CueBallEndpoints` state routes map `GetStateSnapshot()`, not the live object.
+- `GameViewModel.OnGameStateChanged` marshals to `Application.Current.Dispatcher` when the event
+  arrives off the UI thread (`ApplyGameState` holds the former body), so bound properties and
+  `MainWindow`'s dependency-object writes happen where they're allowed.
+- Two read-then-write races closed at the source: new `GameManager.ToggleCurrentShooter()` and
+  `ToggleBall(int)` perform the toggle atomically under the lock, and `ControlEndpoints` call them
+  instead of reading state and then calling `SetCurrentShooter`/`PocketBall`.
+
+**Verified** after the fix, same hammering with zero non-200 responses: 1480 mixed requests, 860
+with a match active, and 1000 shooter-heavy requests with no resets (the path that used to throw) —
+3340 requests, 0 failures. Tests added: `GameStateChanged_CarriesASnapshotThatLaterMutationsCannotChange`
+and `ConcurrentMutations_AreSerializedAndEveryEventCarriesAConsistentSnapshot` (400 parallel mutations
+with an enumerating subscriber). `dotnet build` clean; `dotnet test` 40/40.
+
+**Not changed:** `Player` field writes from the match-setup screen still bypass the lock (atomic
+reference/value writes only — a subscriber can see a stale name/icon for one event, but nothing
+throws), and UI updates now take one dispatcher hop, so a remote change lands a frame later than
+before.
+
 ### 2026-11-26 — End-cap icons moved out of the SSE state payload
 
 - `ScoreboardStateDto.PlayerDto` no longer carries the base64 data URI (`EndCapIcon`); it carries

@@ -13,4 +13,13 @@ public class ScoreboardStyle
     public bool GlossyFinish { get; set; } = true;
     public EndCapStyle EndCapStyle { get; set; } = EndCapStyle.Dot;
     public ShooterIndicatorStyle ShooterIndicatorStyle { get; set; } = ShooterIndicatorStyle.Glow;
+
+    public ScoreboardStyle Copy() => new()
+    {
+        CornerRoundness = CornerRoundness,
+        OverallScale = OverallScale,
+        GlossyFinish = GlossyFinish,
+        EndCapStyle = EndCapStyle,
+        ShooterIndicatorStyle = ShooterIndicatorStyle
+    };
 }

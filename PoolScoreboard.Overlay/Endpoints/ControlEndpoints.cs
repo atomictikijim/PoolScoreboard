@@ -35,9 +35,9 @@ internal static class ControlEndpoints
 
         app.MapGet("/api/control/shooter/toggle", () =>
         {
-            var state = gameManager.GetCurrentGameState();
-            var next = ReferenceEquals(state.CurrentShooter, state.Player1) ? state.Player2 : state.Player1;
-            gameManager.SetCurrentShooter(next);
+            // Atomic inside GameManager: reading the current shooter here and calling
+            // SetCurrentShooter would let two overlapping button presses act on the same read.
+            gameManager.ToggleCurrentShooter();
             return Results.Ok();
         });
 
@@ -70,11 +70,7 @@ internal static class ControlEndpoints
             if (number is < 1 or > 15)
                 return Results.BadRequest("Ball number must be between 1 and 15.");
 
-            var state = gameManager.GetCurrentGameState();
-            if (state.PocketedBalls.Contains(number))
-                gameManager.UnpocketBall(number);
-            else
-                gameManager.PocketBall(number);
+            gameManager.ToggleBall(number);
             return Results.Ok();
         });
 

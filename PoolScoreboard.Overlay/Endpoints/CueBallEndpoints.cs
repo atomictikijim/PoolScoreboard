@@ -23,7 +23,7 @@ internal static class CueBallEndpoints
             Results.Content(ReadEmbeddedAsset("cueball.js"), "application/javascript"));
 
         app.MapGet("/overlay/api/cueball/state", () =>
-            Results.Json(CueBallStateMapper.ToDto(gameManager.GetCurrentGameState()), JsonOptions));
+            Results.Json(CueBallStateMapper.ToDto(gameManager.GetStateSnapshot()), JsonOptions));
 
         app.MapPost("/overlay/api/cueball/contact", (CueBallContactRequest request) =>
         {

@@ -33,4 +33,19 @@ public class Player
     /// without serving a stale logo after the operator picks a new one.
     /// </summary>
     public int EndCapIconVersion { get; private set; }
+
+    /// <summary>
+    /// Copies this player without going through the <see cref="EndCapIcon"/> setter, so copying
+    /// state doesn't look like an artwork change (which would invalidate the overlay's cached icon).
+    /// </summary>
+    public Player Copy() => new()
+    {
+        Id = Id,
+        Name = Name,
+        TeamName = TeamName,
+        RaceToTarget = RaceToTarget,
+        BallGroup = BallGroup,
+        _endCapIcon = _endCapIcon,
+        EndCapIconVersion = EndCapIconVersion
+    };
 }
