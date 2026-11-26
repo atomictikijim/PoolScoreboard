@@ -12,7 +12,6 @@ public class GameState
     public int Player2Score { get; set; }
     public Player? CurrentShooter { get; set; }
     public bool IsGameActive { get; set; }
-    public DateTime StartTime { get; set; }
     public Player? Winner { get; set; }
     public ColorTheme ColorTheme { get; set; } = new();
     public HashSet<int> PocketedBalls { get; set; } = new();
@@ -40,7 +39,6 @@ public class GameState
             Player2Score = Player2Score,
             CurrentShooter = CurrentShooter == Player1 ? player1 : CurrentShooter == Player2 ? player2 : null,
             IsGameActive = IsGameActive,
-            StartTime = StartTime,
             Winner = Winner == Player1 ? player1 : Winner == Player2 ? player2 : null,
             ColorTheme = ColorTheme.Copy(),
             PocketedBalls = new HashSet<int>(PocketedBalls),

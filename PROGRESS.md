@@ -191,6 +191,18 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Remove GameState.StartTime
+
+- `StartTime` was stamped with `DateTime.UtcNow` whenever `InitializeGame` built a new state, and
+  carried through `Clone()`, but nothing read it: the overlay DTO has no start time, neither
+  Controller screen shows one, and no test asserted on it. No match-duration display is planned, so
+  it is gone rather than left as a field that reads like a feature.
+- If a duration or shot clock ever lands, it needs more than the field back: a DTO property and a
+  render spot on the overlay page, a decision on what a pause or a re-rack does to it, and the fact
+  that `ResetGame` already returns to setup (so the clock would restart on the next
+  `InitializeGame`, not continue across a "reset").
+- Build clean, 47/47 tests — no test referenced the field.
+
 ### 2026-11-26 — Remove the unsynchronised state accessor and the unused state id
 
 - `GameManager.GetCurrentGameState()` returned the live `GameState` with no lock. Its last three
@@ -212,10 +224,9 @@ live:
   different reason than the one they were written for. They are replaced by value checks that still
   bite — a later point and a later pocket must not reach the captured payload, and mutating the
   caller's theme must not reach state — and the single-use `CreatePlayer` test helper is inlined.
-- Still dead, deliberately left alone: `GameState.StartTime` is written by `InitializeGame` and
-  copied by `Clone()` but never read anywhere (the DTO has no start time, and no screen shows a
-  match duration). It is a candidate for the same treatment as `Id` if a duration display isn't
-  planned; unlike `Id` it at least records something an operator might want later.
+- `GameState.StartTime` was left in place at the time of this entry as a candidate for the same
+  treatment as `Id`; it was removed in the entry above once no match-duration display turned out to
+  be planned.
 
 ### 2026-11-26 — README/CLAUDE.md drift: overlay URL, control API, GameState shape
 

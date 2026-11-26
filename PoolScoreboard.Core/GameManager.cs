@@ -45,8 +45,7 @@ public class GameManager
                 GameType = gameType,
                 RaceToMode = raceToMode,
                 CurrentShooter = _currentGame.Player1,
-                IsGameActive = true,
-                StartTime = DateTime.UtcNow
+                IsGameActive = true
             };
             CarryOperatorStyling(_currentGame, next);
 
