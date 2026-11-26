@@ -26,6 +26,14 @@ public partial class GameViewModel : ObservableObject
     };
 
     private readonly GameManager _gameManager;
+    private readonly Action? _persist;
+
+    /// <summary>
+    /// True while the constructor copies the restored profile into the properties below. The change
+    /// handlers are suppressed for that window: those values came out of GameManager, so pushing them
+    /// back would be a burst of no-op mutations (and would persist a file for each one).
+    /// </summary>
+    private bool _restoring;
     private readonly Dictionary<int, BallItemViewModel> _allBalls = new();
 
     // --- Match setup (editable before the match starts) ---
@@ -126,15 +134,54 @@ public partial class GameViewModel : ObservableObject
 
     public bool IsSplitRaceTo => SelectedRaceToMode == RaceToMode.Split;
 
-    public GameViewModel(GameManager gameManager)
+    public GameViewModel(GameManager gameManager, Action? persist = null)
     {
         _gameManager = gameManager;
+        _persist = persist;
         _gameManager.GameStateChanged += OnGameStateChanged;
 
+        // Start from whatever GameManager already holds: App restores the saved operator profile into
+        // it before this window exists, so the screen has to show those values rather than defaults.
+        // The backing fields are set directly — no change callbacks, because state already agrees and
+        // re-pushing each field would raise a burst of redundant events on startup.
+        // Game type and Race-To mode are per-match choices, not part of the saved profile, so this
+        // screen's own defaults stay in charge of them (ApplyMatchPreview below pushes them).
+        var restored = _gameManager.GetStateSnapshot();
+
+        _restoring = true;
+        try
+        {
+            ApplyRestoredLook(restored);
+        }
+        finally
+        {
+            _restoring = false;
+        }
+
         BuildBalls();
-        SetupPlayers();
+        SetupPlayers(restored);
         RefreshBallLayout();
         ApplyMatchPreview();
+    }
+
+    private void ApplyRestoredLook(GameState restored)
+    {
+        HomeBackgroundColor = restored.ColorTheme.HomeBackground;
+        AwayBackgroundColor = restored.ColorTheme.AwayBackground;
+        HomeAccentColor = restored.ColorTheme.HomeAccent;
+        AwayAccentColor = restored.ColorTheme.AwayAccent;
+        HomeTextColor = restored.ColorTheme.HomeText;
+        AwayTextColor = restored.ColorTheme.AwayText;
+
+        CornerRoundness = restored.ScoreboardStyle.CornerRoundness;
+        OverallScale = restored.ScoreboardStyle.OverallScale;
+        GlossyFinish = restored.ScoreboardStyle.GlossyFinish;
+        SelectedEndCapStyle = restored.ScoreboardStyle.EndCapStyle;
+        SelectedShooterIndicatorStyle = restored.ScoreboardStyle.ShooterIndicatorStyle;
+
+        ScoreBarVisible = restored.Visibility.ScoreBarVisible;
+        BallTrackerVisible = restored.Visibility.BallTrackerVisible;
+        WinnerBannerVisible = restored.Visibility.WinnerBannerVisible;
     }
 
     partial void OnSelectedGameTypeChanged(GameType oldValue, GameType newValue)
@@ -172,6 +219,9 @@ public partial class GameViewModel : ObservableObject
 
     private void ApplyColorTheme()
     {
+        if (_restoring)
+            return;
+
         _gameManager.SetColorTheme(new ColorTheme
         {
             HomeBackground = HomeBackgroundColor,
@@ -181,6 +231,8 @@ public partial class GameViewModel : ObservableObject
             HomeText = HomeTextColor,
             AwayText = AwayTextColor
         });
+
+        _persist?.Invoke();
     }
 
     [RelayCommand]
@@ -240,6 +292,9 @@ public partial class GameViewModel : ObservableObject
 
     private void ApplyScoreboardStyle()
     {
+        if (_restoring)
+            return;
+
         _gameManager.SetScoreboardStyle(new ScoreboardStyle
         {
             CornerRoundness = CornerRoundness,
@@ -248,6 +303,8 @@ public partial class GameViewModel : ObservableObject
             EndCapStyle = SelectedEndCapStyle,
             ShooterIndicatorStyle = SelectedShooterIndicatorStyle
         });
+
+        _persist?.Invoke();
     }
 
     [RelayCommand]
@@ -372,13 +429,25 @@ public partial class GameViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ToggleScoreBarVisible() => _gameManager.SetScoreBarVisible(!ScoreBarVisible);
+    private void ToggleScoreBarVisible()
+    {
+        _gameManager.SetScoreBarVisible(!ScoreBarVisible);
+        _persist?.Invoke();
+    }
 
     [RelayCommand]
-    private void ToggleBallTrackerVisible() => _gameManager.SetBallTrackerVisible(!BallTrackerVisible);
+    private void ToggleBallTrackerVisible()
+    {
+        _gameManager.SetBallTrackerVisible(!BallTrackerVisible);
+        _persist?.Invoke();
+    }
 
     [RelayCommand]
-    private void ToggleWinnerBannerVisible() => _gameManager.SetWinnerBannerVisible(!WinnerBannerVisible);
+    private void ToggleWinnerBannerVisible()
+    {
+        _gameManager.SetWinnerBannerVisible(!WinnerBannerVisible);
+        _persist?.Invoke();
+    }
 
     [RelayCommand]
     private void NewRack() => _gameManager.ResetBalls();
@@ -442,10 +511,10 @@ public partial class GameViewModel : ObservableObject
         RefreshBallLayout();
     }
 
-    private void SetupPlayers()
+    private void SetupPlayers(GameState restored)
     {
-        HomePlayer = new PlayerViewModel(_gameManager, isHome: true);
-        AwayPlayer = new PlayerViewModel(_gameManager, isHome: false);
+        HomePlayer = new PlayerViewModel(_gameManager, isHome: true, restored.Player1, _persist);
+        AwayPlayer = new PlayerViewModel(_gameManager, isHome: false, restored.Player2, _persist);
 
         // Only for the Race-To mirror: the fields themselves already reach state (and the overlay)
         // through SetPlayerDetails, so pushing the match preview on every keystroke would just

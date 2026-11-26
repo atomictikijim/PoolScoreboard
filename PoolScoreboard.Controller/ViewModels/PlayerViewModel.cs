@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using PoolScoreboard.Core;
+using PoolScoreboard.Core.Models;
 
 namespace PoolScoreboard.Controller.ViewModels;
 
@@ -14,6 +15,10 @@ public partial class PlayerViewModel : ObservableObject
 {
     private readonly GameManager _gameManager;
     private readonly bool _isHome;
+    private readonly Action? _persist;
+
+    /// <summary>Suppresses the push-to-state handlers while the constructor seeds restored values.</summary>
+    private bool _restoring;
 
     [ObservableProperty]
     private string teamName = string.Empty;
@@ -27,10 +32,29 @@ public partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     private string? endCapIconDataUri;
 
-    public PlayerViewModel(GameManager gameManager, bool isHome)
+    public PlayerViewModel(GameManager gameManager, bool isHome, Player? restored = null, Action? persist = null)
     {
         _gameManager = gameManager;
         _isHome = isHome;
+        _persist = persist;
+
+        // These values are already in GameManager (restored from the saved profile), so the pushes are
+        // suppressed rather than re-raised as no-op mutations.
+        if (restored != null)
+        {
+            _restoring = true;
+            try
+            {
+                TeamName = restored.TeamName;
+                PlayerName = restored.Name;
+                RaceToTarget = restored.RaceToTarget;
+                EndCapIconDataUri = restored.EndCapIcon;
+            }
+            finally
+            {
+                _restoring = false;
+            }
+        }
     }
 
     partial void OnTeamNameChanged(string value) => PushToState();
@@ -43,6 +67,12 @@ public partial class PlayerViewModel : ObservableObject
 
     // Each edit re-sends all four fields; GameManager writes only what actually changed (the icon),
     // so re-sending the untouched ones doesn't churn the overlay's cached artwork.
-    private void PushToState() =>
+    private void PushToState()
+    {
+        if (_restoring)
+            return;
+
         _gameManager.SetPlayerDetails(_isHome, PlayerName, TeamName, RaceToTarget, EndCapIconDataUri);
+        _persist?.Invoke();
+    }
 }

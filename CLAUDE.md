@@ -173,8 +173,11 @@ alignment, not a pixel match).
 
 ## Known Simplifications & Future Work
 
-- No persistence yet: game state is in-memory only; no match history or saved player list.
-- No player database: names/teams are typed in per match for now.
+- Persistence covers the operator profile only: `%AppData%\PoolScoreboard\settings.json` holds the
+  colour theme, scoreboard style, element visibility and both players' setup fields, while match
+  state (scores, racks, pocketed balls) stays in memory. There is no match history.
+- No player database: the last two players are restored, but names/teams are typed in rather than
+  chosen from a saved roster.
 
 ## Testing Notes
 

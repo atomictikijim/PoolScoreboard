@@ -13,7 +13,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        _viewModel = new GameViewModel(((App)Application.Current).SharedGameManager);
+        var app = (App)Application.Current;
+        _viewModel = new GameViewModel(app.SharedGameManager, app.RequestProfileSave);
 
         DataContext = _viewModel;
 

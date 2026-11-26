@@ -177,18 +177,46 @@ live:
 
 ## Known Gaps & Simplifications
 
-- No persistence: match state is in-memory only.
-- No player database: names/teams are typed in per match.
+- No match persistence: scores, ball groups and pocketed balls are in-memory only. The operator
+  profile — colour theme, scoreboard style, element visibility and both players' name/team/Race-To/
+  end-cap icon — is saved to `%AppData%\PoolScoreboard\settings.json` and restored on launch.
+- No player roster to choose from: the last match's two players come back, but there is no list of
+  past players to pick a name from.
 - Ball colors in the Controller's live view are placeholder standard billiard-ball colors,
   not yet informed by the WNT visual reference.
-- No persistence for `ScoreboardStyle`/element-visibility/`ColorTheme` choices between app runs —
-  they survive starting and resetting matches, but a Controller restart drops back to defaults.
-- Flag end-caps are picked per match through "Choose Flag..." (bundled country and US-state SVGs)
-  rather than coming from a `Player` field — there is still no nationality/flag property on
-  `Player`, so a returning player's flag has to be re-picked each match.
+- Flag end-caps are artwork ("Choose Flag..." bundles country and US-state SVGs) stored as the
+  player's `EndCapIcon`, now saved and restored with the player. There is still no nationality/flag
+  property on `Player`, so nothing chooses a flag from a player's name.
+- Settings are one flat profile in `%AppData%`: there is no per-machine/per-profile selection, and
+  the icon files are replaced rather than versioned, so a cleared "Choose Icon" deletes the file.
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-26 — Remember the operator's look and the last two players between runs
+
+- `OperatorProfile` (Core, `Persistence/`) is the saveable slice of a state snapshot: `ColorTheme`,
+  `ScoreboardStyle`, element visibility and both players' name/team/Race-To. `Capture` reads it from
+  a snapshot, `ApplyTo` writes it back through `GameManager`'s mutation methods so the overlay sees
+  restored values by the same path as operator edits. Scores, ball groups and pocketed balls stay
+  per-match and are deliberately not saved.
+- `OperatorSettingsStore` (Controller) writes `%AppData%\PoolScoreboard\settings.json` and keeps
+  end-cap icons as files under `icons/`. Icons stay out of the JSON on purpose: a logo can be ~1.5 MB
+  of base64 while the settings file is rewritten whenever a colour or a name changes. Writes go to a
+  temp file and are moved into place, and an unreadable/unparseable file is ignored rather than
+  blocking startup.
+- Saves are debounced 750 ms (`App.RequestProfileSave`) and flushed on exit, so dragging a slider or
+  typing a name produces one write, not one per keystroke.
+- `App` restores the profile into `SharedGameManager` before any window exists; `GameViewModel` and
+  `PlayerViewModel` then seed their fields from that state with their change handlers suppressed,
+  since those values came out of state and pushing them back would be a burst of no-op mutations.
+  Game type and Race-To mode remain per-match choices and are not saved.
+- Verified against the running Controller, not just unit tests: set names/teams/colours and toggled
+  Score Bar off from the setup screen and confirmed `settings.json` matched; relaunched and got back
+  both names and teams, Race-To 7/5, all six colours, roundness 40 / scale 130 / glossy off / Both
+  shooter indicator, `scoreBarVisible: false`, and a served end-cap icon URL whose bytes are the
+  original 16,877-byte PNG. Toggling visibility again rewrote the JSON and kept the icon. Build 0
+  warnings, 57/57 tests (3 new).
 
 ### 2026-11-26 — Normalise names once, in Core, instead of in every consumer
 
