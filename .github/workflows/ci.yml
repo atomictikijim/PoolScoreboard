@@ -1,0 +1,48 @@
+name: CI
+
+# Every push, on any branch, plus a manual run from the Actions tab.
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    # The Controller targets net8.0-windows with WPF, so the whole-solution build needs a
+    # Windows runner — ubuntu-latest cannot build the WPF project.
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # Keyed on the project files (and the shared version props) so a dependency or version
+      # change invalidates the cache rather than reusing stale packages.
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore PoolScoreboard.sln
+
+      - name: Build
+        run: dotnet build PoolScoreboard.sln --configuration Release --no-restore
+
+      - name: Test (Core)
+        run: dotnet test PoolScoreboard.Core.Tests/PoolScoreboard.Core.Tests.csproj --configuration Release --no-build --logger "console;verbosity=normal"
