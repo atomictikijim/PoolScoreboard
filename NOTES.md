@@ -149,6 +149,13 @@ caps aren't backed by any field in the current domain model (`Player` only has `
 `TeamName`, no nationality) — no model change made; worth asking the developer whether flags
 should become a real feature or stay a decorative placeholder if this styling is adopted.
 
+**Superseded 2026-11-26:** flags became a real feature rather than a decorative placeholder.
+`Player.EndCapIcon` now holds whichever team logo or flag the operator picks (as a data URI),
+served to the overlay from `/overlay/api/players/{id}/icon` and cache-busted by
+`Player.EndCapIconVersion` — see commit `f0b4f63` and PROGRESS.md. The nationality part stays
+open: there is still no country field, so a flag is artwork the operator chose, not something
+derived from a player's name.
+
 ## 2026-08-13 — Phase 3 overlay: SSE over polling, embedded assets over wwwroot
 
 **Decision:** For `/overlay/scoreboard` live updates, used Server-Sent Events (native
