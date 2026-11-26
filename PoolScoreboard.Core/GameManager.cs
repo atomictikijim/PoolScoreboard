@@ -28,44 +28,31 @@ public class GameManager
 
     public event EventHandler<GameStateChangedEventArgs>? GameStateChanged;
 
-    public void InitializeGame(Player player1, Player player2, GameType gameType, RaceToMode raceToMode)
-    {
-        lock (_sync)
-        {
-            InitializeGameLocked(player1, player2, gameType, raceToMode);
-        }
-    }
-
     /// <summary>
     /// Starts the match with the two players already in state — the ones the setup screen has been
-    /// writing through <see cref="SetPlayerDetails" /> — so the screen never holds a copy of them.
+    /// writing through <see cref="SetPlayerDetails" />, so the screen never holds a copy of them.
     /// </summary>
     public void InitializeGame(GameType gameType, RaceToMode raceToMode)
     {
         lock (_sync)
         {
-            InitializeGameLocked(_currentGame.Player1, _currentGame.Player2, gameType, raceToMode);
+            _pointHistory.Clear();
+
+            var next = new GameState
+            {
+                Player1 = _currentGame.Player1,
+                Player2 = _currentGame.Player2,
+                GameType = gameType,
+                RaceToMode = raceToMode,
+                CurrentShooter = _currentGame.Player1,
+                IsGameActive = true,
+                StartTime = DateTime.UtcNow
+            };
+            CarryOperatorStyling(_currentGame, next);
+
+            _currentGame = next;
+            RaiseGameStateChanged(_currentGame.Clone());
         }
-    }
-
-    private void InitializeGameLocked(Player player1, Player player2, GameType gameType, RaceToMode raceToMode)
-    {
-        _pointHistory.Clear();
-
-        var next = new GameState
-        {
-            Player1 = player1,
-            Player2 = player2,
-            GameType = gameType,
-            RaceToMode = raceToMode,
-            CurrentShooter = player1,
-            IsGameActive = true,
-            StartTime = DateTime.UtcNow
-        };
-        CarryOperatorStyling(_currentGame, next);
-
-        _currentGame = next;
-        RaiseGameStateChanged(_currentGame.Clone());
     }
 
     /// <summary>

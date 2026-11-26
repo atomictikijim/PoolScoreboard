@@ -12,20 +12,35 @@ public class GameManagerTests
         RaceToTarget = raceToTarget
     };
 
+    /// <summary>
+    /// A manager with a match in progress, set up the way the setup screen does it: write both
+    /// players through <see cref="GameManager.SetPlayerDetails" />, then start from them. There is no
+    /// "bring your own players" entry point any more, so the tests exercise the path the operator's
+    /// START MATCH uses.
+    /// </summary>
+    private static GameManager NewMatch(
+        GameType gameType = GameType.NineBall,
+        RaceToMode raceToMode = RaceToMode.Single,
+        int homeRaceTo = 5,
+        int awayRaceTo = 5)
+    {
+        var manager = new GameManager();
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, homeRaceTo, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, awayRaceTo, endCapIcon: null);
+        manager.InitializeGame(gameType, raceToMode);
+        return manager;
+    }
+
     [Fact]
     public void InitializeGame_SetsUpActiveGameWithPlayer1AsCurrentShooter()
     {
-        var manager = new GameManager();
-        var player1 = CreatePlayer("Alice", 5);
-        var player2 = CreatePlayer("Bob", 5);
-
-        manager.InitializeGame(player1, player2, GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         var state = manager.GetCurrentGameState();
         Assert.True(state.IsGameActive);
-        Assert.Same(player1, state.Player1);
-        Assert.Same(player2, state.Player2);
-        Assert.Same(player1, state.CurrentShooter);
+        Assert.Equal("Alice", state.Player1.Name);
+        Assert.Equal("Bob", state.Player2.Name);
+        Assert.Same(state.Player1, state.CurrentShooter);
         Assert.Equal(0, state.Player1Score);
         Assert.Equal(0, state.Player2Score);
         Assert.Null(state.Winner);
@@ -36,8 +51,7 @@ public class GameManagerTests
     [Fact]
     public void AddPoint_IncrementsCorrectPlayersScore()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         manager.AddPoint(isPlayer1: true);
         manager.AddPoint(isPlayer1: false);
@@ -51,8 +65,7 @@ public class GameManagerTests
     [Fact]
     public void AddPoint_RaisesGameStateChanged()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         var raised = 0;
         manager.GameStateChanged += (_, _) => raised++;
@@ -65,8 +78,7 @@ public class GameManagerTests
     [Fact]
     public void AddPoint_Player1WinsAtOwnRaceToTarget_SingleMode()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 3), CreatePlayer("Bob", 3), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch(homeRaceTo: 3, awayRaceTo: 3);
 
         manager.AddPoint(true);
         manager.AddPoint(true);
@@ -80,25 +92,21 @@ public class GameManagerTests
     [Fact]
     public void AddPoint_SplitMode_PlayersWinAtDifferentTargets()
     {
-        var manager = new GameManager();
-        var player1 = CreatePlayer("Alice", 2);
-        var player2 = CreatePlayer("Bob", 5);
-        manager.InitializeGame(player1, player2, GameType.NineBall, RaceToMode.Split);
+        var manager = NewMatch(raceToMode: RaceToMode.Split, homeRaceTo: 2, awayRaceTo: 5);
 
         manager.AddPoint(true);
         manager.AddPoint(true);
 
         var state = manager.GetCurrentGameState();
         Assert.False(state.IsGameActive);
-        Assert.Same(player1, state.Winner);
+        Assert.Same(state.Player1, state.Winner);
         Assert.Equal(2, state.Player1Score);
     }
 
     [Fact]
     public void AddPoint_DoesNothingWhenGameIsNotActive()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 1), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Split);
+        var manager = NewMatch(raceToMode: RaceToMode.Split, homeRaceTo: 1);
 
         manager.AddPoint(true); // Alice wins immediately at race-to 1
 
@@ -112,8 +120,7 @@ public class GameManagerTests
     [Fact]
     public void UndoPoint_ReversesTheMostRecentlyScoredPoint_NotTheLeader()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         manager.AddPoint(true);
         manager.AddPoint(true);
@@ -129,8 +136,7 @@ public class GameManagerTests
     [Fact]
     public void UndoPoint_WalksBackThroughPointsInReverseOrder()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         manager.AddPoint(true);
         manager.AddPoint(false);
@@ -148,8 +154,7 @@ public class GameManagerTests
     [Fact]
     public void UndoPoint_AtATie_ReversesTheMostRecentPoint()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         manager.AddPoint(true);
         manager.AddPoint(false);
@@ -164,8 +169,7 @@ public class GameManagerTests
     [Fact]
     public void UndoPoint_AfterTheWinningPoint_ReactivatesTheMatch()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 1), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Split);
+        var manager = NewMatch(raceToMode: RaceToMode.Split, homeRaceTo: 1);
 
         manager.AddPoint(true); // Alice reaches race-to 1, match ends
         Assert.False(manager.GetCurrentGameState().IsGameActive);
@@ -181,8 +185,7 @@ public class GameManagerTests
     [Fact]
     public void UndoPoint_DoesNothingAfterResetGame()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
         manager.AddPoint(true);
         manager.AddPoint(true);
 
@@ -198,8 +201,7 @@ public class GameManagerTests
     [Fact]
     public void UndoPoint_DoesNothingWhenNoPointsScored()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         manager.UndoPoint();
 
@@ -211,8 +213,7 @@ public class GameManagerTests
     [Fact]
     public void ResetGame_ClearsScoresWinnerAndCurrentShooter()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
         manager.AddPoint(true);
 
         manager.ResetGame();
@@ -253,8 +254,7 @@ public class GameManagerTests
     [Fact]
     public void ResetGame_KeepsTheOperatorsColorThemeStyleAndVisibility()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.EightBall, RaceToMode.Single);
+        var manager = NewMatch(GameType.EightBall);
         manager.SetColorTheme(new ColorTheme
         {
             HomeBackground = "#111111",
@@ -308,8 +308,7 @@ public class GameManagerTests
     [Fact]
     public void ResetGame_KeepsTheChosenGameTypeAndRaceToMode()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 7), GameType.NineBall, RaceToMode.Split);
+        var manager = NewMatch(raceToMode: RaceToMode.Split, homeRaceTo: 5, awayRaceTo: 7);
         manager.AddPoint(isPlayer1: true);
 
         // The overlay previews these two after a reset, so they have to survive it — otherwise the
@@ -335,7 +334,7 @@ public class GameManagerTests
 
         // Starting a match resets the scoreboard's contents, not the operator's look — the same
         // rule ResetGame follows, so hiding the score bar before START MATCH sticks.
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
 
         var state = manager.GetStateSnapshot();
         Assert.True(state.IsGameActive);
@@ -353,51 +352,44 @@ public class GameManagerTests
     [InlineData(BallGroup.Stripes, BallGroup.Solids)]
     public void AssignBallGroup_EightBall_FlipsOtherPlayerToComplement(BallGroup assigned, BallGroup expectedOther)
     {
-        var manager = new GameManager();
-        var player1 = CreatePlayer("Alice", 5);
-        var player2 = CreatePlayer("Bob", 5);
-        manager.InitializeGame(player1, player2, GameType.EightBall, RaceToMode.Single);
+        var manager = NewMatch(GameType.EightBall);
 
         manager.AssignBallGroup(isHome: true, assigned);
 
-        Assert.Equal(assigned, player1.BallGroup);
-        Assert.Equal(expectedOther, player2.BallGroup);
+        var state = manager.GetCurrentGameState();
+        Assert.Equal(assigned, state.Player1.BallGroup);
+        Assert.Equal(expectedOther, state.Player2.BallGroup);
     }
 
     [Fact]
     public void AssignBallGroup_IgnoredForNonEightBallGames()
     {
-        var manager = new GameManager();
-        var player1 = CreatePlayer("Alice", 5);
-        var player2 = CreatePlayer("Bob", 5);
-        manager.InitializeGame(player1, player2, GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch(GameType.NineBall);
 
         manager.AssignBallGroup(isHome: true, BallGroup.Solids);
 
-        Assert.Equal(BallGroup.Unassigned, player1.BallGroup);
-        Assert.Equal(BallGroup.Unassigned, player2.BallGroup);
+        var state = manager.GetCurrentGameState();
+        Assert.Equal(BallGroup.Unassigned, state.Player1.BallGroup);
+        Assert.Equal(BallGroup.Unassigned, state.Player2.BallGroup);
     }
 
     [Fact]
     public void AssignBallGroup_ReassigningOtherPlayerFlipsBothBack()
     {
-        var manager = new GameManager();
-        var player1 = CreatePlayer("Alice", 5);
-        var player2 = CreatePlayer("Bob", 5);
-        manager.InitializeGame(player1, player2, GameType.EightBall, RaceToMode.Single);
+        var manager = NewMatch(GameType.EightBall);
 
         manager.AssignBallGroup(isHome: true, BallGroup.Solids);
         manager.AssignBallGroup(isHome: false, BallGroup.Solids);
 
-        Assert.Equal(BallGroup.Stripes, player1.BallGroup);
-        Assert.Equal(BallGroup.Solids, player2.BallGroup);
+        var state = manager.GetCurrentGameState();
+        Assert.Equal(BallGroup.Stripes, state.Player1.BallGroup);
+        Assert.Equal(BallGroup.Solids, state.Player2.BallGroup);
     }
 
     [Fact]
     public void PocketBallAndUnpocketBall_ToggleMembershipInPocketedSet()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         manager.PocketBall(7);
         manager.PocketBall(9);
@@ -430,8 +422,7 @@ public class GameManagerTests
     [Fact]
     public void GameStateChanged_CarriesASnapshotThatLaterMutationsCannotChange()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         GameState? raised = null;
         void Capture(object? sender, GameStateChangedEventArgs e) => raised = e.GameState;
@@ -452,8 +443,7 @@ public class GameManagerTests
     [Fact]
     public void ConcurrentPoints_RaiseSnapshotsInMutationOrder()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 10_000), CreatePlayer("Bob", 10_000), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch(homeRaceTo: 10_000, awayRaceTo: 10_000);
 
         // Events are raised under the state lock, so this list is appended to by one thread at a
         // time and the scores must arrive as 1,2,3... — an out-of-order delivery would show up as a
@@ -469,8 +459,7 @@ public class GameManagerTests
     [Fact]
     public void ConcurrentMutations_AreSerializedAndEveryEventCarriesAConsistentSnapshot()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 10_000), CreatePlayer("Bob", 10_000), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch(homeRaceTo: 10_000, awayRaceTo: 10_000);
 
         // Enumerating the pocketed set is what the overlay's SSE serializer does on the raising
         // thread. Before the lock/snapshot change this threw "Collection was modified" under load,
@@ -508,8 +497,7 @@ public class GameManagerTests
     [Fact]
     public void SetColorTheme_UpdatesGameStateColorTheme()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
         var theme = new ColorTheme { HomeBackground = "#000000", AwayBackground = "#222222", HomeAccent = "#ff0000", AwayAccent = "#0000ff", Text = "#ffffff" };
 
         manager.SetColorTheme(theme);
@@ -531,8 +519,7 @@ public class GameManagerTests
     [Fact]
     public void ResetBalls_ClearsPocketedBalls()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
         manager.PocketBall(1);
         manager.PocketBall(2);
 
@@ -544,8 +531,7 @@ public class GameManagerTests
     [Fact]
     public void InitializeGame_DefaultsToFullyRoundedVisibleStyle()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         var state = manager.GetCurrentGameState();
         Assert.Equal(100, state.ScoreboardStyle.CornerRoundness);
@@ -561,8 +547,7 @@ public class GameManagerTests
     [Fact]
     public void SetScoreboardStyle_UpdatesGameStateScoreboardStyle()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
         var style = new ScoreboardStyle
         {
             CornerRoundness = 40,
@@ -587,8 +572,7 @@ public class GameManagerTests
     [InlineData(140, 100)]
     public void SetScoreboardStyle_ClampsCornerRoundnessToValidRange(int input, int expected)
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         manager.SetScoreboardStyle(new ScoreboardStyle { CornerRoundness = input });
 
@@ -600,8 +584,7 @@ public class GameManagerTests
     [InlineData(500, 200)]
     public void SetScoreboardStyle_ClampsOverallScaleToValidRange(int input, int expected)
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         manager.SetScoreboardStyle(new ScoreboardStyle { OverallScale = input });
 
@@ -611,8 +594,7 @@ public class GameManagerTests
     [Fact]
     public void SetScoreBarVisible_UpdatesVisibilityAndRaisesGameStateChanged()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
         var raised = 0;
         manager.GameStateChanged += (_, _) => raised++;
 
@@ -625,8 +607,7 @@ public class GameManagerTests
     [Fact]
     public void SetBallTrackerVisible_UpdatesVisibility()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         manager.SetBallTrackerVisible(false);
 
@@ -649,16 +630,13 @@ public class GameManagerTests
     [Fact]
     public void SetMatchPreview_DoesNothingWhileGameIsActive()
     {
-        var manager = new GameManager();
-        var player1 = CreatePlayer("Alice", 5);
-        var player2 = CreatePlayer("Bob", 5);
-        manager.InitializeGame(player1, player2, GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         manager.SetMatchPreview(GameType.TenBall, RaceToMode.Split);
 
         var state = manager.GetCurrentGameState();
-        Assert.Same(player1, state.Player1);
-        Assert.Same(player2, state.Player2);
+        Assert.Equal("Alice", state.Player1.Name);
+        Assert.Equal("Bob", state.Player2.Name);
         Assert.Equal(GameType.NineBall, state.GameType);
         Assert.Equal(RaceToMode.Single, state.RaceToMode);
     }
@@ -768,8 +746,7 @@ public class GameManagerTests
     [Fact]
     public void SetWinnerBannerVisible_UpdatesVisibility()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         manager.SetWinnerBannerVisible(false);
 
@@ -779,8 +756,7 @@ public class GameManagerTests
     [Fact]
     public void SetCueBallSpin_SetsValue()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         manager.SetCueBallSpin(0.25, 0.75);
 
@@ -793,8 +769,7 @@ public class GameManagerTests
     [Fact]
     public void SetCueBallSpin_ClampsOutOfRangeValues()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
 
         manager.SetCueBallSpin(-0.5, 1.5);
 
@@ -807,8 +782,7 @@ public class GameManagerTests
     [Fact]
     public void ClearCueBallSpin_ClearsValue()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
         manager.SetCueBallSpin(0.5, 0.5);
 
         manager.ClearCueBallSpin();
@@ -819,8 +793,7 @@ public class GameManagerTests
     [Fact]
     public void AddPoint_ClearsCueBallSpin()
     {
-        var manager = new GameManager();
-        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
+        var manager = NewMatch();
         manager.SetCueBallSpin(0.5, 0.5);
 
         manager.AddPoint(isPlayer1: true);

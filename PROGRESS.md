@@ -186,6 +186,22 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Drop the player-carrying InitializeGame overload
+
+- `InitializeGame(Player, Player, GameType, RaceToMode)` had no production caller once START MATCH
+  began starting from the players already in state, so it only existed to let the tests inject their
+  own — a second entry point whose players had to be built outside the lock, next to the
+  `SetPlayerDetails` path the app actually uses. Both it and the private `InitializeGameLocked`
+  helper are gone; `InitializeGame(gameType, raceToMode)` does the work directly.
+- The tests now build matches the way the setup screen does: a `NewMatch(...)` helper writes both
+  players through `SetPlayerDetails`, then calls `InitializeGame`. That also means every
+  `InitializeGame` test exercises the adoption of the state players rather than a bypass of it.
+- Two assertions changed meaning as a result: `Assert.Same(player1, state.Player1)` in the setup test
+  and `Assert.Same(player1, state.Winner)` in the split-mode test. The first is now covered by the
+  names/shooter assertions (plus `SetPlayerDetails_ValuesSurviveStartingTheMatchFromTheStatePlayers`),
+  the second compares `state.Player1` to `state.Winner` instead of to a locally held player.
+- Build clean, 0 warnings; 47/47 tests, same names and same coverage otherwise.
+
 ### 2026-11-26 — Reset keeps the chosen game type and Race-To mode
 
 - `ResetGame` builds a fresh state, and `GameType`/`RaceToMode` were going back to the enum defaults
