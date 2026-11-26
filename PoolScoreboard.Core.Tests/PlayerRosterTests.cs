@@ -101,43 +101,34 @@ public class PlayerRosterTests
     }
 
     [Fact]
-    public void Find_LooksUpByIdAndByName()
+    public void FindByName_MatchesIgnoringCaseAndSpace()
     {
         var roster = new PlayerRoster();
         roster.Remember("Alice", "Blue Cuers", 5, "a");
 
-        Assert.Equal("a", roster.Find("a")!.Id);
-        Assert.Null(roster.Find("missing"));
-        Assert.Null(roster.Find(null));
         Assert.Equal("a", roster.FindByName("alice")!.Id);
         Assert.Null(roster.FindByName("  "));
+        Assert.Null(roster.FindByName(null));
     }
 
     [Fact]
-    public void Forget_RemovesOnlyThatPlayer()
+    public void Remember_CollapsesDuplicateNamesAlreadyInTheList()
     {
-        var roster = new PlayerRoster();
-        roster.Remember("Alice", "", 5, "a");
-        roster.Remember("Bob", "", 5, "b");
+        var roster = new PlayerRoster
+        {
+            Players =
+            {
+                new RosterEntry { Id = "first", Name = "Alice", TeamName = "Blue Cuers", RaceToTarget = 7 },
+                new RosterEntry { Id = "duplicate", Name = "alice", TeamName = "Old Team", RaceToTarget = 3 }
+            }
+        };
 
-        Assert.True(roster.Forget("a"));
-        Assert.False(roster.Forget("a"));
-        Assert.False(roster.Forget(null));
-        Assert.Equal(new[] { "Bob" }, roster.Players.Select(p => p.Name));
-    }
+        var entry = roster.Remember("Alice", "New Team", 5, "unused")!;
 
-    [Fact]
-    public void Search_MatchesNameOrTeamCaseInsensitively_AndKeepsRecencyOrder()
-    {
-        var roster = new PlayerRoster();
-        roster.Remember("Alice", "Blue Cuers", 5, "a");
-        roster.Remember("Bob", "Blue Rackers", 5, "b");
-        roster.Remember("Cara", "Green Baize", 5, "c");
-
-        Assert.Equal(new[] { "Bob", "Alice" }, roster.Search("blue").Select(p => p.Name));
-        Assert.Equal(new[] { "Cara" }, roster.Search(" baize ").Select(p => p.Name));
-        Assert.Equal(3, roster.Search(null).Count);
-        Assert.Empty(roster.Search("nobody"));
+        Assert.Single(roster.Players);
+        Assert.Equal("first", entry.Id);
+        Assert.Equal("New Team", roster.Players[0].TeamName);
+        Assert.Equal(5, roster.Players[0].RaceToTarget);
     }
 
     [Fact]

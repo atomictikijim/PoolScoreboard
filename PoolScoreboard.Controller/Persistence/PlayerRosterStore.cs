@@ -21,14 +21,12 @@ public sealed class PlayerRosterStore
 
     public PlayerRosterStore(string? rootFolder = null)
     {
-        RootFolder = rootFolder ?? Path.Combine(
+        var root = rootFolder ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "PoolScoreboard");
-        _iconsFolder = Path.Combine(RootFolder, IconsFolderName);
-        RosterPath = Path.Combine(RootFolder, "roster.json");
+        _iconsFolder = Path.Combine(root, IconsFolderName);
+        RosterPath = Path.Combine(root, "roster.json");
     }
-
-    public string RootFolder { get; }
 
     public string RosterPath { get; }
 
@@ -176,7 +174,7 @@ public sealed class PlayerRosterStore
         _icons[entryId] = new PersistedIcon { File = fileName, Mime = mime };
     }
 
-    public void ForgetIcon(string entryId)
+    private void ForgetIcon(string entryId)
     {
         if (_icons.Remove(entryId, out var icon))
             DeleteIconFile(icon);
@@ -207,8 +205,6 @@ public sealed class PlayerRosterStore
 
     private sealed class PersistedRoster
     {
-        public int Version { get; set; } = 1;
-
         public List<PersistedRosterEntry>? Players { get; set; } = new();
     }
 

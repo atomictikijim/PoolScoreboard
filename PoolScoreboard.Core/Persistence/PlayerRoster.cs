@@ -27,11 +27,6 @@ public class PlayerRoster
 
     public List<RosterEntry> Players { get; set; } = new();
 
-    public RosterEntry? Find(string? id) =>
-        string.IsNullOrEmpty(id)
-            ? null
-            : Players.FirstOrDefault(player => string.Equals(player.Id, id, StringComparison.Ordinal));
-
     /// <summary>
     /// A returning player is the same person when the name matches, ignoring case and surrounding
     /// space. Team is deliberately not part of the identity: a player can change team between matches
@@ -56,15 +51,11 @@ public class PlayerRoster
         if (string.IsNullOrEmpty(trimmedName) || string.IsNullOrWhiteSpace(newId))
             return null;
 
-        var entry = FindByName(trimmedName);
-        if (entry == null)
-        {
-            entry = new RosterEntry { Id = newId };
-        }
-        else
-        {
-            Players.Remove(entry);
-        }
+        var entry = FindByName(trimmedName) ?? new RosterEntry { Id = newId };
+
+        // Every match goes, not just the first: a roster file that already holds the same name twice
+        // (hand-edited, or written before this rule existed) must end up with exactly one entry.
+        Players.RemoveAll(player => string.Equals(player.Name, trimmedName, StringComparison.OrdinalIgnoreCase));
 
         entry.Name = trimmedName;
         entry.TeamName = teamName?.Trim() ?? string.Empty;
@@ -77,22 +68,4 @@ public class PlayerRoster
         return entry;
     }
 
-    public bool Forget(string? id)
-    {
-        var entry = Find(id);
-        return entry != null && Players.Remove(entry);
-    }
-
-    /// <summary>Matches names or teams containing <paramref name="query"/>, keeping the most-recent order.</summary>
-    public IReadOnlyList<RosterEntry> Search(string? query)
-    {
-        var trimmed = query?.Trim();
-        if (string.IsNullOrEmpty(trimmed))
-            return Players;
-
-        return Players
-            .Where(player => player.Name.Contains(trimmed, StringComparison.OrdinalIgnoreCase)
-                          || player.TeamName.Contains(trimmed, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-    }
 }

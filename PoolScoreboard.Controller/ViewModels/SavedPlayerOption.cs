@@ -8,7 +8,4 @@ public sealed record SavedPlayerOption(string Id, string Name, string TeamName, 
 {
     public string DisplayName =>
         string.IsNullOrWhiteSpace(TeamName) ? Name : $"{Name} — {TeamName}";
-
-    /// <summary>ComboBox without a display member still shows something usable.</summary>
-    public override string ToString() => DisplayName;
 }

@@ -194,6 +194,25 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Roster review: names can't duplicate, unused API removed
+
+- `Remember` now removes *every* entry matching the name before inserting the updated one. Repeated
+  remembers (START MATCH, then the window closing) were already idempotent — the match kept the entry
+  and its id — but a roster file that already held the same name twice, hand-edited or written before
+  the rule existed, would have kept the stale copy forever.
+- Removed what nothing used: `PlayerRoster.Find`/`Forget`/`Search`, `PlayerRosterStore.ForgetIcon`
+  (now private) and its `RootFolder` property, `SavedPlayerOption.ToString`, and the roster JSON's
+  unread `version` field. Their tests went with them; one test was added for the duplicate collapse.
+- Verified in the running Controller: typed both sides without starting a match and closed the
+  window — `roster.json` appeared only at that point, with both players, so the `Closed` handler is
+  what wrote it; a second remember (START MATCH on the restored roster) left the file identical in
+  content, ids and order.
+- Found while checking, and left alone as a separate issue: the process does not exit after its window
+  closes. `OnExit` runs (both JSON files are written at close time) and the overlay port stops
+  answering, but the process lingers with ~58 threads until killed. Pre-existing — the same thing was
+  seen earlier in the session before the roster existed.
+- Build 0 warnings; 120/120 tests (89 Core + 31 Controller).
+
 ### 2026-11-26 — A saved player roster instead of only the last two players
 
 - `PlayerRoster` (Core, `Persistence/`) is the saved-player list: `Remember` adds or updates a player
