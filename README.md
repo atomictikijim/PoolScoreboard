@@ -53,8 +53,9 @@ dotnet run --project PoolScoreboard.Controller/PoolScoreboard.Controller.csproj
 ```
 
 Add the overlay as an OBS **Browser Source** pointed at the local URL the Controller
-prints on startup (e.g. `http://localhost:5000/overlay/scoreboard`), and the cue-ball
-overlay as a second, separate Browser Source (e.g. `http://localhost:5000/overlay/cueball`).
+prints on startup — `http://127.0.0.1:51234/overlay/scoreboard` — and the cue-ball
+overlay as a second, separate Browser Source at
+`http://127.0.0.1:51234/overlay/cueball`.
 
 ## Architecture
 
@@ -80,8 +81,9 @@ overlay as a second, separate Browser Source (e.g. `http://localhost:5000/overla
 - `/overlay/scoreboard` — OBS browser source: scores, race-to, shooter indicator, ball
   display, operator-set colors.
 - `/overlay/cueball` — OBS browser source: cue ball + click-to-place red spin dot.
-- `/api/control/*` — local-only HTTP endpoints for Stream Deck buttons (increment/decrement
-  score, toggle shooter, assign ball group, new rack, reset match).
+- `/api/control/*` — local-only HTTP endpoints for Stream Deck buttons (add a point per side,
+  undo the last point, toggle shooter, assign ball group, toggle a ball's pocketed state, new
+  rack, reset match).
 - Bound to `localhost` only — never reaches out to the internet, and nothing outside the
   machine can reach it either.
 

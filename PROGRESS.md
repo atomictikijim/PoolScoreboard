@@ -191,6 +191,20 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — README/CLAUDE.md drift: overlay URL, control API, GameState shape
+
+- README's Quick Start pointed OBS at `http://localhost:5000/...`, which is neither the port nor
+  the address the app uses: the server binds `127.0.0.1:51234` (`OverlayHost.Port`), and that is
+  what the Controller prints. Both browser-source examples now use the real URL.
+- README and CLAUDE.md both described the control API as "increment/decrement score". There is no
+  decrement route — it is `/api/control/score/{home,away}/add` plus `/api/control/score/undo`,
+  and undo now reverses the most recently scored point whichever side scored it, including one
+  that ended the match. Both now list add/undo, and the per-ball pocketed toggle that was missing
+  from the summary.
+- CLAUDE.md's `GameState` shape was missing `ScoreboardStyle`, `Visibility` and `CueBallSpin`,
+  which have been part of the model since the styling, show/hide and cue-ball work.
+- Docs only; no code changed.
+
 ### 2026-11-26 — Docs catch-up: reset behaviour, overlay toggles, current status
 
 - "Reset Match" stopped being destructive to the operator's setup when `ResetGame` began carrying

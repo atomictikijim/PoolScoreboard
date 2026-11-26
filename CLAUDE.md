@@ -72,8 +72,10 @@ dotnet clean
   itself is never assigned to a group and always renders center.
 - `Player` — `Name`, `TeamName` (optional), `RaceToTarget`, `BallGroup` (8-ball only).
 - `GameState` — both `Player`s, `GameType`, `RaceToMode`, scores, `CurrentShooter`,
-  `ColorTheme`, `PocketedBalls` (ball numbers 1-15 currently off the table), active/winner
-  status.
+  `ColorTheme`, `ScoreboardStyle` (corner roundness, scale, gloss finish, end-cap style,
+  shooter-indicator style), `Visibility` (score bar / ball tracker / winner banner shown or
+  hidden), `PocketedBalls` (ball numbers 1-15 currently off the table), `CueBallSpin` (the
+  overlay's contact point, or null), active/winner status.
 - `ColorTheme` — operator-set background/accent/text colors, applied to the overlay pages.
 - No league, skill level, or Fargo rating anywhere in this model.
 
@@ -114,8 +116,9 @@ dotnet clean
 - `/overlay/cueball` — separate browser-source page: a cue-ball graphic; clicking it places
   a red dot marking the spin/contact point. Independent of and separately positionable from
   the scoreboard overlay in the OBS scene.
-- `/api/control/*` — local HTTP endpoints for Stream Deck buttons (score inc/dec, shooter
-  toggle, ball assignment, new rack, reset match). Same `GameManager` instance as the UI.
+- `/api/control/*` — local HTTP endpoints for Stream Deck buttons (add a point per side, undo
+  the last point, shooter toggle, ball assignment, per-ball pocketed toggle, new rack, reset
+  match). Same `GameManager` instance as the UI.
 
 ## Stream Deck Integration
 
