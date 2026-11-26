@@ -186,6 +186,25 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — One SSE implementation for both overlay streams
+
+- `ScoreboardEndpoints` and `CueBallEndpoints` each carried a copy of the same ~30-line stream: set
+  `no-cache`/`text/event-stream`, open a per-connection channel so the raising thread never writes to
+  the response, replay the current snapshot on connect, forward every `GameStateChanged`, swallow the
+  `OperationCanceledException` from a closed OBS source, then unsubscribe. Only the serializer
+  differed — each page maps the same state differently — so that is now the only thing the endpoints
+  pass in: `GameStateEventStream.WriteAsync(context, gameManager, serialize)`.
+- The two properties worth keeping are preserved in the helper: the connect frame comes from
+  `GetStateSnapshot()` rather than the live instance, and the channel keeps the writer (inside
+  `GameManager`'s lock) off the response stream.
+- Checked on a running app, not just compiled: `/overlay/api/scoreboard/stream` sent its connect
+  frame plus one frame per mutation (`POST /overlay/api/cueball/contact`), and
+  `/overlay/api/cueball/stream` sent three across contact and clear — `{"x":null,"y":null}` →
+  `{"x":0.2,"y":0.9}` → `{"x":null,"y":null}`. A shooter toggle with no match running correctly
+  produced no frame (the manager early-returns, so nothing is raised). Build clean; Core tests
+  unchanged at 47/47.
+- Still duplicated, left alone: `ReadEmbeddedAsset` in both endpoint classes.
+
 ### 2026-11-26 — Drop the player-carrying InitializeGame overload
 
 - `InitializeGame(Player, Player, GameType, RaceToMode)` had no production caller once START MATCH

@@ -37,45 +37,13 @@ internal static class CueBallEndpoints
             return Results.Ok();
         });
 
-        app.MapGet("/overlay/api/cueball/stream", async (HttpContext context, CancellationToken ct) =>
-        {
-            context.Response.Headers.CacheControl = "no-cache";
-            context.Response.ContentType = "text/event-stream";
-
-            var channel = System.Threading.Channels.Channel.CreateUnbounded<string>();
-
-            void OnGameStateChanged(object? sender, GameStateChangedEventArgs e) =>
-                channel.Writer.TryWrite(Serialize(e.GameState));
-
-            gameManager.GameStateChanged += OnGameStateChanged;
-            try
-            {
-                await WriteEvent(context.Response, Serialize(gameManager.GetStateSnapshot()), ct);
-
-                await foreach (var json in channel.Reader.ReadAllAsync(ct))
-                {
-                    await WriteEvent(context.Response, json, ct);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // Client disconnected (OBS scene switch, browser source reload, etc.) — expected.
-            }
-            finally
-            {
-                gameManager.GameStateChanged -= OnGameStateChanged;
-            }
-        });
+        // One snapshot on connect, then a payload per mutation — shared with the scoreboard stream.
+        app.MapGet("/overlay/api/cueball/stream", (HttpContext context) =>
+            GameStateEventStream.WriteAsync(context, gameManager, Serialize));
     }
 
     private static string Serialize(PoolScoreboard.Core.Models.GameState state) =>
         JsonSerializer.Serialize(CueBallStateMapper.ToDto(state), JsonOptions);
-
-    private static async Task WriteEvent(HttpResponse response, string json, CancellationToken ct)
-    {
-        await response.WriteAsync($"data: {json}\n\n", ct);
-        await response.Body.FlushAsync(ct);
-    }
 
     private static string ReadEmbeddedAsset(string fileName)
     {
