@@ -45,7 +45,7 @@ public partial class App : System.Windows.Application
             SaveOperatorProfile();
         };
 
-        _overlayHost = OverlayHost.Start(SharedGameManager);
+        _overlayHost = OverlayHostRunner.Start(SharedGameManager);
     }
 
     /// <summary>Asks for the profile to be saved shortly, after the current burst of edits.</summary>
@@ -84,11 +84,10 @@ public partial class App : System.Windows.Application
     {
         SaveOperatorProfile();
 
+        // Off the UI thread, or the host's shutdown continuations would be queued to the Dispatcher this
+        // method is blocking — see OverlayHostRunner for why that deadlocks the process.
         if (_overlayHost != null)
-        {
-            _overlayHost.StopAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
-            _overlayHost.Dispose();
-        }
+            OverlayHostRunner.StopAndDispose(_overlayHost, TimeSpan.FromSeconds(2));
 
         base.OnExit(e);
     }

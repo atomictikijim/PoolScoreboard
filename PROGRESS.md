@@ -194,6 +194,27 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — The Controller now exits when its window closes
+
+- Cause: `App.OnExit` stopped the in-process overlay host on the WPF UI thread with
+  `StopAsync(2s).GetAwaiter().GetResult()`. ASP.NET Core's shutdown path awaits without
+  `ConfigureAwait(false)`, so its continuations — including the one that would honour the two-second
+  timeout — were posted to WPF's `SynchronizationContext` while the same thread sat blocked inside
+  `OnExit`. The stop therefore never completed: the server had already stopped listening, which is why
+  the port looked closed, but the process stayed alive with ~58 threads until killed. Instrumented
+  `OnExit` marked "stopping host" and never reached the other side.
+- Fix: `OverlayHostRunner` starts and stops the host on the thread pool, where there is no UI context to
+  capture, and bounds the stop at the requested timeout plus a second — giving up rather than hanging
+  shutdown, since the abandoned stop runs on a background thread that cannot keep the process alive.
+- Tests: three in `PoolScoreboard.Controller.Tests`. A host whose shutdown captures the ambient context
+  (with a stalled `SynchronizationContext` standing in for a blocked Dispatcher) stops successfully; a
+  host that never stops makes the call return false within the bound; a throwing stop returns false.
+  Reverting `StopAndDispose` to the old blocking shape makes the first test hang and take the test host
+  down with it, so the regression is genuinely covered.
+- Verified in the running Controller: closing the window exits the process about two seconds later, the
+  overlay port is free, and `settings.json`/`roster.json` are written at close.
+- Build 0 warnings; 123/123 tests (89 Core + 34 Controller).
+
 ### 2026-11-26 — Roster review: names can't duplicate, unused API removed
 
 - `Remember` now removes *every* entry matching the name before inserting the updated one. Repeated
