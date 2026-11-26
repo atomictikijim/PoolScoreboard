@@ -194,6 +194,21 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — A rejected settings or roster file is kept for recovery
+
+- `OperatorSettingsStore.Load` and `PlayerRosterStore.Load` used to leave an unreadable `settings.json` or
+  `roster.json` in place after the warning, where the very next save replaced it with defaults — so the setup
+  the operator had was gone exactly when they most needed it back. Both now move the rejected file to
+  `settings.corrupt.json` / `roster.corrupt.json` (replacing an older rejected copy) before falling back, and
+  the warning names the file that was kept. A file that cannot be moved — still held by whatever made the read
+  fail — stays where it is and the warning is unchanged.
+- Tests: the corrupt-file read tests now assert the original path is gone, the `.corrupt.json` copy holds the
+  original bytes and the log names it; two more cover a second rejection replacing the earlier copy and a file
+  locked with no sharing, where the preserve step must fail quietly and the load still fall back.
+- Known gap: roster icon files are not moved with the JSON, and the next roster save prunes artwork no saved
+  player references, so a preserved roster's entries are recoverable but its icons may not be.
+- Build 0 warnings; 151/151 tests (93 Core + 58 Controller).
+
 ### 2026-11-26 — Crashes and unreadable settings leave evidence in controller.log
 
 - Unhandled exceptions now reach the log: `App.OnStartup` subscribes to `DispatcherUnhandledException`,

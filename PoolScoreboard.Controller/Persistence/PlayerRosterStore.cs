@@ -32,6 +32,13 @@ public sealed class PlayerRosterStore
     public string RosterPath { get; }
 
     /// <summary>
+    /// Where a roster file that could not be read is kept, so the next save cannot destroy the saved players.
+    /// </summary>
+    public string CorruptRosterPath => Path.Combine(
+        Path.GetDirectoryName(RosterPath) ?? string.Empty,
+        Path.GetFileNameWithoutExtension(RosterPath) + ".corrupt" + Path.GetExtension(RosterPath));
+
+    /// <summary>
     /// Returns the saved players, most recently used first. A missing or unusable file yields an empty
     /// roster rather than blocking startup, matching how the settings store behaves.
     /// </summary>
@@ -81,8 +88,12 @@ public sealed class PlayerRosterStore
                                              or JsonException)
         {
             // The app still runs, but every saved player is gone for this session and the next save makes
-            // the empty list the new roster: say so, or the loss is silent.
-            Trace.TraceWarning($"Could not read the player roster: {exception.Message}");
+            // the empty list the new roster: say so, and keep the file rather than let that save be the end
+            // of it.
+            var preserved = PreserveUnreadableFile();
+            Trace.TraceWarning(
+                $"Could not read the player roster: {exception.Message}" +
+                (preserved ? $" The file was kept as {Path.GetFileName(CorruptRosterPath)} for recovery." : string.Empty));
             _icons.Clear();
             return new PlayerRoster();
         }
@@ -138,6 +149,27 @@ public sealed class PlayerRosterStore
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             Trace.TraceWarning($"Could not write the player roster: {exception.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Moves a roster that could not be read aside as <c>roster.corrupt.json</c>, replacing an older rejected
+    /// copy, so the saved players survive the next save. A file that cannot be moved — still held by whatever
+    /// made the read fail — is left in place; the warning already says the read failed.
+    /// </summary>
+    private bool PreserveUnreadableFile()
+    {
+        try
+        {
+            if (!File.Exists(RosterPath))
+                return false;
+
+            File.Move(RosterPath, CorruptRosterPath, overwrite: true);
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
             return false;
         }
     }

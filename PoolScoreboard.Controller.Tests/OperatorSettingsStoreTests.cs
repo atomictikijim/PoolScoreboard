@@ -28,6 +28,8 @@ public sealed class OperatorSettingsStoreTests : IDisposable
 
     private string IconsFolder => Path.Combine(_root, "icons");
 
+    private string CorruptSettingsPath => Path.Combine(_root, "settings.corrupt.json");
+
     private OperatorSettingsStore Store => new(_root);
 
     public void Dispose()
@@ -213,14 +215,49 @@ public sealed class OperatorSettingsStoreTests : IDisposable
     }
 
     [Fact]
-    public void Load_WithUnreadableJson_ReturnsNullAndSaysWhyInTheLog()
+    public void Load_WithUnreadableJson_KeepsTheFileAsideAndSaysWhyInTheLog()
+    {
+        Directory.CreateDirectory(_root);
+        const string original = "{ this is not json";
+        File.WriteAllText(SettingsPath, original);
+
+        var text = CaptureLog(() => Assert.Null(Store.Load()));
+
+        Assert.False(File.Exists(SettingsPath));                 // out of the way, so the next save starts fresh
+        Assert.Equal(original, File.ReadAllText(CorruptSettingsPath));
+        Assert.Contains("Could not read the operator settings", text);
+        Assert.Contains("settings.corrupt.json", text);
+    }
+
+    [Fact]
+    public void Load_ASecondUnreadableFile_ReplacesTheEarlierCorruptCopy()
+    {
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(SettingsPath, "{ first");
+        Store.Load();
+        File.WriteAllText(SettingsPath, "{ second");
+
+        Store.Load();
+
+        Assert.Equal("{ second", File.ReadAllText(CorruptSettingsPath));
+    }
+
+    [Fact]
+    public void Load_WhenTheFileCannotBeMovedAside_StillFallsBackWithoutThrowing()
     {
         Directory.CreateDirectory(_root);
         File.WriteAllText(SettingsPath, "{ this is not json");
 
-        var text = CaptureLog(() => Assert.Null(Store.Load()));
+        // Held with no sharing, the way an antivirus scanner or another process would: it cannot be read
+        // and cannot be moved, and neither failure may escape.
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var text = CaptureLog(() => Assert.Null(Store.Load()));
+            Assert.Contains("Could not read the operator settings", text);
+            Assert.DoesNotContain("kept as", text);
+        }
 
-        Assert.Contains("Could not read the operator settings", text);
+        Assert.False(File.Exists(CorruptSettingsPath));
     }
 
     [Fact]

@@ -29,6 +29,14 @@ internal sealed class OperatorSettingsStore
 
     public string SettingsPath { get; }
 
+    /// <summary>
+    /// Where a settings file that could not be read is kept, so the next save cannot destroy the setup the
+    /// operator had.
+    /// </summary>
+    public string CorruptSettingsPath => Path.Combine(
+        Path.GetDirectoryName(SettingsPath) ?? string.Empty,
+        Path.GetFileNameWithoutExtension(SettingsPath) + ".corrupt" + Path.GetExtension(SettingsPath));
+
     public sealed record LoadedProfile(OperatorProfile Profile, string? HomeIconDataUri, string? AwayIconDataUri);
 
     /// <summary>Returns null when nothing has been saved yet, or when the file can't be used.</summary>
@@ -53,10 +61,34 @@ internal sealed class OperatorSettingsStore
                                              or JsonException)
         {
             // Startup must not be blocked by an unreadable or hand-edited file, but it must not be silent
-            // either: the app opens on defaults and the next save replaces this file, so this line is the
-            // only evidence of what the operator was running with.
-            Trace.TraceWarning($"Could not read the operator settings: {exception.Message}");
+            // either, and the next save must not be the only place this file ends up.
+            var preserved = PreserveUnreadableFile();
+            Trace.TraceWarning(
+                $"Could not read the operator settings: {exception.Message}" +
+                (preserved ? $" The file was kept as {Path.GetFileName(CorruptSettingsPath)} for recovery." : string.Empty));
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Moves a file that could not be read aside as <c>settings.corrupt.json</c>, replacing an older rejected
+    /// copy. The operator's setup stays recoverable and the next save writes a fresh settings.json instead of
+    /// overwriting the only copy of what they had. A file that cannot be moved — still held by whatever made
+    /// the read fail — is left where it is; the warning already says the read failed.
+    /// </summary>
+    private bool PreserveUnreadableFile()
+    {
+        try
+        {
+            if (!File.Exists(SettingsPath))
+                return false;
+
+            File.Move(SettingsPath, CorruptSettingsPath, overwrite: true);
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 

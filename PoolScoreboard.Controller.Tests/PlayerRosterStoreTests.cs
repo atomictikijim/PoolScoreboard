@@ -24,6 +24,8 @@ public sealed class PlayerRosterStoreTests : IDisposable
 
     private string IconsFolder => Path.Combine(_root, "icons");
 
+    private string CorruptRosterPath => Path.Combine(_root, "roster.corrupt.json");
+
     private PlayerRosterStore Store => new(_root);
 
     public void Dispose()
@@ -234,10 +236,11 @@ public sealed class PlayerRosterStoreTests : IDisposable
     }
 
     [Fact]
-    public void Load_WithUnreadableJson_ReturnsEmptyRosterAndSaysWhyInTheLog()
+    public void Load_WithUnreadableJson_KeepsTheFileAsideAndSaysWhyInTheLog()
     {
         Directory.CreateDirectory(_root);
-        File.WriteAllText(RosterPath, "{ not json at all");
+        const string original = "{ not json at all";
+        File.WriteAllText(RosterPath, original);
 
         var logPath = Path.Combine(_root, "controller.log");
         using (var log = new TraceLogFile(logPath))
@@ -246,7 +249,11 @@ public sealed class PlayerRosterStoreTests : IDisposable
             Assert.Empty(Store.Load().Players);
         }
 
-        Assert.Contains("Could not read the player roster", File.ReadAllText(logPath));
+        var text = File.ReadAllText(logPath);
+        Assert.False(File.Exists(RosterPath));                    // the next save writes a fresh roster
+        Assert.Equal(original, File.ReadAllText(CorruptRosterPath));
+        Assert.Contains("Could not read the player roster", text);
+        Assert.Contains("roster.corrupt.json", text);
     }
 
     [Fact]
