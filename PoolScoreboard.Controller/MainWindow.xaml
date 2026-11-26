@@ -19,6 +19,22 @@
                     Command="{Binding DataContext.TogglePocketedCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                     CommandParameter="{Binding}" />
         </DataTemplate>
+
+        <!-- The overlay's show/hide toggles, on both the setup screen and the live view: the operator
+             sets the show up before the match (START MATCH carries the current visibility over) and
+             flips elements mid-match. ContentControl supplies the window's GameViewModel as the
+             DataContext, so both copies bind to the same three booleans and stay in step. -->
+        <DataTemplate x:Key="OverlayVisibilityTogglesTemplate">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="OVERLAY" Style="{StaticResource LabelTextBlockStyle}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <Button Content="Score Bar" Command="{Binding ToggleScoreBarVisibleCommand}"
+                        Style="{Binding ScoreBarVisible, Converter={StaticResource BoolToButtonStyleConverter}}" Padding="12,8" Margin="0,0,8,0" />
+                <Button Content="Ball Tracker" Command="{Binding ToggleBallTrackerVisibleCommand}"
+                        Style="{Binding BallTrackerVisible, Converter={StaticResource BoolToButtonStyleConverter}}" Padding="12,8" Margin="0,0,8,0" />
+                <Button Content="Winner Banner" Command="{Binding ToggleWinnerBannerVisibleCommand}"
+                        Style="{Binding WinnerBannerVisible, Converter={StaticResource BoolToButtonStyleConverter}}" Padding="12,8" />
+            </StackPanel>
+        </DataTemplate>
     </Window.Resources>
     <Border Padding="20">
         <Grid>
@@ -258,8 +274,17 @@
                 </Grid>
                 </ScrollViewer>
 
-                <Button Grid.Row="3" Content="START MATCH" Style="{StaticResource ActiveButtonStyle}" Command="{Binding StartMatchCommand}"
-                        HorizontalAlignment="Right" Padding="24,10" Margin="0,16,0,0" />
+                <!-- Overlay show/hide sits next to START MATCH so the operator can hide the score
+                     bar and ball tracker first and start the match with them still hidden. -->
+                <Grid Grid.Row="3" Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ContentControl Grid.Column="0" VerticalAlignment="Center"
+                                    Content="{Binding}" ContentTemplate="{StaticResource OverlayVisibilityTogglesTemplate}" />
+                    <Button Grid.Column="1" Content="START MATCH" Style="{StaticResource ActiveButtonStyle}" Command="{Binding StartMatchCommand}" Padding="24,10" />
+                </Grid>
             </Grid>
 
             <!-- ================= LIVE VIEW ================= -->
@@ -391,16 +416,9 @@
                     </ItemsControl>
                 </StackPanel>
 
-                <!-- Overlay element show/hide toggles -->
-                <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Left">
-                    <TextBlock Text="OVERLAY" Style="{StaticResource LabelTextBlockStyle}" VerticalAlignment="Center" Margin="0,0,12,0" />
-                    <Button Content="Score Bar" Command="{Binding ToggleScoreBarVisibleCommand}"
-                            Style="{Binding ScoreBarVisible, Converter={StaticResource BoolToButtonStyleConverter}}" Padding="12,8" Margin="0,0,8,0" />
-                    <Button Content="Ball Tracker" Command="{Binding ToggleBallTrackerVisibleCommand}"
-                            Style="{Binding BallTrackerVisible, Converter={StaticResource BoolToButtonStyleConverter}}" Padding="12,8" Margin="0,0,8,0" />
-                    <Button Content="Winner Banner" Command="{Binding ToggleWinnerBannerVisibleCommand}"
-                            Style="{Binding WinnerBannerVisible, Converter={StaticResource BoolToButtonStyleConverter}}" Padding="12,8" />
-                </StackPanel>
+                <!-- Overlay element show/hide toggles (same panel as the setup screen's) -->
+                <ContentControl Grid.Row="5" HorizontalAlignment="Left"
+                                Content="{Binding}" ContentTemplate="{StaticResource OverlayVisibilityTogglesTemplate}" />
 
                 <!-- New rack / reset match controls -->
                 <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">

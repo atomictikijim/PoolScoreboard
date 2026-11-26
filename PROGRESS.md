@@ -186,6 +186,24 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — OVERLAY show/hide toggles also on the match-setup screen
+
+- The three toggles (Score Bar, Ball Tracker, Winner Banner) only existed on the live view, so the
+  operator couldn't set the show up hidden and then start: the moment the match began the only
+  controls that could hide anything were on the screen that had just replaced the setup one. That
+  also made the earlier "starting a match keeps the operator's visibility" fix unreachable from a
+  fresh launch — there was no way to be hidden while still on the setup screen.
+- The panel is now one `OverlayVisibilityTogglesTemplate` in `MainWindow.xaml`, instantiated by a
+  `ContentControl` on both screens and bound to the same three view-model booleans, so the two
+  copies can't drift apart. On the setup screen it sits bottom-left of the `START MATCH` row, one
+  click away from starting.
+- Verified on the running app: the setup screen now exposes `Score Bar`, `Ball Tracker` and
+  `Winner Banner`; clicking Score Bar and Ball Tracker with no match running set
+  `scoreBarVisible: false, ballTrackerVisible: false`; `START MATCH` kept both false, and both
+  copies of the panel render them in the off style. The overlay page loaded in Chromium afterwards
+  has `#scorePill` and `#ballTracker` at `display: none`. Build clean, 0 warnings; 46/46 tests (no
+  test covers XAML).
+
 ### 2026-11-26 — Review pass: reads back under the lock, one styling rule for both exits
 
 - Three overlay endpoints read `GetCurrentGameState()` — the live instance, no lock — from Kestrel
