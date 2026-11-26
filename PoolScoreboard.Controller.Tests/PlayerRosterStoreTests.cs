@@ -26,6 +26,8 @@ public sealed class PlayerRosterStoreTests : IDisposable
 
     private string CorruptRosterPath => Path.Combine(_root, "roster.corrupt.json");
 
+    private string CorruptIconsFolder => Path.Combine(_root, "roster.corrupt.icons");
+
     private PlayerRosterStore Store => new(_root);
 
     public void Dispose()
@@ -236,24 +238,71 @@ public sealed class PlayerRosterStoreTests : IDisposable
     }
 
     [Fact]
-    public void Load_WithUnreadableJson_KeepsTheFileAsideAndSaysWhyInTheLog()
+    public void Load_WithUnreadableJson_KeepsTheFileAndItsArtworkAsideAndSaysWhyInTheLog()
     {
-        Directory.CreateDirectory(_root);
+        var store = Store;
+        store.SetIcon("a", Png());
+        store.Save(Roster(("a", "Alice", "", 7)));
         const string original = "{ not json at all";
         File.WriteAllText(RosterPath, original);
 
+        var text = CaptureLog(() => Assert.Empty(Store.Load().Players));
+
+        Assert.False(File.Exists(RosterPath));                     // the next save writes a fresh roster
+        Assert.Equal(original, File.ReadAllText(CorruptRosterPath));
+        Assert.Equal(PngBytes, File.ReadAllBytes(Path.Combine(CorruptIconsFolder, "roster-a.png")));
+        Assert.False(File.Exists(Path.Combine(IconsFolder, "roster-a.png")));
+        Assert.Contains("Could not read the player roster", text);
+        Assert.Contains("roster.corrupt.json", text);
+        Assert.Contains("roster.corrupt.icons", text);
+    }
+
+    [Fact]
+    public void Save_AfterARejectedRoster_LeavesThePreservedArtworkAlone()
+    {
+        var store = Store;
+        store.SetIcon("a", Png());
+        store.Save(Roster(("a", "Alice", "", 7)));
+        File.WriteAllText(RosterPath, "{ not json at all");
+        Assert.Empty(store.Load().Players);
+
+        // The save that used to prune every roster-*.png now runs against an empty roster.
+        Assert.True(store.TrySave(new PlayerRoster()));
+
+        Assert.Equal(PngBytes, File.ReadAllBytes(Path.Combine(CorruptIconsFolder, "roster-a.png")));
+    }
+
+    [Fact]
+    public void Load_WhenAnIconCannotBeMovedAside_StillFallsBackWithoutThrowing()
+    {
+        var store = Store;
+        store.SetIcon("a", Png());
+        store.Save(Roster(("a", "Alice", "", 7)));
+        File.WriteAllText(RosterPath, "{ not json at all");
+        var iconPath = Path.Combine(IconsFolder, "roster-a.png");
+
+        string text;
+        using (new FileStream(iconPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            text = CaptureLog(() => Assert.Empty(Store.Load().Players));
+        }
+
+        Assert.Contains("Could not read the player roster", text);
+        Assert.DoesNotContain("artwork", text);
+        Assert.True(File.Exists(iconPath));                        // left for the usual pruning
+    }
+
+    /// <summary>Runs the action with the log attached and returns what the file holds afterwards.</summary>
+    private string CaptureLog(Action action)
+    {
         var logPath = Path.Combine(_root, "controller.log");
         using (var log = new TraceLogFile(logPath))
         {
             log.Attach();
-            Assert.Empty(Store.Load().Players);
+            action();
         }
 
-        var text = File.ReadAllText(logPath);
-        Assert.False(File.Exists(RosterPath));                    // the next save writes a fresh roster
-        Assert.Equal(original, File.ReadAllText(CorruptRosterPath));
-        Assert.Contains("Could not read the player roster", text);
-        Assert.Contains("roster.corrupt.json", text);
+        return File.ReadAllText(logPath);
     }
 
     [Fact]

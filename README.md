@@ -117,8 +117,8 @@ overlay as a second, separate Browser Source at
   from the overlay host — a failed bind, a fault while serving — are forwarded there too. An exception that
   kills the app is recorded with its stack trace, and a `settings.json` or `roster.json` that cannot be read
   or written says so there instead of failing silently — a file that cannot be read is first moved to
-  `settings.corrupt.json` or `roster.corrupt.json`, so the next save cannot destroy the operator's setup.
-  Lines are appended
+  `settings.corrupt.json` or `roster.corrupt.json`, so the next save cannot destroy the operator's setup; a
+  rejected roster's artwork moves with it into `roster.corrupt.icons\`. Lines are appended
   one at a time and nothing holds the file open, so it can be read while the Controller runs. A log that
   grows past 1 MiB is rotated at the next startup to `controller.old.log`, keeping one previous run.
 - Pushing runs the same Release build and full test suite as CI. Enable the committed hook once

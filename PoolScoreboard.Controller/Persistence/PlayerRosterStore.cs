@@ -15,6 +15,9 @@ public sealed class PlayerRosterStore
     private const string IconsFolderName = "icons";
     private const string IconFilePrefix = "roster-";
 
+    /// <summary>The folder, beside <c>roster.corrupt.json</c>, that keeps a rejected roster's artwork.</summary>
+    private const string CorruptIconsFolderName = "roster.corrupt.icons";
+
     private readonly string _iconsFolder;
 
     /// <summary>Icon metadata per entry id, the only icon state kept in memory; bytes are read on demand.</summary>
@@ -37,6 +40,15 @@ public sealed class PlayerRosterStore
     public string CorruptRosterPath => Path.Combine(
         Path.GetDirectoryName(RosterPath) ?? string.Empty,
         Path.GetFileNameWithoutExtension(RosterPath) + ".corrupt" + Path.GetExtension(RosterPath));
+
+    /// <summary>
+    /// Where a rejected roster's icon files are kept, under their original names, so the artwork is
+    /// recoverable next to the preserved JSON. Outside <c>icons\</c> on purpose: the next roster save prunes
+    /// anything there that no saved player references.
+    /// </summary>
+    public string CorruptIconsFolder => Path.Combine(
+        Path.GetDirectoryName(RosterPath) ?? string.Empty,
+        CorruptIconsFolderName);
 
     /// <summary>
     /// Returns the saved players, most recently used first. A missing or unusable file yields an empty
@@ -91,9 +103,11 @@ public sealed class PlayerRosterStore
             // the empty list the new roster: say so, and keep the file rather than let that save be the end
             // of it.
             var preserved = PreserveUnreadableFile();
+            var artwork = preserved && PreserveIconFiles();
             Trace.TraceWarning(
                 $"Could not read the player roster: {exception.Message}" +
-                (preserved ? $" The file was kept as {Path.GetFileName(CorruptRosterPath)} for recovery." : string.Empty));
+                (preserved ? $" The file was kept as {Path.GetFileName(CorruptRosterPath)} for recovery." : string.Empty) +
+                (artwork ? $" Its artwork was moved to {CorruptIconsFolderName}." : string.Empty));
             _icons.Clear();
             return new PlayerRoster();
         }
@@ -172,6 +186,49 @@ public sealed class PlayerRosterStore
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Moves the rejected roster's artwork out of <c>icons\</c> into <see cref="CorruptIconsFolder"/>, keeping
+    /// the file names the preserved JSON refers to. Without this the next save, running against the empty
+    /// roster, prunes every <c>roster-*</c> file and the preserved entries point at artwork that is gone.
+    /// Each file is moved independently: one that cannot be moved stays for the usual pruning instead of
+    /// aborting the rest. Returns whether anything was moved.
+    /// </summary>
+    private bool PreserveIconFiles()
+    {
+        var moved = false;
+
+        try
+        {
+            if (!Directory.Exists(_iconsFolder))
+                return false;
+
+            var files = Directory.GetFiles(_iconsFolder, IconFilePrefix + "*");
+            if (files.Length == 0)
+                return false;
+
+            Directory.CreateDirectory(CorruptIconsFolder);
+
+            foreach (var file in files)
+            {
+                try
+                {
+                    File.Move(file, Path.Combine(CorruptIconsFolder, Path.GetFileName(file)), overwrite: true);
+                    moved = true;
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    // Left behind deliberately: still better than failing the load over one file.
+                }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // The icons folder itself could not be read; the roster file was still preserved.
+        }
+
+        return moved;
     }
 
     /// <summary>Decodes one saved icon on demand, so only the player actually being picked is loaded.</summary>

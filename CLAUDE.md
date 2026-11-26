@@ -130,7 +130,8 @@ dotnet clean
   A `settings.json` or `roster.json` that cannot be read or written logs a "Could not read/write …" warning and
   falls back to defaults instead of failing silently. A file that cannot be read is moved to
   `settings.corrupt.json`/`roster.corrupt.json` (replacing an older rejected copy) before falling back, so the
-  next save cannot overwrite the only copy of the operator's setup.
+  next save cannot overwrite the only copy of the operator's setup. A rejected roster's icon files move into
+  `roster.corrupt.icons\` at the same time, keeping the artwork the preserved entries refer to.
 - `Persistence/PlayerRosterStore` does the same for `roster.json` and one icon file per saved player.
   `GameViewModel` remembers both sides when a match starts and when the window closes, and each side's
   "Saved Player" dropdown fills name, team, Race-To and icon from a roster entry.

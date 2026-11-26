@@ -194,6 +194,20 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — A rejected roster keeps its artwork too
+
+- The recovery path from the previous entry preserved `roster.corrupt.json` but left its icons in `icons\`, where
+  the next roster save pruned them as orphans — the preserved entries pointed at artwork that no longer existed.
+  `PlayerRosterStore.Load` now moves every `icons\roster-*` file into `roster.corrupt.icons\` (same file names)
+  right after preserving the JSON, and says so in the warning. Recovering a roster means renaming
+  `roster.corrupt.json` back to `roster.json` and moving the files from `roster.corrupt.icons\` into `icons\`.
+- Only runs when the JSON itself was moved aside, and each icon is moved independently: one that cannot be moved
+  is left for the usual pruning instead of failing the load. The files are moved rather than copied, so startup
+  does not duplicate up to 1.5 MB per saved player.
+- Tests: the corrupt-roster test now also asserts the icon left `icons\` for the archive and is named in the log;
+  two more cover the save that used to prune the artwork and a locked icon that must not break the fallback.
+- Build 0 warnings; 153/153 tests (93 Core + 60 Controller).
+
 ### 2026-11-26 — A rejected settings or roster file is kept for recovery
 
 - `OperatorSettingsStore.Load` and `PlayerRosterStore.Load` used to leave an unreadable `settings.json` or
@@ -205,8 +219,8 @@ live:
 - Tests: the corrupt-file read tests now assert the original path is gone, the `.corrupt.json` copy holds the
   original bytes and the log names it; two more cover a second rejection replacing the earlier copy and a file
   locked with no sharing, where the preserve step must fail quietly and the load still fall back.
-- Known gap: roster icon files are not moved with the JSON, and the next roster save prunes artwork no saved
-  player references, so a preserved roster's entries are recoverable but its icons may not be.
+- Known gap (closed by the next entry): roster icon files were not moved with the JSON, so the next roster save
+  pruned artwork no saved player referenced.
 - Build 0 warnings; 151/151 tests (93 Core + 58 Controller).
 
 ### 2026-11-26 — Crashes and unreadable settings leave evidence in controller.log
