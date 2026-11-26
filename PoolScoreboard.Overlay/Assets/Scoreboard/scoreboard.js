@@ -172,8 +172,15 @@
 
     applyStyle(state.style, state.homeIsCurrentShooter);
 
-    if (state.winnerName) {
-      winnerBanner.textContent = `${state.winnerName.toUpperCase()} WINS!`;
+    // A winner is present whenever the payload carries a winner name at all: an unnamed player
+    // sends "" rather than null, and that must still show the banner (the name pills fall back to
+    // HOME/AWAY the same way).
+    const hasWinner = state.winnerName != null;
+    const winnerLabel = hasWinner
+      ? (state.winnerName || (state.winnerIsHome ? 'Home' : 'Away')).toUpperCase()
+      : '';
+    if (hasWinner) {
+      winnerBanner.textContent = `${winnerLabel} WINS!`;
       winnerBanner.classList.toggle('winner-home', state.winnerIsHome);
       winnerBanner.classList.toggle('winner-away', !state.winnerIsHome);
     }
@@ -182,7 +189,7 @@
     // score bar itself is hidden, they hide too, regardless of their own individual toggle.
     const scoreBarVisible = state.visibility.scoreBarVisible;
     const showBallTracker = scoreBarVisible && state.visibility.ballTrackerVisible;
-    const showWinner = scoreBarVisible && !!state.winnerName && state.visibility.winnerBannerVisible;
+    const showWinner = scoreBarVisible && hasWinner && state.visibility.winnerBannerVisible;
     const skipAnimation = !hasRenderedOnce;
 
     setElementVisible(scorePill, scoreBarVisible, skipAnimation);

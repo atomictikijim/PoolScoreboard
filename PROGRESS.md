@@ -190,6 +190,19 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Winner banner shows for players left unnamed
+
+- The overlay gated the banner on `if (state.winnerName)`, but the mapper sends `""` — not null —
+  for a winning player with no name. A race-to win with both name fields left empty therefore set
+  the winner in state and painted nothing, which reads as the banner being broken. Presence is now
+  decided by null-ness (`state.winnerName != null`; the DTO only sends null when there is no
+  winner at all) and the label falls back to HOME/AWAY, mirroring the name pills beside it.
+- Verified against a running Controller with both players unnamed: a home win shows "HOME WINS!",
+  an away win shows "AWAY WINS!" with the away tint, and subtracting the winning point hides the
+  banner again (`sb-hidden`) — the clearing behaviour is unchanged, only the empty-name case is.
+- No C# change. The script is an embedded resource, so this needs a rebuild, not an asset copy,
+  and it has no unit test — the check was done in the browser against the live app.
+
 ### 2026-11-26 — Merge origin/master: editable after a win, per-side minus, per-side text
 
 - Merged `58cc003` ("Keep match editable after a win; add score-subtract and per-side text color")
