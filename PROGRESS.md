@@ -193,6 +193,28 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Block a red build at push time, and harden icon persistence on review
+
+- GitHub cannot reject a *direct push* on a check that runs after that push, so the required
+  `build-and-test` check only gates merges. `.githooks/pre-push` now runs the same Release build and
+  Core tests as CI before anything leaves the machine; enabled per clone with
+  `git config core.hooksPath .githooks`, bypass with `git push --no-verify`. Verified all three ways:
+  green run exits 0, `git hook run pre-push` finds it, and a deliberately broken `Core` file exits 1
+  with `BUILD FAILED` before tests run.
+- Review found `WriteIcon` deleted the previously saved icon file *before* validating the new data
+  URI, so one unparseable icon would destroy a good one. It now writes the new bytes first and prunes
+  stale files afterwards, and skips the write when the bytes are unchanged.
+- `ReadIcon` used the JSON's file name verbatim; it now goes through `Path.GetFileName` and
+  re-validates the mime as `image/*`, so a hand-edited settings file cannot point the loader outside
+  the icons folder or have a non-image type echoed back into a data URI. Confirmed in the running app:
+  a tampered `"../escape.png"` and a `text/html` icon both load as no icon while the rest of the
+  profile still restores.
+- The data-URI parsing moved from the Controller to `Core/Persistence/EndCapIconData`, where it is
+  I/O-free and covered by 19 new test cases (round trips, missing marker, malformed base64, non-image
+  mime, extension mapping). Build 0 warnings, 76/76 tests.
+- Re-verified the whole save/load path afterwards: seeded profile with a PNG icon → app served the
+  original 16,877 bytes, and a graceful exit re-saved the JSON still pointing at `home.png`.
+
 ### 2026-11-26 — Remember the operator's look and the last two players between runs
 
 - `OperatorProfile` (Core, `Persistence/`) is the saveable slice of a state snapshot: `ColorTheme`,

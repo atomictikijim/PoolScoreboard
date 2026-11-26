@@ -101,6 +101,8 @@ dotnet clean
   `AddPoint`/`SubtractPoint`, `UndoPoint`, `ToggleCurrentShooter`, `AssignBallGroup`, `ResetGame`.
   Raises `GameStateChanged` after every mutation.
 - No database, no async I/O — pure, fast, unit-testable.
+- `Persistence/OperatorProfile` (capture/apply of the saved profile) and `Persistence/EndCapIconData`
+  (data-URI ↔ icon bytes) live here too, deliberately I/O-free so both are unit-tested.
 
 ### PoolScoreboard.Controller (WPF Desktop Application)
 
@@ -110,6 +112,9 @@ dotnet clean
   (8-ball only) or ball display (9/10-ball), new-rack/reset-match controls.
 - On startup, starts the Overlay's Kestrel host in-process, passing it the same
   `GameManager` instance the UI is bound to.
+- `Persistence/OperatorSettingsStore` reads/writes `%AppData%\PoolScoreboard\settings.json` plus the
+  end-cap icon files; `App` applies the saved profile before the window exists, then saves on a
+  750 ms debounce and on exit.
 - Dark theme with operator-customizable accent color, consistent with the overlay's theme.
 
 ### PoolScoreboard.Overlay (ASP.NET Core, hosted in-process by Controller)
@@ -186,6 +191,9 @@ alignment, not a pixel match).
 - Controller UI would be tested end-to-end against a real `GameManager`.
 - Overlay/control-API endpoints should be tested against a `GameManager` test instance, not
   a live one.
+- `.githooks/pre-push` mirrors CI (Release build, then the Core tests) and is enabled per clone
+  with `git config core.hooksPath .githooks`. `master` also has a required `build-and-test` check,
+  which GitHub only enforces on merges — the hook is what covers direct pushes.
 
 ## Versioning & Commit Policy
 

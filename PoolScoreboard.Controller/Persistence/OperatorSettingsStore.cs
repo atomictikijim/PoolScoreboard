@@ -83,64 +83,73 @@ internal sealed class OperatorSettingsStore
         File.Move(temporaryPath, SettingsPath, overwrite: true);
     }
 
+    /// <summary>
+    /// Writes this side's icon and returns what the settings file should record. A null/unusable
+    /// data URI means the operator cleared the icon, so the cached file goes too. The new bytes are
+    /// written before the old file is pruned: an unreadable icon must never destroy a good one that
+    /// was already saved.
+    /// </summary>
     private PersistedIcon? WriteIcon(string side, string? dataUri)
     {
+        if (!EndCapIconData.TryParse(dataUri, out var mime, out var bytes))
+        {
+            DeleteIcons(side);
+            return null;
+        }
+
+        var fileName = side + EndCapIconData.ExtensionFor(mime);
+        var path = Path.Combine(_iconsFolder, fileName);
+
+        if (!HasSameBytes(path, bytes))
+            File.WriteAllBytes(path, bytes);
+
+        DeleteIcons(side, keep: fileName);
+        return new PersistedIcon { File = fileName, Mime = mime };
+    }
+
+    private void DeleteIcons(string side, string? keep = null)
+    {
         foreach (var existing in Directory.EnumerateFiles(_iconsFolder, side + ".*"))
+        {
+            if (string.Equals(Path.GetFileName(existing), keep, StringComparison.OrdinalIgnoreCase))
+                continue;
+
             File.Delete(existing);
+        }
+    }
 
-        if (string.IsNullOrEmpty(dataUri) || !dataUri.StartsWith("data:", StringComparison.Ordinal))
-            return null;
-
-        var separator = dataUri.IndexOf(";base64,", StringComparison.Ordinal);
-        if (separator < 0)
-            return null;
-
-        var mime = dataUri["data:".Length..separator];
-        var base64 = dataUri[(separator + ";base64,".Length)..];
-        var fileName = side + ExtensionFor(mime);
-
+    private static bool HasSameBytes(string path, byte[] bytes)
+    {
         try
         {
-            File.WriteAllBytes(Path.Combine(_iconsFolder, fileName), Convert.FromBase64String(base64));
+            return File.Exists(path) && File.ReadAllBytes(path).AsSpan().SequenceEqual(bytes);
         }
-        catch (FormatException)
+        catch (IOException)
         {
-            // Not valid base64, so there is nothing worth keeping; the match still has the icon in
-            // memory, it just won't come back next run.
-            return null;
+            return false;
         }
-
-        return new PersistedIcon { File = fileName, Mime = mime };
     }
 
     private string? ReadIcon(PersistedIcon? icon)
     {
-        if (icon == null || string.IsNullOrEmpty(icon.File) || string.IsNullOrEmpty(icon.Mime))
+        // GetFileName keeps a hand-edited settings file from pointing outside the icons folder, and
+        // the mime is re-validated because it is echoed straight into a data URI.
+        if (icon == null || string.IsNullOrEmpty(icon.File) || !EndCapIconData.IsSupportedMime(icon.Mime))
             return null;
 
         try
         {
-            var path = Path.Combine(_iconsFolder, icon.File);
+            var path = Path.Combine(_iconsFolder, Path.GetFileName(icon.File));
             if (!File.Exists(path))
                 return null;
 
-            return $"data:{icon.Mime};base64,{Convert.ToBase64String(File.ReadAllBytes(path))}";
+            return EndCapIconData.ToDataUri(icon.Mime, File.ReadAllBytes(path));
         }
         catch (IOException)
         {
             return null;
         }
     }
-
-    private static string ExtensionFor(string mime) => mime.ToLowerInvariant() switch
-    {
-        "image/png" => ".png",
-        "image/jpeg" => ".jpg",
-        "image/gif" => ".gif",
-        "image/bmp" => ".bmp",
-        "image/svg+xml" => ".svg",
-        _ => ".bin"
-    };
 
     private sealed class PersistedSettings
     {

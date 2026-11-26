@@ -102,3 +102,9 @@ overlay as a second, separate Browser Source at
 - Nullable reference types enabled.
 - Follow MVVM in the WPF Controller.
 - Core stays UI-free and fully unit-testable.
+- Operator settings (colour theme, scoreboard style, show/hide state, and the last two players
+  with their end-cap icons) persist to `%AppData%\PoolScoreboard\`. Match state — scores, racks,
+  pocketed balls — does not.
+- Pushing runs the same Release build and Core tests as CI. Enable the committed hook once per
+  clone with `git config core.hooksPath .githooks`; bypass it deliberately with
+  `git push --no-verify`.

@@ -142,8 +142,8 @@ public partial class GameViewModel : ObservableObject
 
         // Start from whatever GameManager already holds: App restores the saved operator profile into
         // it before this window exists, so the screen has to show those values rather than defaults.
-        // The backing fields are set directly — no change callbacks, because state already agrees and
-        // re-pushing each field would raise a burst of redundant events on startup.
+        // The change handlers are suppressed via _restoring below — state already agrees, so pushing
+        // each property back through SetColorTheme/SetScoreboardStyle would only re-raise it.
         // Game type and Race-To mode are per-match choices, not part of the saved profile, so this
         // screen's own defaults stay in charge of them (ApplyMatchPreview below pushes them).
         var restored = _gameManager.GetStateSnapshot();

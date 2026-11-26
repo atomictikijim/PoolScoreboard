@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Mirrors .github/workflows/ci.yml: the same Release build and the same Core test run.
+#
+# GitHub cannot reject a *direct push* on the result of a check that runs after that push, so a
+# required status check only gates merges. This hook is what stops a red build from leaving this
+# machine at all; the required `build-and-test` check still records the verdict on master.
+#
+# Enable once per clone:
+#     git config core.hooksPath .githooks
+#
+# Bypass deliberately (e.g. a docs-only push while the build is broken):
+#     git push --no-verify
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel)" || exit 1
+cd "$root" || exit 1
+
+if ! command -v dotnet > /dev/null 2>&1; then
+  echo "pre-push: dotnet not found on PATH - cannot verify the build, blocking the push." >&2
+  echo "pre-push: install the .NET 8 SDK, or bypass with: git push --no-verify" >&2
+  exit 1
+fi
+
+log="$(mktemp)"
+trap 'rm -f "$log"' EXIT
+
+echo "pre-push: building (Release) ..."
+if ! dotnet build --configuration Release > "$log" 2>&1; then
+  tail -n 30 "$log"
+  echo "pre-push: BUILD FAILED - push blocked." >&2
+  exit 1
+fi
+
+echo "pre-push: running Core tests ..."
+if ! dotnet test PoolScoreboard.Core.Tests/PoolScoreboard.Core.Tests.csproj \
+  --configuration Release --no-build; then
+  echo "pre-push: TESTS FAILED - push blocked." >&2
+  exit 1
+fi
+
+echo "pre-push: build and tests passed."
+exit 0
