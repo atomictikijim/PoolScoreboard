@@ -187,8 +187,9 @@ alignment, not a pixel match).
   colour theme, scoreboard style, element visibility and both players' setup fields, while match
   state (scores, racks, pocketed balls) stays in memory. There is no match history.
 - The roster only holds players who have actually been on screen for a started match (or present
-  when the window closed). There is no delete/rename UI — reusing a name updates that entry, and the
-  list is capped at 100 — and no match history: scores are never stored per player.
+  when the window closed). A "Delete" button beside each side's picker drops an entry (and its icon);
+  renaming means reusing the name, which updates that entry rather than adding one. The list is capped
+  at 100, and there is no match history: scores are never stored per player.
 
 ## Testing Notes
 

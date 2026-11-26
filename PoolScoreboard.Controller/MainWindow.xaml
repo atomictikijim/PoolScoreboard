@@ -242,10 +242,22 @@
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="HOME" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12" />
                             <TextBlock Text="Saved Player" Style="{StaticResource LabelTextBlockStyle}" />
-                            <ComboBox ItemsSource="{Binding SavedPlayers}"
-                                      DisplayMemberPath="DisplayName"
-                                      SelectedItem="{Binding HomePlayer.SavedPlayer, Mode=TwoWay}"
-                                      Margin="0,0,0,10" />
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ComboBox Grid.Column="0"
+                                          ItemsSource="{Binding SavedPlayers}"
+                                          DisplayMemberPath="DisplayName"
+                                          SelectedItem="{Binding HomePlayer.SavedPlayer, Mode=TwoWay}" />
+                                <Button Grid.Column="1" Content="Delete"
+                                        Style="{StaticResource InactiveButtonStyle}"
+                                        Margin="8,0,0,0" Padding="10,4"
+                                        ToolTip="Remove this saved player from the roster"
+                                        Command="{Binding ForgetSavedPlayerCommand}"
+                                        CommandParameter="{Binding HomePlayer.SavedPlayer}" />
+                            </Grid>
                             <TextBlock Text="Team Name" Style="{StaticResource LabelTextBlockStyle}" />
                             <TextBox Text="{Binding HomePlayer.TeamName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" />
                             <TextBlock Text="Player Name" Style="{StaticResource LabelTextBlockStyle}" />
@@ -270,10 +282,22 @@
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="AWAY" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12" />
                             <TextBlock Text="Saved Player" Style="{StaticResource LabelTextBlockStyle}" />
-                            <ComboBox ItemsSource="{Binding SavedPlayers}"
-                                      DisplayMemberPath="DisplayName"
-                                      SelectedItem="{Binding AwayPlayer.SavedPlayer, Mode=TwoWay}"
-                                      Margin="0,0,0,10" />
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ComboBox Grid.Column="0"
+                                          ItemsSource="{Binding SavedPlayers}"
+                                          DisplayMemberPath="DisplayName"
+                                          SelectedItem="{Binding AwayPlayer.SavedPlayer, Mode=TwoWay}" />
+                                <Button Grid.Column="1" Content="Delete"
+                                        Style="{StaticResource InactiveButtonStyle}"
+                                        Margin="8,0,0,0" Padding="10,4"
+                                        ToolTip="Remove this saved player from the roster"
+                                        Command="{Binding ForgetSavedPlayerCommand}"
+                                        CommandParameter="{Binding AwayPlayer.SavedPlayer}" />
+                            </Grid>
                             <TextBlock Text="Team Name" Style="{StaticResource LabelTextBlockStyle}" />
                             <TextBox Text="{Binding AwayPlayer.TeamName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}" />
                             <TextBlock Text="Player Name" Style="{StaticResource LabelTextBlockStyle}" />

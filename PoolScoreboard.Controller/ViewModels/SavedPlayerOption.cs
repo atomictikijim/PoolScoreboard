@@ -8,4 +8,11 @@ public sealed record SavedPlayerOption(string Id, string Name, string TeamName, 
 {
     public string DisplayName =>
         string.IsNullOrWhiteSpace(TeamName) ? Name : $"{Name} — {TeamName}";
+
+    /// <summary>
+    /// Load-bearing, not cosmetic: the ComboBox's item template (and UI Automation) read the item's
+    /// text from here, so removing it makes the picker list records as
+    /// "SavedPlayerOption { Id = …, … }" instead of the player's name.
+    /// </summary>
+    public override string ToString() => DisplayName;
 }

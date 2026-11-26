@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Hosting;
 using PoolScoreboard.Core;
 using PoolScoreboard.Overlay;
@@ -43,11 +44,19 @@ internal static class OverlayHostRunner
         try
         {
             // Wait rather than awaiting: the caller is the UI thread and must not yield to it here.
-            return stopping.Wait(timeout + SettleMargin);
+            if (stopping.Wait(timeout + SettleMargin))
+                return true;
+
+            // Shutdown is about to exit without the server having stopped cleanly; without this the
+            // operator would never know, since there is no window left to show it in.
+            Trace.TraceWarning(
+                $"Overlay host did not stop within {timeout.TotalSeconds:0.#}s; shutting down anyway.");
+            return false;
         }
-        catch (AggregateException)
+        catch (AggregateException exception)
         {
             // A failing stop must not abort shutdown; the process can still exit.
+            Trace.TraceWarning($"Overlay host failed to stop: {exception.GetBaseException().Message}");
             return false;
         }
     }

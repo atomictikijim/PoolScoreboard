@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using PoolScoreboard.Core.Persistence;
@@ -118,6 +119,24 @@ public sealed class PlayerRosterStore
         var temporaryPath = RosterPath + ".tmp";
         File.WriteAllText(temporaryPath, JsonSerializer.Serialize(document, PersistenceJson.Options));
         File.Move(temporaryPath, RosterPath, overwrite: true);
+    }
+
+    /// <summary>
+    /// Saves, but never throws: the roster is rewritten from a click and again while the window is
+    /// closing, and a locked or full disk must not take the app down there. Returns whether it wrote.
+    /// </summary>
+    public bool TrySave(PlayerRoster roster)
+    {
+        try
+        {
+            Save(roster);
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Trace.TraceWarning($"Could not write the player roster: {exception.Message}");
+            return false;
+        }
     }
 
     /// <summary>Decodes one saved icon on demand, so only the player actually being picked is loaded.</summary>

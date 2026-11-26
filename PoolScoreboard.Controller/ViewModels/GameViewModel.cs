@@ -562,7 +562,24 @@ public partial class GameViewModel : ObservableObject
             _rosterStore.SetIcon(entry.Id, player.EndCapIconDataUri);
         }
 
-        _rosterStore.Save(_roster);
+        _rosterStore.TrySave(_roster);
+        RefreshSavedPlayers();
+    }
+
+    /// <summary>
+    /// Removes one saved player, so a mis-typed name can be cleared out instead of lingering in every
+    /// side's picker. The roster rewrites its file without that entry, and the next save drops the
+    /// player's artwork with it.
+    /// </summary>
+    [RelayCommand]
+    private void ForgetSavedPlayer(SavedPlayerOption? option)
+    {
+        if (option == null || !_roster.Forget(option.Id))
+            return;
+
+        // A failed write leaves the file as it was: the entry is gone for this session only, which
+        // beats a crash from clicking Delete while something holds roster.json open.
+        _rosterStore.TrySave(_roster);
         RefreshSavedPlayers();
     }
 

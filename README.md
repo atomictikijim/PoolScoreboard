@@ -30,8 +30,9 @@ its own overlay server on localhost, so it keeps working with no network at all.
   not re-send the whole scoreboard to OBS.
 - **Saved Players**: everyone you play is remembered — name, team, Race-To and end-cap icon — so a
   returning player can be dropped into either side from a dropdown instead of being retyped. Players
-  join the roster automatically when a match starts (or when the window closes) and are listed most
-  recently used first.
+  join the roster automatically when a match starts (or when the window closes), are listed most
+  recently used first, and each side's picker has a **Delete** button to drop a mis-typed name (its
+  saved icon goes with it).
 - **Overlay Show/Hide**: the score bar, ball tracker and winner banner can each be turned off
   from the Controller without touching the OBS scene; hiding the score bar hides the other two
   with it. The same toggles are available on the Match Setup screen, so a stream can be

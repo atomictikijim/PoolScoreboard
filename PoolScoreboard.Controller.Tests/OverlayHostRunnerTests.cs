@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Hosting;
 using PoolScoreboard.Controller;
 
@@ -59,6 +60,59 @@ public class OverlayHostRunnerTests
         var host = new FakeHost(() => throw new InvalidOperationException("host already gone"));
 
         Assert.False(OverlayHostRunner.StopAndDispose(host, Timeout));
+    }
+
+    [Fact]
+    public void StopAndDispose_TracesAWarningWhenTheHostDoesNotStop()
+    {
+        var listener = new CapturingTraceListener();
+        Trace.Listeners.Add(listener);
+        try
+        {
+            OverlayHostRunner.StopAndDispose(
+                new FakeHost(() => new TaskCompletionSource().Task),
+                TimeSpan.FromMilliseconds(100));
+        }
+        finally
+        {
+            Trace.Listeners.Remove(listener);
+        }
+
+        Assert.Contains(listener.Messages, message => message.Contains("did not stop within"));
+    }
+
+    [Fact]
+    public void StopAndDispose_TracesAWarningWhenTheStopThrows()
+    {
+        var listener = new CapturingTraceListener();
+        Trace.Listeners.Add(listener);
+        try
+        {
+            OverlayHostRunner.StopAndDispose(
+                new FakeHost(() => throw new InvalidOperationException("already gone")),
+                Timeout);
+        }
+        finally
+        {
+            Trace.Listeners.Remove(listener);
+        }
+
+        Assert.Contains(listener.Messages, message => message.Contains("failed to stop") && message.Contains("already gone"));
+    }
+
+    private sealed class CapturingTraceListener : TraceListener
+    {
+        public List<string> Messages { get; } = new();
+
+        public override void Write(string? message)
+        {
+        }
+
+        public override void WriteLine(string? message)
+        {
+            if (message != null)
+                Messages.Add(message);
+        }
     }
 
     private sealed class FakeHost : IHost

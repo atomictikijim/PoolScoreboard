@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -136,6 +137,62 @@ public sealed class PlayerRosterStoreTests : IDisposable
         Assert.Equal(new[] { "roster-b.png" }, IconFiles());
         Assert.Null(IconFor("a"));
         Assert.NotNull(IconFor("b"));
+    }
+
+    [Fact]
+    public void TrySave_ReportsFailureInsteadOfThrowing_WhenTheFileCannotBeWritten()
+    {
+        var store = Store;
+        var roster = new PlayerRoster();
+        roster.Remember("Alice", "Blue Cuers", 7, "alice-id");
+        Directory.CreateDirectory(store.RosterPath);
+
+        var listener = new CapturingTraceListener();
+        Trace.Listeners.Add(listener);
+        try
+        {
+            Assert.False(store.TrySave(roster));
+        }
+        finally
+        {
+            Trace.Listeners.Remove(listener);
+        }
+
+        Assert.Contains(listener.Messages, message => message.Contains("Could not write the player roster"));
+    }
+
+    private sealed class CapturingTraceListener : TraceListener
+    {
+        public List<string> Messages { get; } = new();
+
+        public override void Write(string? message)
+        {
+        }
+
+        public override void WriteLine(string? message)
+        {
+            if (message != null)
+                Messages.Add(message);
+        }
+    }
+
+    [Fact]
+    public void ForgettingAPlayerThroughTheRoster_RemovesThemAndTheirIcon()
+    {
+        var store = Store;
+        var roster = new PlayerRoster();
+        var alice = roster.Remember("Alice", "Blue Cuers", 7, "alice-id")!;
+        roster.Remember("Bob", "", 5, "bob-id");
+        store.SetIcon(alice.Id, Png());
+        store.Save(roster);
+
+        Assert.True(roster.Forget(alice.Id));
+        Assert.True(store.TrySave(roster));
+
+        var reloaded = Store;
+        Assert.Equal(new[] { "Bob" }, reloaded.Load().Players.Select(p => p.Name));
+        Assert.Null(reloaded.LoadIcon("alice-id"));
+        Assert.Empty(IconFiles().Where(file => file.StartsWith("roster-alice-id", StringComparison.Ordinal)));
     }
 
     [Fact]

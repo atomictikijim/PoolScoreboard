@@ -181,8 +181,8 @@ live:
   profile — colour theme, scoreboard style, element visibility and both players' name/team/Race-To/
   end-cap icon — is saved to `%AppData%\PoolScoreboard\settings.json` and restored on launch.
 - The roster only remembers players who were on screen for a started match (or still there when the
-  window closed). There is no UI to delete or rename an entry — reusing a name updates it, and the list
-  is capped at 100 — and no match history: no scores are stored against a player.
+  window closed). "Delete" beside a picker drops an entry and its icon; renaming means reusing the name,
+  and the list is capped at 100. No match history: no scores are stored against a player.
 - Ball colors in the Controller's live view are placeholder standard billiard-ball colors,
   not yet informed by the WNT visual reference.
 - Flag end-caps are artwork ("Choose Flag..." bundles country and US-state SVGs) stored as the
@@ -193,6 +193,28 @@ live:
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-26 — Deleting saved players, and a trace when the overlay host outlives its timeout
+
+- `PlayerRoster.Forget(id)` returns whether an entry went, and each side's picker gained a **Delete**
+  button (one `ForgetSavedPlayerCommand` taking the picked entry as its parameter) that drops the entry,
+  rewrites `roster.json` and lets the store's existing pruning remove that player's icon file. Deleting
+  does not clear the setup fields, so a mis-picked player is not wiped mid-prep; the entry only returns
+  to the roster if a match starts with that name again.
+- `OverlayHostRunner.StopAndDispose` now writes `Trace.TraceWarning` when the host misses its timeout,
+  and when the stop throws (including the exception message), so a shutdown that gives up is no longer
+  silent. Tests capture `Trace` output through a listener and assert both messages.
+- `PlayerRosterStore.TrySave` (and both roster writes, at match start and at close) tolerates a locked or
+  full disk, matching the settings store: the entry still leaves the picker for that session, a failed
+  write traces a warning, and clicking Delete can no longer crash the app. The test blocks the write by
+  turning `roster.json` into a directory and asserts `false` plus the warning instead of an exception.
+- Restored `SavedPlayerOption.ToString()`: the ComboBox's item template reads the item's text from it, so
+  without the override the picker listed `SavedPlayerOption { Id = …, … }` instead of the player's name.
+  The previous commit removed it as dead code; the running app showed it was load-bearing.
+- Verified in the running Controller: seeded two players (one with a PNG icon), selected the second in
+  the HOME picker and pressed Delete — it disappeared from `roster.json` and from the picker; deleted the
+  remaining player and their `roster-*.png` went too while the unrelated `home.png` stayed.
+- Build 0 warnings; 130/130 tests (93 Core + 37 Controller).
 
 ### 2026-11-26 — The Controller now exits when its window closes
 

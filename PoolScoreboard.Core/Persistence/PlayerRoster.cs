@@ -41,6 +41,18 @@ public class PlayerRoster
     }
 
     /// <summary>
+    /// Drops one saved player. Returns false when no entry has that id, so callers can tell a stale
+    /// picker selection from a real removal.
+    /// </summary>
+    public bool Forget(string? id)
+    {
+        if (string.IsNullOrEmpty(id))
+            return false;
+
+        return Players.RemoveAll(player => string.Equals(player.Id, id, StringComparison.Ordinal)) > 0;
+    }
+
+    /// <summary>
     /// Adds the player, or updates the matching one and moves them to the front. Returns null for a
     /// blank name — that is how the setup screen represents a side that hasn't been filled in, and it
     /// must not create roster entries.

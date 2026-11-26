@@ -112,6 +112,31 @@ public class PlayerRosterTests
     }
 
     [Fact]
+    public void Forget_RemovesTheEntryWithThatId()
+    {
+        var roster = new PlayerRoster();
+        roster.Remember("Alice", "Blue Cuers", 7, "a");
+        roster.Remember("Bob", "", 5, "b");
+
+        Assert.True(roster.Forget("a"));
+        Assert.False(roster.Forget("a"));
+        Assert.Equal(new[] { "Bob" }, roster.Players.Select(p => p.Name));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("missing")]
+    public void Forget_UnknownOrBlankId_ChangesNothing(string? id)
+    {
+        var roster = new PlayerRoster();
+        roster.Remember("Alice", "Blue Cuers", 7, "a");
+
+        Assert.False(roster.Forget(id));
+        Assert.Single(roster.Players);
+    }
+
+    [Fact]
     public void Remember_CollapsesDuplicateNamesAlreadyInTheList()
     {
         var roster = new PlayerRoster
