@@ -142,6 +142,13 @@
                             US state flag ("Choose Flag..."), or remove it ("Clear") — it replaces the
                             default colored dot at that side's end of the score bar.
                         </TextBlock>
+                        <TextBlock Style="{StaticResource HelpBulletStyle}">
+                            • <Bold>OVERLAY row</Bold> — Score Bar / Ball Tracker / Winner Banner buttons show
+                            or hide each of those elements on the overlay. They appear here as well as on the
+                            Live View, so you can set the overlay up before a match, and the choices carry
+                            through START MATCH and RESET MATCH. Hiding the score bar also hides the other two,
+                            since they're anchored to it.
+                        </TextBlock>
                         <TextBlock Style="{StaticResource HelpBodyStyle}" Margin="0,4,0,0">
                             Click <Bold>START MATCH</Bold> when you're ready to begin scoring.
                         </TextBlock>
@@ -168,14 +175,17 @@
                             it back.
                         </TextBlock>
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
-                            • <Bold>OVERLAY row</Bold> — Score Bar / Ball Tracker / Winner Banner buttons show
-                            or hide each of those elements on the overlay live, with a slide/fade animation.
-                            Hiding the score bar also hides the other two, since they're anchored to it.
+                            • <Bold>OVERLAY row</Bold> — the same three buttons as on Match Setup, available
+                            mid-match, with a slide/fade animation. Hiding the score bar also hides the other
+                            two, since they're anchored to it.
                         </TextBlock>
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
                             • <Bold>NEW RACK</Bold> clears all pocketed-ball markers for a fresh rack without
-                            touching the score. <Bold>RESET MATCH</Bold> ends the match entirely and returns
-                            you to the Match Setup screen — use it between matches, not mid-rack.
+                            touching the score. <Bold>RESET MATCH</Bold> ends the match, clears the scores, undo
+                            history and pocketed balls, and returns you to the Match Setup screen — your player
+                            details, end-cap icons, colors, style, overlay visibility and game/Race-To choices
+                            are kept, so you can start the next match straight away. Use it between matches, not
+                            mid-rack.
                         </TextBlock>
 
                         <TextBlock Text="Keyboard shortcuts (Live View only)" Style="{StaticResource HelpSubHeadingStyle}" />
@@ -291,9 +301,11 @@
                             8-Ball).
                         </TextBlock>
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
-                            • Reset Match is destructive — it clears the loaded players and settings back to
-                            defaults, just like the in-app button. Consider putting it on its own page or
-                            folder so it's harder to press by accident.
+                            • Reset Match ends the match and clears the scores, undo history and pocketed
+                            balls, just like the in-app button — but it keeps the loaded players and your
+                            settings (colors, style, overlay visibility, game type and Race-To), so the next
+                            match is one Start Match away. Consider putting it on its own page or folder so
+                            it's harder to press by accident.
                         </TextBlock>
                         <TextBlock Style="{StaticResource HelpBulletStyle}">
                             • The cue-ball overlay's Clear button isn't in this list — it's meant to be clicked

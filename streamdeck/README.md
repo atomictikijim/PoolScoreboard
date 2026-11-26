@@ -39,9 +39,12 @@ using the mapping below, then export/share it from there if needed.
 - Score/undo/shooter-toggle/ball-assignment buttons no-op safely if no match is active yet (e.g.
   pressed while the Controller is still on the Match Setup screen) — pressing them won't crash or
   desync anything, they just have no effect until "Start Match" has been clicked.
-- "Reset Match" is destructive: it clears the loaded players, color theme, and scoreboard style
-  back to defaults, exactly like the in-app button. It's meant for wrapping up one match before
-  setting up the next, not for a mid-match do-over — use "New Rack" (or "Undo") for that instead.
+- "Reset Match" ends the match and returns the Controller to Match Setup, exactly like the in-app
+  button — but it is not a factory reset. Scores, undo history, pocketed balls and the winner are
+  cleared; the loaded players and their end-cap icons, the color theme, scoreboard style, overlay
+  show/hide settings, and the chosen game and Race-To mode all stay exactly as they were, so the
+  next match can start with one press of Start Match. Use "New Rack" (or "Undo") for a mid-match
+  do-over instead.
 - The cue-ball overlay's "Clear" button (`/overlay/api/cueball/clear`) is intentionally left off
   this table — it's meant to be clicked directly on the `/overlay/cueball` OBS browser source via
   OBS's "Interact" mode, not wired to a physical Stream Deck button, though nothing stops you from

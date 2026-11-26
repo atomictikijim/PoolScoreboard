@@ -19,14 +19,18 @@ live:
 - `PoolScoreboard.Core`: `GameManager`, `GameState`, `Player`, `GameType`, `RaceToMode`,
   `BallGroup`, `ColorTheme` — no league/skill-level/Fargo-rating anywhere. `GameManager` wins
   are decided by comparing each player's score to their own `RaceToTarget`; it also exposes
-  `AssignBallGroup`, `SetCurrentShooter`, `PocketBall`/`UnpocketBall`/`ResetBalls`, and
-  `SetColorTheme`. It holds one persistent `GameState`/`GameManager` instance per app session
-  (recreated only implicitly via `ResetGame`), which matters once Phase 3 hands the same
-  instance to the Overlay host.
+  `SetPlayerDetails` (the setup screen's writes), `ToggleCurrentShooter`, `AssignBallGroup`,
+  `PocketBall`/`UnpocketBall`/`ResetBalls`, `SetColorTheme`, and the per-element visibility
+  setters. Every mutation runs under one internal lock that raises `GameStateChanged` with a
+  snapshot, so deliveries arrive in mutation order. One `GameManager` lives per app session; its
+  `GameState` is replaced only when a match starts or is reset, and both keep the players and the
+  operator's settings. Phase 3 hands the same instance to the Overlay host.
 - `PoolScoreboard.Controller`: `GameViewModel` owns one persistent `GameManager` for the app's
   lifetime and mirrors its `GameStateChanged` events into bindable live-view state (score,
-  current shooter, ball groups, pocketed balls). `PlayerViewModel` is now setup-only
-  (team/player name, Race-To target). `MainWindow.xaml` has two screens toggled by
+  current shooter, ball groups, pocketed balls). `PlayerViewModel` is setup-only and holds no
+  `Player` of its own: its team name, player name, Race-To and end-cap icon fields write straight
+  into `GameManager` state, so the overlay previews them as they're typed. `MainWindow.xaml` has
+  two screens toggled by
   `GameInitialized`: a match-setup screen (game type, Race-To mode + value(s), color theme
   hex fields with swatch previews) and a live view (score +/-, current-shooter toggle, 8-ball
   group-assignment buttons + shared center 8-ball, numeric 1-9/1-10 ball row for 9/10-ball,
@@ -49,16 +53,16 @@ live:
   from `GameState.ColorTheme` at runtime, plus a ball tracker row (pocketed balls greyed out,
   8-ball split by each player's assigned group) and a current-shooter glow on the active side —
   the shooter/ball-tracker treatment is a reasonable default per NOTES.md, not sourced from a
-  screenshot. No control API yet — that's Phase 5. Verified end-to-end (build, `dotnet test`,
-  live HTTP requests against a running instance, and a standalone harness confirming SSE pushes
-  fire correctly on `InitializeGame`/`AddPoint`/`PocketBall`) since no screenshot tooling is
-  available in this environment to eyeball it in an actual browser/OBS source — worth a manual
-  visual pass by the developer.
-- `dotnet build` is clean across all four projects (0 warnings, 0 errors); `dotnet test` is
-  18/18. The Controller was launched and confirmed to start without a runtime binding/XAML
-  crash — full visual verification of the live view wasn't done in this pass (no screenshot
-  tooling available in this environment); worth a manual pass by the developer.
-- No `streamdeck/` profile documentation yet.
+  screenshot. Verified end-to-end at the time (build, `dotnet test`, live HTTP requests against a
+  running instance, and a standalone harness confirming SSE pushes fire correctly on
+  `InitializeGame`/`AddPoint`/`PocketBall`); the pages have since been checked in a real browser
+  and the Controller driven through its UI — see the 2026-11-26 entries below.
+- `dotnet build` is clean across all four projects (0 warnings, 0 errors); `dotnet test` is 47/47.
+  The Controller starts without a runtime binding/XAML crash, and both of its screens have since
+  been driven through UI Automation and screenshotted (again, see the 2026-11-26 entries).
+- `streamdeck/` documents the button-to-endpoint mapping (Phase 5) and the packaging procedure
+  (Phase 6). There is still no exported `.streamDeckProfile` in the repo — by design, see
+  `streamdeck/README.md`.
 - Ball colors are placeholder standard billiard-ball colors (solid fills, no true half-white
   stripe rendering) pending the WNT visual reference (see "Pending: WNT visual reference"
   below).
@@ -180,11 +184,34 @@ live:
   not yet informed by the WNT visual reference.
 - No persistence for `ScoreboardStyle`/element-visibility/`ColorTheme` choices between app runs —
   they survive starting and resetting matches, but a Controller restart drops back to defaults.
-- Flag end-caps from the WNT reference are still not implemented as real flags (no nationality
-  field on `Player`) — `EndCapStyle` only offers `Dot`/`Hidden` for now.
+- Flag end-caps are picked per match through "Choose Flag..." (bundled country and US-state SVGs)
+  rather than coming from a `Player` field — there is still no nationality/flag property on
+  `Player`, so a returning player's flag has to be re-picked each match.
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-26 — Docs catch-up: reset behaviour, overlay toggles, current status
+
+- "Reset Match" stopped being destructive to the operator's setup when `ResetGame` began carrying
+  the players, styling and chosen game/Race-To over, but three places still said otherwise:
+  `streamdeck/README.md` and both Reset Match notes in `HelpWindow.xaml` (Live View and Stream
+  Deck tabs). They now say it ends the match and clears scores, undo history, pocketed balls and
+  the winner while keeping player details, end-cap icons, colours, style, show/hide settings and
+  the game/Race-To choices.
+- The in-app help described the OVERLAY row only under Live View, after it became available on
+  Match Setup too. It is now described on both screens, with a note that the choices carry
+  through START MATCH and RESET MATCH, and the Live View bullet refers back to it.
+- `PROGRESS.md`'s Current Status block was stale in several ways: it listed the deleted
+  `SetCurrentShooter`, said state was "recreated only implicitly via `ResetGame`", described
+  `PlayerViewModel` as owning players and omitted its end-cap icon fields, still said the control
+  API and `streamdeck/` docs were missing, and quoted 18/18 tests. It now matches the code — the
+  locked, snapshot-raising manager, `SetPlayerDetails`/`ToggleCurrentShooter`, both exits keeping
+  the players and settings, and 47/47.
+- Known Gaps: the flag bullet claimed flag end-caps were not implemented, but "Choose Flag..."
+  with bundled country and US-state SVGs shipped on 2026-08-14. It now records what is actually
+  missing: no nationality/flag field on `Player`, so a flag is re-picked each match.
+- Documentation and help text only; no behaviour change. Build clean, 0 warnings; 47/47 tests.
 
 ### 2026-11-26 — One embedded-asset reader for both overlay page endpoints
 
