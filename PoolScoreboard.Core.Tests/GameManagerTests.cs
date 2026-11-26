@@ -209,7 +209,7 @@ public class GameManagerTests
     }
 
     [Fact]
-    public void ResetGame_ClearsStateBackToDefaults()
+    public void ResetGame_ClearsScoresWinnerAndCurrentShooter()
     {
         var manager = new GameManager();
         manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.NineBall, RaceToMode.Single);
@@ -223,6 +223,86 @@ public class GameManagerTests
         Assert.Equal(0, state.Player2Score);
         Assert.Null(state.Winner);
         Assert.Null(state.CurrentShooter);
+    }
+
+    [Fact]
+    public void ResetGame_KeepsTheSetupPlayersAndClearsTheirBallGroups()
+    {
+        var manager = new GameManager();
+        manager.SetPlayerDetails(isHome: true, "Alice", "Blue Cuers", raceToTarget: 7, "data:image/png;base64,AAAA");
+        manager.SetPlayerDetails(isHome: false, "Bob", "Red Rackers", raceToTarget: 7, endCapIcon: null);
+        manager.InitializeGame(GameType.EightBall, RaceToMode.Split);
+        manager.AssignBallGroup(isHome: true, BallGroup.Solids);
+        manager.AddPoint(true);
+
+        // A reset from the HTTP control API has no setup screen to re-type the names afterwards.
+        manager.ResetGame();
+
+        var state = manager.GetStateSnapshot();
+        Assert.False(state.IsGameActive);
+        Assert.Equal(0, state.Player1Score);
+        Assert.Equal("Alice", state.Player1.Name);
+        Assert.Equal("Blue Cuers", state.Player1.TeamName);
+        Assert.Equal(7, state.Player1.RaceToTarget);
+        Assert.Equal("data:image/png;base64,AAAA", state.Player1.EndCapIcon);
+        Assert.Equal("Bob", state.Player2.Name);
+        Assert.Equal(BallGroup.Unassigned, state.Player1.BallGroup);
+        Assert.Equal(BallGroup.Unassigned, state.Player2.BallGroup);
+    }
+
+    [Fact]
+    public void ResetGame_KeepsTheOperatorsColorThemeStyleAndVisibility()
+    {
+        var manager = new GameManager();
+        manager.InitializeGame(CreatePlayer("Alice", 5), CreatePlayer("Bob", 5), GameType.EightBall, RaceToMode.Single);
+        manager.SetColorTheme(new ColorTheme
+        {
+            HomeBackground = "#111111",
+            AwayBackground = "#222222",
+            HomeAccent = "#00ff00",
+            AwayAccent = "#ff00ff",
+            Text = "#eeeeee"
+        });
+        manager.SetScoreboardStyle(new ScoreboardStyle
+        {
+            CornerRoundness = 40,
+            OverallScale = 150,
+            GlossyFinish = false,
+            EndCapStyle = EndCapStyle.Hidden,
+            ShooterIndicatorStyle = ShooterIndicatorStyle.Both
+        });
+        manager.SetScoreBarVisible(false);
+        manager.SetBallTrackerVisible(false);
+        manager.SetWinnerBannerVisible(false);
+        manager.AddPoint(true);
+
+        // A reset ends the match; it doesn't restyle the show.
+        manager.ResetGame();
+
+        var state = manager.GetStateSnapshot();
+        Assert.False(state.IsGameActive);
+        Assert.Equal(0, state.Player1Score);
+
+        Assert.Equal("#111111", state.ColorTheme.HomeBackground);
+        Assert.Equal("#222222", state.ColorTheme.AwayBackground);
+        Assert.Equal("#00ff00", state.ColorTheme.HomeAccent);
+        Assert.Equal("#ff00ff", state.ColorTheme.AwayAccent);
+        Assert.Equal("#eeeeee", state.ColorTheme.Text);
+
+        Assert.Equal(40, state.ScoreboardStyle.CornerRoundness);
+        Assert.Equal(150, state.ScoreboardStyle.OverallScale);
+        Assert.False(state.ScoreboardStyle.GlossyFinish);
+        Assert.Equal(EndCapStyle.Hidden, state.ScoreboardStyle.EndCapStyle);
+        Assert.Equal(ShooterIndicatorStyle.Both, state.ScoreboardStyle.ShooterIndicatorStyle);
+
+        Assert.False(state.Visibility.ScoreBarVisible);
+        Assert.False(state.Visibility.BallTrackerVisible);
+        Assert.False(state.Visibility.WinnerBannerVisible);
+
+        // The survivors are copies: editing styling after the reset doesn't rewrite the snapshot.
+        manager.SetScoreBarVisible(true);
+        Assert.False(state.Visibility.ScoreBarVisible);
+        Assert.True(manager.GetStateSnapshot().Visibility.ScoreBarVisible);
     }
 
     [Fact]
@@ -528,17 +608,13 @@ public class GameManagerTests
     }
 
     [Fact]
-    public void SetMatchPreview_UpdatesPlayersGameTypeAndRaceToMode_BeforeMatchStarts()
+    public void SetMatchPreview_UpdatesGameTypeAndRaceToMode_BeforeMatchStarts()
     {
         var manager = new GameManager();
-        var player1 = CreatePlayer("Alice", 7);
-        var player2 = CreatePlayer("Bob", 7);
 
-        manager.SetMatchPreview(player1, player2, GameType.EightBall, RaceToMode.Split);
+        manager.SetMatchPreview(GameType.EightBall, RaceToMode.Split);
 
         var state = manager.GetCurrentGameState();
-        Assert.Same(player1, state.Player1);
-        Assert.Same(player2, state.Player2);
         Assert.Equal(GameType.EightBall, state.GameType);
         Assert.Equal(RaceToMode.Split, state.RaceToMode);
         Assert.False(state.IsGameActive);
@@ -552,13 +628,115 @@ public class GameManagerTests
         var player2 = CreatePlayer("Bob", 5);
         manager.InitializeGame(player1, player2, GameType.NineBall, RaceToMode.Single);
 
-        manager.SetMatchPreview(CreatePlayer("Someone Else", 9), CreatePlayer("Another", 9), GameType.TenBall, RaceToMode.Split);
+        manager.SetMatchPreview(GameType.TenBall, RaceToMode.Split);
 
         var state = manager.GetCurrentGameState();
         Assert.Same(player1, state.Player1);
         Assert.Same(player2, state.Player2);
         Assert.Equal(GameType.NineBall, state.GameType);
         Assert.Equal(RaceToMode.Single, state.RaceToMode);
+    }
+
+    [Fact]
+    public void SetPlayerDetails_LandsInTheSnapshotTheOverlaySerializes()
+    {
+        const string icon = "data:image/png;base64,AAAA";
+        var manager = new GameManager();
+
+        manager.SetPlayerDetails(isHome: true, "Alice", "Blue Cuers", raceToTarget: 7, icon);
+        manager.SetPlayerDetails(isHome: false, "Bob", "Red Rackers", raceToTarget: 7, endCapIcon: null);
+
+        // GetStateSnapshot() is what the overlay's state endpoint serializes: these are the fields
+        // it renders, plus the icon the end-cap URL points at.
+        var snapshot = manager.GetStateSnapshot();
+        Assert.Equal("Alice", snapshot.Player1.Name);
+        Assert.Equal("Blue Cuers", snapshot.Player1.TeamName);
+        Assert.Equal(7, snapshot.Player1.RaceToTarget);
+        Assert.Equal(icon, snapshot.Player1.EndCapIcon);
+        Assert.Equal(1, snapshot.Player1.EndCapIconVersion);
+
+        Assert.Equal("Bob", snapshot.Player2.Name);
+        Assert.Equal("Red Rackers", snapshot.Player2.TeamName);
+        Assert.Equal(7, snapshot.Player2.RaceToTarget);
+        Assert.Null(snapshot.Player2.EndCapIcon);
+        Assert.Equal(0, snapshot.Player2.EndCapIconVersion);
+
+        // The snapshot is a point-in-time copy, not a window onto the live player.
+        manager.SetPlayerDetails(isHome: true, "Carol", "Blue Cuers", raceToTarget: 7, icon);
+        Assert.Equal("Alice", snapshot.Player1.Name);
+    }
+
+    [Fact]
+    public void SetPlayerDetails_ValuesSurviveStartingTheMatchFromTheStatePlayers()
+    {
+        var manager = new GameManager();
+        manager.SetPlayerDetails(isHome: true, "Alice", "Blue Cuers", raceToTarget: 9, "data:image/png;base64,AAAA");
+        manager.SetPlayerDetails(isHome: false, "Bob", "Red Rackers", raceToTarget: 9, endCapIcon: null);
+
+        // This is the setup screen's START MATCH path: no players are passed in, the state players
+        // the screen has been writing are the ones that play.
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        var state = manager.GetStateSnapshot();
+        Assert.True(state.IsGameActive);
+        Assert.Equal("Alice", state.Player1.Name);
+        Assert.Equal("Blue Cuers", state.Player1.TeamName);
+        Assert.Equal(9, state.Player1.RaceToTarget);
+        Assert.Equal("data:image/png;base64,AAAA", state.Player1.EndCapIcon);
+        Assert.Equal("Bob", state.Player2.Name);
+        Assert.Equal(9, state.Player2.RaceToTarget);
+        Assert.Same(state.Player1, state.CurrentShooter);
+        Assert.Equal(0, state.Player1Score);
+    }
+
+    [Fact]
+    public void SetPlayerDetails_OnlyBumpsIconVersionWhenTheArtworkChanges()
+    {
+        var manager = new GameManager();
+        manager.SetPlayerDetails(isHome: true, "A", string.Empty, raceToTarget: 5, "data:image/png;base64,AAAA");
+
+        // Editing the name re-sends the same icon: no new version, so the overlay keeps its cached copy.
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, raceToTarget: 5, "data:image/png;base64,AAAA");
+        Assert.Equal(1, manager.GetStateSnapshot().Player1.EndCapIconVersion);
+
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, raceToTarget: 5, "data:image/png;base64,BBBB");
+        var changed = manager.GetStateSnapshot().Player1;
+        Assert.Equal("data:image/png;base64,BBBB", changed.EndCapIcon);
+        Assert.Equal(2, changed.EndCapIconVersion);
+    }
+
+    [Fact]
+    public async Task SetPlayerDetails_KeepsNameAndIconConsistentInEverySnapshotUnderConcurrency()
+    {
+        const string iconA = "data:image/png;base64,AAAA";
+        const string iconB = "data:image/png;base64,BBBB";
+        var manager = new GameManager();
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, raceToTarget: 5, iconA);
+
+        var writers = new[]
+        {
+            Task.Run(() =>
+            {
+                for (var i = 0; i < 300; i++)
+                    manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, raceToTarget: 5, iconA);
+            }),
+            Task.Run(() =>
+            {
+                for (var i = 0; i < 300; i++)
+                    manager.SetPlayerDetails(isHome: true, "Bob", string.Empty, raceToTarget: 5, iconB);
+            })
+        };
+
+        var readers = Enumerable.Range(0, 2).Select(_ => Task.Run(() =>
+        {
+            for (var i = 0; i < 400; i++)
+            {
+                var player = manager.GetStateSnapshot().Player1;
+                Assert.Equal(player.Name == "Alice" ? iconA : iconB, player.EndCapIcon);
+            }
+        }));
+
+        await Task.WhenAll(writers.Concat(readers));
     }
 
     [Fact]

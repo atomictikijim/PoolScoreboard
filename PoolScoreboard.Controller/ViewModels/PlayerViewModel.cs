@@ -1,16 +1,19 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using PoolScoreboard.Core.Models;
+using PoolScoreboard.Core;
 
 namespace PoolScoreboard.Controller.ViewModels;
 
 /// <summary>
-/// Match-setup fields for one player. Live-game state (score, ball group, current shooter)
-/// lives on <see cref="GameViewModel"/>, mirrored from the authoritative GameManager once the
-/// match starts.
+/// Match-setup fields for one player. The values are written into GameManager's state as they are
+/// typed (see <see cref="GameManager.SetPlayerDetails" />) rather than into a <c>Player</c> this
+/// screen owns, so the preview the overlay renders and the match that starts from these fields are
+/// the same lock-protected players. Live-game state (score, ball group, current shooter) lives on
+/// <see cref="GameViewModel"/>, mirrored from the authoritative GameManager once the match starts.
 /// </summary>
 public partial class PlayerViewModel : ObservableObject
 {
-    private readonly Player _player;
+    private readonly GameManager _gameManager;
+    private readonly bool _isHome;
 
     [ObservableProperty]
     private string teamName = string.Empty;
@@ -24,18 +27,22 @@ public partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     private string? endCapIconDataUri;
 
-    public PlayerViewModel()
+    public PlayerViewModel(GameManager gameManager, bool isHome)
     {
-        _player = new Player();
+        _gameManager = gameManager;
+        _isHome = isHome;
     }
 
-    partial void OnTeamNameChanged(string value) => _player.TeamName = value;
+    partial void OnTeamNameChanged(string value) => PushToState();
 
-    partial void OnPlayerNameChanged(string value) => _player.Name = value;
+    partial void OnPlayerNameChanged(string value) => PushToState();
 
-    partial void OnRaceToTargetChanged(int value) => _player.RaceToTarget = value;
+    partial void OnRaceToTargetChanged(int value) => PushToState();
 
-    partial void OnEndCapIconDataUriChanged(string? value) => _player.EndCapIcon = value;
+    partial void OnEndCapIconDataUriChanged(string? value) => PushToState();
 
-    public Player GetPlayer() => _player;
+    // Each edit re-sends all four fields; GameManager writes only what actually changed (the icon),
+    // so re-sending the untouched ones doesn't churn the overlay's cached artwork.
+    private void PushToState() =>
+        _gameManager.SetPlayerDetails(_isHome, PlayerName, TeamName, RaceToTarget, EndCapIconDataUri);
 }

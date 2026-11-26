@@ -151,13 +151,7 @@ public partial class GameViewModel : ObservableObject
         ApplyMatchPreview();
     }
 
-    private void ApplyMatchPreview()
-    {
-        if (HomePlayer == null || AwayPlayer == null)
-            return;
-
-        _gameManager.SetMatchPreview(HomePlayer.GetPlayer(), AwayPlayer.GetPlayer(), SelectedGameType, SelectedRaceToMode);
-    }
+    private void ApplyMatchPreview() => _gameManager.SetMatchPreview(SelectedGameType, SelectedRaceToMode);
 
     partial void OnHomeBackgroundColorChanged(string? oldValue, string newValue) => ApplyColorTheme();
 
@@ -249,10 +243,7 @@ public partial class GameViewModel : ObservableObject
     [RelayCommand]
     private void StartMatch()
     {
-        if (HomePlayer == null || AwayPlayer == null)
-            return;
-
-        _gameManager.InitializeGame(HomePlayer.GetPlayer(), AwayPlayer.GetPlayer(), SelectedGameType, SelectedRaceToMode);
+        _gameManager.InitializeGame(SelectedGameType, SelectedRaceToMode);
         ApplyColorTheme();
         ApplyScoreboardStyle();
     }
@@ -452,8 +443,8 @@ public partial class GameViewModel : ObservableObject
 
     private void SetupPlayers()
     {
-        HomePlayer = new PlayerViewModel();
-        AwayPlayer = new PlayerViewModel();
+        HomePlayer = new PlayerViewModel(_gameManager, isHome: true);
+        AwayPlayer = new PlayerViewModel(_gameManager, isHome: false);
         HomePlayer.PropertyChanged += OnHomePlayerPropertyChanged;
         AwayPlayer.PropertyChanged += OnAwayPlayerPropertyChanged;
     }

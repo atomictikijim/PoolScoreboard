@@ -32,24 +32,41 @@ public class GameManager
     {
         lock (_sync)
         {
-            _pointHistory.Clear();
-
-            _currentGame = new GameState
-            {
-                Player1 = player1,
-                Player2 = player2,
-                GameType = gameType,
-                RaceToMode = raceToMode,
-                Player1Score = 0,
-                Player2Score = 0,
-                CurrentShooter = player1,
-                IsGameActive = true,
-                StartTime = DateTime.UtcNow,
-                Winner = null
-            };
-
-            RaiseGameStateChanged(_currentGame.Clone());
+            InitializeGameLocked(player1, player2, gameType, raceToMode);
         }
+    }
+
+    /// <summary>
+    /// Starts the match with the two players already in state — the ones the setup screen has been
+    /// writing through <see cref="SetPlayerDetails" /> — so the screen never holds a copy of them.
+    /// </summary>
+    public void InitializeGame(GameType gameType, RaceToMode raceToMode)
+    {
+        lock (_sync)
+        {
+            InitializeGameLocked(_currentGame.Player1, _currentGame.Player2, gameType, raceToMode);
+        }
+    }
+
+    private void InitializeGameLocked(Player player1, Player player2, GameType gameType, RaceToMode raceToMode)
+    {
+        _pointHistory.Clear();
+
+        _currentGame = new GameState
+        {
+            Player1 = player1,
+            Player2 = player2,
+            GameType = gameType,
+            RaceToMode = raceToMode,
+            Player1Score = 0,
+            Player2Score = 0,
+            CurrentShooter = player1,
+            IsGameActive = true,
+            StartTime = DateTime.UtcNow,
+            Winner = null
+        };
+
+        RaiseGameStateChanged(_currentGame.Clone());
     }
 
     public void AddPoint(bool isPlayer1)
@@ -80,17 +97,46 @@ public class GameManager
         }
     }
 
-    public void SetMatchPreview(Player player1, Player player2, GameType gameType, RaceToMode raceToMode)
+    /// <summary>
+    /// Mirrors the setup screen's game type and Race-To mode into the preview state. It takes no
+    /// players because the screen writes those into state itself, under this same lock, through
+    /// <see cref="SetPlayerDetails" />.
+    /// </summary>
+    public void SetMatchPreview(GameType gameType, RaceToMode raceToMode)
     {
         lock (_sync)
         {
             if (_currentGame.IsGameActive)
                 return;
 
-            _currentGame.Player1 = player1;
-            _currentGame.Player2 = player2;
             _currentGame.GameType = gameType;
             _currentGame.RaceToMode = raceToMode;
+
+            RaiseGameStateChanged(_currentGame.Clone());
+        }
+    }
+
+    /// <summary>
+    /// Writes one side's Match Setup fields — name, team, Race-To target and end-cap icon — into the
+    /// state the overlay previews. The setup screen goes through here instead of holding a
+    /// <see cref="Player" /> of its own, so these writes take the same lock as every other mutation
+    /// and a snapshot being serialized for an overlay never catches a half-updated player (a new
+    /// icon version paired with the previous artwork, say).
+    /// </summary>
+    public void SetPlayerDetails(bool isHome, string name, string teamName, int raceToTarget, string? endCapIcon)
+    {
+        lock (_sync)
+        {
+            var player = isHome ? _currentGame.Player1 : _currentGame.Player2;
+
+            player.Name = name;
+            player.TeamName = teamName;
+            player.RaceToTarget = raceToTarget;
+
+            // Only a real artwork change counts as one: assigning the icon on every keystroke would
+            // bump EndCapIconVersion and make every overlay re-download an unchanged icon.
+            if (!string.Equals(player.EndCapIcon, endCapIcon, StringComparison.Ordinal))
+                player.EndCapIcon = endCapIcon;
 
             RaiseGameStateChanged(_currentGame.Clone());
         }
@@ -224,12 +270,37 @@ public class GameManager
         }
     }
 
+    /// <summary>
+    /// Clears the match — scores, undo history, pocketed balls, winner — and returns to the setup
+    /// screen. What the operator configured rather than played is carried over: the two players
+    /// (they are the ones the setup screen writes through <see cref="SetPlayerDetails" />, so
+    /// replacing them would blank the names typed in whenever the reset comes from the HTTP control
+    /// API, which has no screen state to restore them from) and the colour theme, scoreboard style
+    /// and show/hide settings (a reset ends a match, it doesn't restyle the show). Their ball groups
+    /// are cleared, so the next 8-ball rack starts unassigned exactly as a brand-new state would.
+    /// </summary>
     public void ResetGame()
     {
         lock (_sync)
         {
+            var player1 = _currentGame.Player1;
+            var player2 = _currentGame.Player2;
+            var colorTheme = _currentGame.ColorTheme.Copy();
+            var scoreboardStyle = _currentGame.ScoreboardStyle.Copy();
+            var visibility = _currentGame.Visibility.Copy();
+
+            player1.BallGroup = BallGroup.Unassigned;
+            player2.BallGroup = BallGroup.Unassigned;
             _pointHistory.Clear();
-            _currentGame = new();
+
+            _currentGame = new GameState
+            {
+                Player1 = player1,
+                Player2 = player2,
+                ColorTheme = colorTheme,
+                ScoreboardStyle = scoreboardStyle,
+                Visibility = visibility
+            };
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }

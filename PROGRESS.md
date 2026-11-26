@@ -186,6 +186,57 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Setup-screen player fields now write through GameManager
+
+- `PlayerViewModel` no longer owns a `Player`. It holds the manager plus which side it edits, and
+  every name/team/Race-To/icon edit calls the new
+  `GameManager.SetPlayerDetails(isHome, name, teamName, raceToTarget, endCapIcon)` — so those writes
+  take the same lock as scoring, ball groups and styling, and a snapshot being serialized for an
+  overlay can no longer catch a player mid-edit (most visibly an icon version bumped while the
+  artwork bytes were still the old ones).
+- The players in state *are* the setup players now: `InitializeGame(gameType, raceToMode)` starts
+  the match with the `Player`s already in state, and `SetMatchPreview(gameType, raceToMode)` takes
+  no players either. The four-argument `InitializeGame` stays for callers that bring their own
+  players (the tests).
+- `SetPlayerDetails` assigns `EndCapIcon` only when the artwork actually changed, so typing a name
+  doesn't bump `EndCapIconVersion` and make every overlay re-download an unchanged icon.
+- `ResetGame` keeps what the operator set up rather than played: the two players, the colour theme,
+  the scoreboard style and the show/hide settings. Only match state is cleared — scores, undo
+  history, pocketed balls, winner, and the players' ball groups. The players matter because a reset
+  from `/api/control/match/reset` has no setup screen behind it to re-type anything (that HTTP path
+  is what surfaced the problem); the styling matters because a reset ends a match, it doesn't
+  restyle the show. The carried objects are copies, so a later styling edit can't rewrite an
+  already-delivered snapshot.
+- Tests (47 total): setup fields land in `GetStateSnapshot()` including the icon version; they
+  survive `InitializeGame` from state; the icon version only moves when the artwork changes;
+  snapshots stay detached from later edits; a reset keeps the players but clears their groups; a
+  reset keeps the theme, style and visibility while clearing the match; and a concurrent
+  writers/readers case asserts no snapshot ever pairs one player's name with the other artwork.
+- Verified by hand on the real app: typing name/team/Race-To in Match Setup appeared in
+  `/overlay/api/scoreboard/state`, survived an HTTP reset, and carried into START MATCH. Choosing
+  `overlay-endcap-a.png` through `Choose Icon...` produced
+  `/overlay/api/players/{id}/icon?v=1` (200, `image/png`, 16 877 bytes, byte-identical to the file);
+  renaming kept `v=1`; an HTTP reset kept `v=1`; picking `overlay-endcap-b.png` bumped to `v=2`
+  (16 894 bytes, byte-identical). No exceptions in the app log. Build clean, 0 warnings, 47/47
+  tests.
+
+### 2026-11-26 — Verification correction: group-assignment routes exercised under EightBall
+
+- The earlier 1070-request stress ran a **NineBall** match, so `/api/control/balls/{side}/{group}`
+  hit `AssignBallGroup`'s `GameType != EightBall` early return. The routes answered 200 but never
+  mutated anything, so the side-based refactor's real mutation path was untested under load (the
+  Core xUnit cases were the only coverage). No code change — the gap was in the verification.
+- Re-ran against a live EightBall match (setup screen's Game combo switched to EightBall before
+  START MATCH; state confirmed `"gameType":"EightBall"`, `"isGameActive":true`):
+  - **Functional:** `home/solids` → home `Solids`, away `Stripes`; then `away/solids` → home
+    `Stripes`, away `Solids`. The complement flip works through the HTTP routes, on the real app.
+  - **Under load:** 1330 requests, all 200 — 680 group-assignment, 240 ball-toggle, 120 score,
+    120 shooter-toggle, 120 state reads, 50 match resets — including a phase with resets
+    interleaved with assignments. The final state after the run still held `Solids`/`Stripes` (not
+    `Unassigned`), so the last assignment wrote rather than early-returning, and the app log had no
+    exceptions.
+- Build and unit tests stand unchanged from the entry below (clean build, 41/41).
+
 ### 2026-11-26 — Thread-safety follow-up: in-lock delivery, side-based group assignment
 
 - **Snapshot ordering fixed.** Raising `GameStateChanged` after leaving the lock let a later mutation
