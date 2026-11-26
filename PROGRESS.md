@@ -186,6 +186,16 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — One embedded-asset reader for both overlay page endpoints
+
+- `ScoreboardEndpoints` and `CueBallEndpoints` each had their own private `ReadEmbeddedAsset`, the
+  same six lines apart from the type used to reach the assembly. Moved to `EmbeddedAsset.Read`,
+  which both now call for their HTML/CSS/JS routes; the two private copies are gone, and with them
+  `ScoreboardEndpoints`'s `using System.Reflection;`, which only existed for that method.
+- Checked on the running app: all six page routes (`/overlay/scoreboard`, its `style.css` and
+  `app.js`, `/overlay/cueball`, its `style.css` and `app.js`) return 200 with the expected content
+  types and non-empty bodies. Build clean, 0 warnings; 47/47 tests, which do not cover the Overlay.
+
 ### 2026-11-26 — One SSE implementation for both overlay streams
 
 - `ScoreboardEndpoints` and `CueBallEndpoints` each carried a copy of the same ~30-line stream: set

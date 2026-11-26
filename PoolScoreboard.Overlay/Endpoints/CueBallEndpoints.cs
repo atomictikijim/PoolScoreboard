@@ -14,13 +14,13 @@ internal static class CueBallEndpoints
     public static void Map(WebApplication app, GameManager gameManager)
     {
         app.MapGet("/overlay/cueball", () =>
-            Results.Content(ReadEmbeddedAsset("cueball.html"), "text/html"));
+            Results.Content(EmbeddedAsset.Read("cueball.html"), "text/html"));
 
         app.MapGet("/overlay/cueball/style.css", () =>
-            Results.Content(ReadEmbeddedAsset("cueball.css"), "text/css"));
+            Results.Content(EmbeddedAsset.Read("cueball.css"), "text/css"));
 
         app.MapGet("/overlay/cueball/app.js", () =>
-            Results.Content(ReadEmbeddedAsset("cueball.js"), "application/javascript"));
+            Results.Content(EmbeddedAsset.Read("cueball.js"), "application/javascript"));
 
         app.MapGet("/overlay/api/cueball/state", () =>
             Results.Json(CueBallStateMapper.ToDto(gameManager.GetStateSnapshot()), JsonOptions));
@@ -44,17 +44,6 @@ internal static class CueBallEndpoints
 
     private static string Serialize(PoolScoreboard.Core.Models.GameState state) =>
         JsonSerializer.Serialize(CueBallStateMapper.ToDto(state), JsonOptions);
-
-    private static string ReadEmbeddedAsset(string fileName)
-    {
-        var assembly = typeof(CueBallEndpoints).Assembly;
-        var resourceName = assembly.GetManifestResourceNames()
-            .Single(n => n.EndsWith(fileName, StringComparison.OrdinalIgnoreCase));
-
-        using var stream = assembly.GetManifestResourceStream(resourceName)!;
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
-    }
 }
 
 internal record CueBallContactRequest(double X, double Y);

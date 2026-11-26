@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -15,13 +14,13 @@ internal static class ScoreboardEndpoints
     public static void Map(WebApplication app, GameManager gameManager)
     {
         app.MapGet("/overlay/scoreboard", () =>
-            Results.Content(ReadEmbeddedAsset("scoreboard.html"), "text/html"));
+            Results.Content(EmbeddedAsset.Read("scoreboard.html"), "text/html"));
 
         app.MapGet("/overlay/scoreboard/style.css", () =>
-            Results.Content(ReadEmbeddedAsset("scoreboard.css"), "text/css"));
+            Results.Content(EmbeddedAsset.Read("scoreboard.css"), "text/css"));
 
         app.MapGet("/overlay/scoreboard/app.js", () =>
-            Results.Content(ReadEmbeddedAsset("scoreboard.js"), "application/javascript"));
+            Results.Content(EmbeddedAsset.Read("scoreboard.js"), "application/javascript"));
 
         // A snapshot, not the live instance: the mapper copies the pocketed-ball set, and the UI
         // thread (or a concurrent control-API call) can be mutating that set at the same time.
@@ -54,15 +53,4 @@ internal static class ScoreboardEndpoints
 
     private static string Serialize(PoolScoreboard.Core.Models.GameState state) =>
         JsonSerializer.Serialize(ScoreboardStateMapper.ToDto(state), JsonOptions);
-
-    private static string ReadEmbeddedAsset(string fileName)
-    {
-        var assembly = typeof(ScoreboardEndpoints).Assembly;
-        var resourceName = assembly.GetManifestResourceNames()
-            .Single(n => n.EndsWith(fileName, StringComparison.OrdinalIgnoreCase));
-
-        using var stream = assembly.GetManifestResourceStream(resourceName)!;
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
-    }
 }
