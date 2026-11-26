@@ -190,6 +190,20 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Controller winner line falls back to the side, never a blank name
+
+- `GameViewModel.WinnerAnnouncement` was `$"{state.Winner.Name} wins!"`, so with the name fields
+  left blank the live view read " wins!". It now mirrors the overlay's fallback: an empty or
+  whitespace-only name renders the winner's side ("Home wins!" / "Away wins!"), chosen with
+  `ReferenceEquals(winner, state.Player1)` against the snapshot's own player instances.
+- Also corrected the comment above `GameInitialized`, which still said a finished match sets
+  `IsGameActive` false — since the origin/master merge a win only sets the winner.
+- Verified in the running Controller with both names blank: "Home wins!" for a home win,
+  "Away wins!" after the scores were moved to the other side, and no line at all once the winning
+  point was subtracted again.
+- Build clean, 52/52 tests. The view model has no automated coverage — this check was live, not
+  unit-tested.
+
 ### 2026-11-26 — Winner banner shows for players left unnamed
 
 - The overlay gated the banner on `if (state.winnerName)`, but the mapper sends `""` — not null —

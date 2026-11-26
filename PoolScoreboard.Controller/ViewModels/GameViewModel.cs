@@ -415,9 +415,9 @@ public partial class GameViewModel : ObservableObject
     {
         // Derived rather than only set by local button clicks — a remote Stream Deck call to
         // /api/control/match/reset mutates GameManager directly, so this is what lets the
-        // Controller's own screen flip back to Match Setup in that case too. A finished match
-        // (Winner set, IsGameActive false) still counts as "initialized" so the winner banner
-        // stays on the live view until the operator resets or starts a new rack.
+        // Controller's own screen flip back to Match Setup in that case too. A match with a winner
+        // still counts as "initialized" so the winner line stays on the live view until the operator
+        // resets or starts a new rack — a win no longer deactivates the match.
         GameInitialized = state.IsGameActive || state.Winner != null;
 
         HomeScore = state.Player1Score;
@@ -425,7 +425,11 @@ public partial class GameViewModel : ObservableObject
         HomeIsCurrentShooter = ReferenceEquals(state.CurrentShooter, state.Player1);
         HomeBallGroup = state.Player1.BallGroup;
         AwayBallGroup = state.Player2.BallGroup;
-        WinnerAnnouncement = state.Winner == null ? null : $"{state.Winner.Name} wins!";
+        // An unnamed winning player would otherwise render " wins!", so fall back to their side —
+        // the same fallback the overlay's name pills and winner banner use.
+        WinnerAnnouncement = state.Winner == null
+            ? null
+            : $"{(string.IsNullOrWhiteSpace(state.Winner.Name) ? (ReferenceEquals(state.Winner, state.Player1) ? "Home" : "Away") : state.Winner.Name)} wins!";
 
         ScoreBarVisible = state.Visibility.ScoreBarVisible;
         BallTrackerVisible = state.Visibility.BallTrackerVisible;
