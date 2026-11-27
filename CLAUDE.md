@@ -193,6 +193,9 @@ on the port the overlay was really served on rather than the default or a value 
 
 ### PoolScoreboard.Overlay (ASP.NET Core, hosted in-process by Controller)
 
+- `OverlayHost.Build` returns the host with every page and endpoint mapped but nothing started; `Start` is that
+  plus the loopback address and `app.Start()`. The split is what lets `PoolScoreboard.Overlay.Tests` drive the real
+  routes under `TestServer` without binding a port, and keeps one mapping list for the app and the tests.
 - `/overlay/scoreboard` — browser-source page: scores, Race-To, shooter indicator, ball
   display, operator colors. Read-only; polls or subscribes (SSE/WebSocket) for state.
 - `/overlay/cueball` — separate browser-source page: a cue-ball graphic; clicking it places
@@ -326,7 +329,12 @@ each to still exist in the Controller. Where it looks matters: control names mus
 that becomes a control name (`Content`, `Text`, `Title`, `Header`, `AutomationProperties.*`, `x:Name`), and
 waited-for phrases must appear in a `Text` value or a C# string literal. A first draft that searched the sources for
 the word "Retry" passed a mutation that renamed the button, because a `ToolTip` and
-`Command="{Binding RetryOverlayCommand}"` still contained it. Two things that test had to work around: a full
+`Command="{Binding RetryOverlayCommand}"` still contained it. `PoolScoreboard.Overlay.Tests` is the HTTP level the
+source guards cannot reach: 12 tests over the real endpoints, no socket. Every page and asset has to answer 200 with
+its content type, the scoreboard and cue-ball payloads are checked against the pages themselves — every `state.…`
+path `scoreboard.js`/`cueball.js` reads has to resolve in the JSON, so renaming `PlayerDto.Score` fails with
+`home.score, away.score` — `home/add` moves the score the page renders, the cue-ball contact round-trips through the
+property names the page sends and reads, an unknown player has no icon, and the SSE route opens as `text/event-stream`. Two things that test had to work around: a full
 `pack://` URI is only parsed once WPF has registered the scheme, so the theme dictionary is loaded by its relative
 `/Assembly;component/` form; and a window's bindings resolve only once its tree is loaded, so the test shows the
 window at (-20000, -20000) rather than merely constructing it. `MatchStateStoreTests` pins what a save leaves behind: the

@@ -194,6 +194,26 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The overlay's routes and payload get an HTTP-level test
+
+- New `PoolScoreboard.Overlay.Tests` (net8.0, `Microsoft.AspNetCore.TestHost`): the guards in `Controller.Tests`
+  read source text and prove the strings agree, which cannot tell a working route from a registered one. These 12
+  tests drive the real endpoints over HTTP with no socket bound — nothing to leave behind on a runner.
+- `OverlayHost.Build` is the host with every page and endpoint mapped but nothing started; `Start` is that plus the
+  loopback address and `app.Start()`. One mapping list serves the app and the tests, and the split is what makes
+  `UseTestServer` possible without touching production wiring.
+- Covered: all six pages/assets answer 200 with their content type; the scoreboard and cue-ball payloads carry every
+  `state.…` path their pages read (the paths are extracted from the embedded assets the server actually serves, so
+  renaming a DTO property fails with the path the page wanted); `home/add` moves the score the page renders; the
+  cue-ball contact round-trips through the request and payload names the page uses; an unknown player 404s; the SSE
+  route opens as `text/event-stream`.
+- Mutation-proved, then reverted: `PlayerDto.Score` → `Points` failed with
+  `the payload no longer carries them: home.score, away.score` (and took the canvas/control tests with it), and
+  turning `/overlay/cueball` into `MapPost` failed with `Expected: OK, Actual: MethodNotAllowed`. Reverting restored
+  12/12.
+- Full suite 109 Core + 12 Overlay + 137 Controller, 0 warnings. Tests plus a no-behaviour-change split of
+  `OverlayHost`: no version bump.
+
 ### 2026-11-27 — The live check's grip on the window's text is now a CI test
 
 - `LiveCheckUiTextTests` (2 facts) covers what the parse check cannot: that the script is valid PowerShell says
