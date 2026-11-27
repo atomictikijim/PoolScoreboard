@@ -435,7 +435,7 @@ live. `MatchArchiveTests` pins the archive call: a finished match is
 
 `UAT.md` lists the scenarios that need a person at the screen — window layout, what is filed and what is not,
 what survives closing the app — with preconditions, steps and expected results. The match-history scenarios are
-MH-1 to MH-12. Add a scenario there when a behaviour worth checking by hand is added, and record the outcome
+MH-1 to MH-14. Add a scenario there when a behaviour worth checking by hand is added, and record the outcome
 when one is run.
 
 ## Versioning & Commit Policy

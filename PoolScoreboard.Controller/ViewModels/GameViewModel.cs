@@ -699,7 +699,14 @@ public partial class GameViewModel : ObservableObject
     // The window loads from the store itself, so it can refresh after a match is deleted without the view model
     // holding a copy that has gone stale.
     [RelayCommand]
-    private void ShowHistory() => new HistoryWindow(_historyStore) { Owner = _owner }.ShowDialog();
+    private void ShowHistory()
+    {
+        new HistoryWindow(_historyStore) { Owner = _owner }.ShowDialog();
+
+        // A record can be deleted from that window — this match's included — so the live view takes the answer
+        // again rather than leaving "Saved to history" up for a save that no longer exists.
+        RefreshSavedMatch(_gameManager.GetStateSnapshot(), reread: true);
+    }
 
     private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e)
     {
@@ -717,6 +724,36 @@ public partial class GameViewModel : ObservableObject
         }
 
         ApplyGameState(e.GameState);
+    }
+
+    /// <summary>
+    /// What the save control says about the match in state: whether there is a winner to file, and whether the
+    /// history already holds it.
+    /// <para>
+    /// Reading the file costs one look per match — at the moment it is won — because the rest of the time the answer
+    /// cannot have changed. <paramref name="reread"/> is for the one case where it can: the History window can delete
+    /// this match's record while its banner is up behind the dialog, so the answer is taken again once it closes.
+    /// </para>
+    /// </summary>
+    internal void RefreshSavedMatch(GameState state, bool reread = false)
+    {
+        MatchWon = state.Winner is not null;
+
+        if (!MatchWon)
+        {
+            // No winner, nothing to save, and the next one is a different match.
+            _historyCheckedMatchId = null;
+            MatchSaved = false;
+            return;
+        }
+
+        if (!reread && string.Equals(_historyCheckedMatchId, state.MatchId, StringComparison.Ordinal))
+            return;
+
+        // A resumed match is the ordinary case this exists for: the record was written by a previous run, so
+        // nothing in this one remembers saving it. A deletion behind the dialog is the other.
+        _historyCheckedMatchId = state.MatchId;
+        MatchSaved = _historyStore.Load().Contains(state.MatchId);
     }
 
     private void ApplyGameState(GameState state)
@@ -740,20 +777,7 @@ public partial class GameViewModel : ObservableObject
             ? null
             : $"{(string.IsNullOrEmpty(state.Winner.Name) ? (ReferenceEquals(state.Winner, state.Player1) ? "Home" : "Away") : state.Winner.Name)} wins!";
 
-        MatchWon = state.Winner is not null;
-        if (!MatchWon)
-        {
-            // No winner, nothing to save, and the next one is a different match.
-            _historyCheckedMatchId = null;
-            MatchSaved = false;
-        }
-        else if (!string.Equals(_historyCheckedMatchId, state.MatchId, StringComparison.Ordinal))
-        {
-            // One look per match, at the moment it is won. A resumed match is the case this exists for: the record
-            // was written by a previous run, so nothing in this one remembers saving it.
-            _historyCheckedMatchId = state.MatchId;
-            MatchSaved = _historyStore.Load().Contains(state.MatchId);
-        }
+        RefreshSavedMatch(state);
 
         ScoreBarVisible = state.Visibility.ScoreBarVisible;
         BallTrackerVisible = state.Visibility.BallTrackerVisible;

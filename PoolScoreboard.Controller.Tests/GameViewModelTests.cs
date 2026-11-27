@@ -247,6 +247,63 @@ public sealed class GameViewModelTests : IDisposable
         Assert.False(viewModel.CanSaveMatch);
     }
 
+    [Fact]
+    public void DeletingTheSavedMatch_ClearsTheSavedMark()
+    {
+        var manager = new GameManager();
+        var history = new MatchHistoryStore(_root);
+        var viewModel = BuildViewModel(manager, history);
+        StartMatch(manager, homeTarget: 1, awayTarget: 1);
+        manager.AddPoint(isPlayer1: true);
+        viewModel.SaveMatchCommand.Execute(null);
+        Assert.True(viewModel.MatchSaved);
+
+        var record = Assert.Single(history.Load().Matches);
+        Assert.True(history.TryDelete(record.MatchId));
+
+        // What the History window closing does: the banner is still up, but the save it advertised is gone, so the
+        // live view has to offer the button again rather than claim a record that no longer exists.
+        viewModel.RefreshSavedMatch(manager.GetStateSnapshot(), reread: true);
+
+        Assert.True(viewModel.MatchWon);
+        Assert.False(viewModel.MatchSaved);
+        Assert.True(viewModel.CanSaveMatch);
+    }
+
+    [Fact]
+    public void DeletingAnotherMatch_LeavesTheSavedMarkAlone()
+    {
+        var manager = new GameManager();
+        var history = new MatchHistoryStore(_root);
+        var viewModel = BuildViewModel(manager, history);
+        StartMatch(manager, homeTarget: 1, awayTarget: 1);
+        manager.AddPoint(isPlayer1: true);
+        viewModel.SaveMatchCommand.Execute(null);
+
+        // Somebody else's match, deleted from the same file: the match on screen is untouched.
+        var archive = history.Load();
+        archive.Matches.Add(new MatchRecord
+        {
+            MatchId = "another-match",
+            CompletedAt = DateTimeOffset.Now.AddHours(-1),
+            GameType = GameType.EightBall,
+            RaceToMode = RaceToMode.Single,
+            HomeName = "Older",
+            HomeRaceTo = 1,
+            HomeScore = 1,
+            AwayName = "Opponent",
+            AwayRaceTo = 1,
+            HomeWon = true
+        });
+        Assert.True(history.TrySave(archive));
+        Assert.True(history.TryDelete("another-match"));
+
+        viewModel.RefreshSavedMatch(manager.GetStateSnapshot(), reread: true);
+
+        Assert.True(viewModel.MatchSaved);
+        Assert.False(viewModel.CanSaveMatch);
+    }
+
     private sealed class FakeOverlaySession : IOverlaySession
     {
         public FakeOverlaySession(int port) => Port = port;

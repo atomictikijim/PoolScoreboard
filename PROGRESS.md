@@ -275,6 +275,21 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
+### 2026-11-27 — The live view stops claiming a save that was deleted
+
+- The save control re-read the file once per match, when its winner appeared, so a record deleted from the History
+  window left "Saved to history" on a banner whose match was no longer in the file. The reading moved into
+  `GameViewModel.RefreshSavedMatch(state, reread)`: the state path still looks once per match, and `ShowHistory`
+  calls it again after the dialog closes, because that is the only moment the answer can change behind a banner
+  nobody can see yet.
+- Mutation-proved, then reverted: the force re-read ignored (`reread` dropped from the guard), and the lookup
+  pinned to true. The first failed `DeletingTheSavedMatch_ClearsTheSavedMark`, the second failed the resumed-match
+  fact.
+- 0.31.0 -> 0.31.1. Full suite 126 Core + 29 Overlay + 167 Controller, 0 warnings. Not covered by a test: that
+  `ShowHistory` makes that call — the dialog is modal, so the refresh is tested through the method it shares.
+- Deletion is still final in the other direction: nothing files a match on its own, so the deleted record cannot
+  come back until the operator presses the button again or relaunches with the match still won.
+
 ### 2026-11-27 — A match is saved when the operator says so, and a saved match can be deleted
 
 - Saving is now a decision. `MatchHistoryRecorder` is gone: nothing files a match on its own. The live view gained

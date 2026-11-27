@@ -121,10 +121,13 @@ Home, and only Home appears in the chips.
 2. Answer **No** to the confirmation.
 3. Press **Delete** again and answer **Yes**.
 4. Close the window, reopen it, and look at the win chips.
+5. If you deleted the match still won behind the dialog, look at the live view after closing it.
 
 *Expected:* step 2 changes nothing. Step 3 removes just that row — the others stay in their order, and any chip
 that existed only because of the deleted match is gone while the rest keep their counts. Step 4 shows the same:
-the deletion is in the file, not just on screen. `history.json` no longer contains that match.
+the deletion is in the file, not just on screen. `history.json` no longer contains that match. At step 5 the
+banner is still up but "Saved to history" is gone and **SAVE TO HISTORY** is offered again, because the record it
+was reporting has been deleted.
 
 ### MH-11 — Deleting the last match
 
