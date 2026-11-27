@@ -252,6 +252,13 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
   WaitSleepJoin)`. Both restored, then 8 consecutive runs of the test and the full suite passed.
 - Found while proving it: `ShowInTaskbar = false`, which `HelpWindowTests` uses, gives the window an owner, and
   `Process.MainWindowHandle` only considers a process's unowned visible windows — the first version of this test could
+- Reviewed once more after pushing, and cut what the test never reads: the start handshake (its own
+  `TaskCompletionSource`, the dispatcher and window fields, the "did not start" throw), the dead-thread branch, and the
+  queued `Close` with its bounded wait and `AggregateException` catch. `Dispatcher.FromThread` finds the dispatcher at
+  cleanup time, a thread that exits takes its window with it, and the timeout message already carries the thread state
+  — so the helper is now the thread plus one task that completes when `Show()` has returned or thrown. Re-proved after
+  the cut: the throwing `Show()` and the stalled one still fail with their own messages, 8 consecutive passes and
+  109/29/141.
   never have passed with it, so the test window stays in the task bar.
 - Full suite 109 Core + 29 Overlay + 141 Controller, 0 warnings. Tests only: no version bump.
 
