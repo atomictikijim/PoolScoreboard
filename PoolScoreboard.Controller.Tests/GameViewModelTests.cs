@@ -117,6 +117,25 @@ public sealed class GameViewModelTests : IDisposable
         Assert.Equal(0, saves);
     }
 
+    [Fact]
+    public void ChangingTheOverlayPort_NotifiesTheBaseUrlBuiltFromIt()
+    {
+        var viewModel = new GameViewModel(
+            new GameManager(), persist: null, new FakeOverlaySession(51234), new PlayerRosterStore(_root),
+            dispatcher: null, owner: null);
+
+        var announced = new List<string?>();
+        viewModel.PropertyChanged += (_, e) => announced.Add(e.PropertyName);
+
+        viewModel.OverlayPort = 51240;
+
+        // Nothing binds to it yet — ShowHelp() reads the address fresh at click time — which is why the bug was
+        // invisible; the first binding that did would have kept naming the old port until something unrelated
+        // refreshed it.
+        Assert.Contains(nameof(GameViewModel.OverlayBaseUrl), announced);
+        Assert.Equal("http://127.0.0.1:51240", viewModel.OverlayBaseUrl);
+    }
+
     public void Dispose()
     {
         try

@@ -300,7 +300,9 @@ cannot delete the match about to be resumed), a saved match is restored, a fresh
 unreadable file is kept aside without blocking startup. `OverlayHostSessionTests` also covers moving the port: a
 failed start is reported on the old port, `SetPort` forgets that reason and the next start serves the new one, and a
 serving host is stopped because a listening socket cannot be moved. `GameViewModelTests` covers the field itself: a
-usable port rebinds and saves, and one below 1024 snaps back to the port in use. `OperatorSettingsStoreTests` pins the
+usable port rebinds and saves, and one below 1024 snaps back to the port in use. The base address the Help window lists
+is computed from that port, so the change announces it too — the first binding to `OverlayBaseUrl` would otherwise keep
+naming the old port until something else refreshed it. `OperatorSettingsStoreTests` pins the
 other half of persistence — a chosen port survives the round trip through `settings.json`, and a file written before
 the port was a setting (no `overlayPort` key) gives `OperatorProfile.DefaultOverlayPort`. `HelpWindowTests` builds
 the real Help window at 51241 and reads its 13 URL lines back, asserting every one carries that port and none carries

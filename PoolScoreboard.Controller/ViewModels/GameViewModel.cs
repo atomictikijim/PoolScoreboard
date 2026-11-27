@@ -458,6 +458,10 @@ public partial class GameViewModel : ObservableObject
     /// </summary>
     partial void OnOverlayPortChanged(int oldValue, int newValue)
     {
+        // OverlayBaseUrl is computed from this, so it has to announce its own change — ahead of the return
+        // below, because a view model with no session (the shape the tests build) has an address that moves too.
+        OnPropertyChanged(nameof(OverlayBaseUrl));
+
         if (_overlaySession is not { } session)
             return;
 

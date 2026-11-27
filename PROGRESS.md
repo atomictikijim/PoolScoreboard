@@ -70,7 +70,7 @@ live:
 
 ### Parked 2026-11-27 — the overlay CI guards: where to pick this up
 
-Done and on `master` (CI green at 109 Core + 29 Overlay + 139 Controller, 0 warnings):
+Done and on `master` (CI green at 109 Core + 29 Overlay + 141 Controller, 0 warnings):
 
 - Source guards in `Controller.Tests`, all sharing `RepositorySources`: `NoHardCodedOverlayAddressTests` (no literal
   `51234`, no `127.0.0.1:` + digit in the Controller's markup or C# literals), `OverlayRouteTests` (every
@@ -93,13 +93,9 @@ Change Log entry of the same date). What follows is what is still open.
 
 Not done, most useful first:
 
-1. **`OverlayBaseUrl` has no change notification.** `GameViewModel.OverlayBaseUrl` is computed and
-   `OnOverlayPortChanged` raises nothing for it. Harmless today because only `ShowHelp()` reads it, fresh, at click
-   time; the first XAML binding to it would show a stale port. The fix is one
-   `OnPropertyChanged(nameof(OverlayBaseUrl))` plus the test that would currently fail.
-2. **Script parameter parity** (`-Port 51234` / `-SecondPort` +7 vs `OperatorProfile.DefaultOverlayPort`, scenario
+1. **Script parameter parity** (`-Port 51234` / `-SecondPort` +7 vs `OperatorProfile.DefaultOverlayPort`, scenario
    names vs these docs). Ranked lowest: brittle, and it catches doc drift rather than behaviour.
-3. The old "JS keys vs DTO without a server" idea is now redundant — the HTTP payload tests do it against the real
+2. The old "JS keys vs DTO without a server" idea is now redundant — the HTTP payload tests do it against the real
    serializer, so don't rebuild it as a text comparison.
 
 Two things worth remembering from this batch: a mutation script must match the source's real indentation (a failed
@@ -231,6 +227,20 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-27 — The overlay's base address announces the port it follows
+
+- `GameViewModel.OverlayBaseUrl` is computed from `OverlayPort`, and the `[ObservableProperty]` generator raises only
+  for the port, so the address never announced its own change. Nothing bound to it yet — `ShowHelp()` reads it fresh
+  at click time, which is why this was invisible — but the first XAML binding that did would have kept naming the old
+  port until something unrelated refreshed it.
+- The fix is one `OnPropertyChanged(nameof(OverlayBaseUrl))` at the top of `OnOverlayPortChanged`, ahead of the early
+  return for a view model with no session: that shape, which the tests build, has an address that moves too.
+- The test was written first and failed on the unfixed code — `Assert.Contains() Failure: Item not found in
+  collection` — then passed with the line in place. It moves the port through a fake session and asserts the address
+  was announced and reads `http://127.0.0.1:51240`, so it cannot pass on the notification the port already raised.
+- Full suite 109 Core + 29 Overlay + 141 Controller, 0 warnings. A notification nothing binds to yet, so no visible
+  change: no version bump.
 
 ### 2026-11-27 — Every mapped control route has to stay in the Stream Deck docs
 
