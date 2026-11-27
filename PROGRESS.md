@@ -194,6 +194,24 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The App port wiring gets tests, and App gets two lines shorter
+
+- The last part of the port work that only the live check covered was in `App`: applying a saved port before
+  anything binds, and writing the port in use when the profile is saved. Both now live in
+  `Persistence/OverlayPortSettings`, extracted the way `MatchAutosave` was. `ApplySavedPort(profile)` normalizes and
+  hands the port to the session; `RecordPortInUse(profile)` stamps the session's port onto a profile about to be
+  written. `App` keeps what only it can know — the ordering, one call before `OverlaySession.Start` and one inside
+  `SaveOperatorProfile` — and nothing else.
+- `OverlayPortSettingsTests` drives both directions with a session that records what it was asked for and binds
+  nothing: the saved port reaches the session, a theory covers the range (0, 80, 1023, 65536 → the default; 1024,
+  51241, 65535 kept as given), a save records the port the session is on rather than the stale one in the profile,
+  and the choice survives apply-then-save. Dropping the normalization from `ApplySavedPort` fails four of the ten, so
+  they are not decorative.
+- Verified live after the refactor, since this is the wiring a save and a relaunch go through:
+  `verify-live.ps1 -Scenario port-change` still passes all 25 assertions — the app comes up on the port the file
+  records, saves the one it served on, and Help lists it. Full suite: 109 Core + 127 Controller.
+- Refactor plus tests, no behaviour change: no version bump.
+
 ### 2026-11-27 — The Help page and the saved port get CI tests
 
 - Two things the live checks had been covering by hand are now asserted on every push. `HelpWindowTests` builds the

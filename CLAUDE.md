@@ -149,8 +149,11 @@ dotnet clean
   instance's `settings.json`/`roster.json`.
 - `Persistence/OperatorSettingsStore` reads/writes `%AppData%\PoolScoreboard\settings.json` plus the
   end-cap icon files; the saved profile carries the overlay port as well as the look and the last players. `App`
-  applies the saved profile before the window exists (handing the port to `OverlayHostSession` first, and
-  normalizing one it cannot bind), then saves on a 750 ms debounce and on exit. `settings.json`, `roster.json` and `match.json` all go through
+  applies the saved profile before the window exists and saves on a 750 ms debounce and on exit. The two steps that
+touch the port are `Persistence/OverlayPortSettings`, extracted the way `MatchAutosave` was: `ApplySavedPort` hands
+the profile's port to the session before anything binds (normalized, so one that cannot be bound becomes the
+default), and `RecordPortInUse` stamps the session's port onto a profile being saved, so the next launch comes back
+on the port the overlay was really served on rather than the default or a value that never reached the host. `settings.json`, `roster.json` and `match.json` all go through
   `Persistence/DurableFile`, which writes the text under a `.tmp` name, flushes it to the disk and only then moves
   it into place — so a crash mid-save keeps the previous file, and a power cut cannot publish a half-written one.
   End-cap icon bytes go through the same helper (`WriteAllBytes`), so an icon a saved file names is either the
@@ -298,7 +301,9 @@ usable port rebinds and saves, and one below 1024 snaps back to the port in use.
 other half of persistence — a chosen port survives the round trip through `settings.json`, and a file written before
 the port was a setting (no `overlayPort` key) gives `OperatorProfile.DefaultOverlayPort`. `HelpWindowTests` builds
 the real Help window at 51241 and reads its 13 URL lines back, asserting every one carries that port and none carries
-51234, which is the CI-side twin of the live check's Help step. Two things that test had to work around: a full
+51234, which is the CI-side twin of the live check's Help step. `OverlayPortSettingsTests` covers the two `App` port
+steps with a session that records what it was asked for: the saved port reaches the session (and an unusable one
+becomes the default), and a save records the port the session is on, not the one the profile still held. Two things that test had to work around: a full
 `pack://` URI is only parsed once WPF has registered the scheme, so the theme dictionary is loaded by its relative
 `/Assembly;component/` form; and a window's bindings resolve only once its tree is loaded, so the test shows the
 window at (-20000, -20000) rather than merely constructing it. `MatchStateStoreTests` pins what a save leaves behind: the

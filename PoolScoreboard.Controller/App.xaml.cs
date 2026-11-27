@@ -38,8 +38,17 @@ public partial class App : System.Windows.Application
     /// </summary>
     private readonly MatchAutosave _matchAutosave;
 
-    public App() =>
+    /// <summary>
+    /// Applies the saved port before anything binds and records the port in use when the profile is saved.
+    /// Its rules live in there rather than here so both directions can be tested without a window.
+    /// </summary>
+    private readonly OverlayPortSettings _overlayPortSettings;
+
+    public App()
+    {
         _matchAutosave = new MatchAutosave(SharedGameManager, _matchStore);
+        _overlayPortSettings = new OverlayPortSettings(OverlaySession);
+    }
 
     /// <summary>
     /// The overlay host and, when it could not bind, the reason the window shows next to a Retry button.
@@ -136,7 +145,7 @@ public partial class App : System.Windows.Application
         var profile = OperatorProfile.Capture(state);
 
         // Not in the snapshot: the port belongs to the host, and the session is what knows which one is in use.
-        profile.OverlayPort = OverlaySession.Port;
+        _overlayPortSettings.RecordPortInUse(profile);
 
         _settingsStore.TrySave(profile, state.Player1.EndCapIcon, state.Player2.EndCapIcon);
     }
@@ -185,7 +194,7 @@ public partial class App : System.Windows.Application
 
         // The overlay may be on another port than this app's default: settings.json is where the operator's
         // choice lives, and the session has to know it before anything tries to bind.
-        OverlaySession.SetPort(OperatorProfile.NormalizePort(loaded.Profile.OverlayPort));
+        _overlayPortSettings.ApplySavedPort(loaded.Profile);
         loaded.Profile.ApplyTo(SharedGameManager, loaded.HomeIconDataUri, loaded.AwayIconDataUri);
     }
 
