@@ -77,8 +77,9 @@ not for symmetry with work already done.
    the difference between a live display and an app that accumulates value: who won last time, a session's win
    count, a season record. Core already has the pieces (`ResumableMatch` for the snapshot shape, `DurableFile` for
    the write, the roster for identity). *Done 2026-11-27: the record model, the Core archive call and
-   `history.json` are wired through `MatchHistoryRecorder`, so a finished match is filed once, and
-   `HistoryWindow` — the History button beside Help — lists them newest first with each name's wins.*
+   `history.json` are wired through an explicit SAVE TO HISTORY, so a finished match is filed once and only when
+   the operator says so, and `HistoryWindow` — the History button beside Help — lists them newest first with each
+   name's wins and deletes one behind a confirmation.*
 2. **Undo that covers everything, not just points.** `GameManager` keeps one stack — who scored each point — so
    `UndoPoint` reverses a point and nothing else. A wrong shooter toggle, ball or group assignment has to be
    corrected by hand mid-stream, which is the most frequent real failure. Bounded command history, not new UI.
@@ -259,9 +260,10 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
   record of play: that is `history.json`, described below.
 - The roster only remembers players who were on screen for a started match (or still there when the
   window closed). "Delete" beside a picker drops an entry and its icon; renaming means reusing the name,
-  and the list is capped at 100. A finished match is filed to `history.json` once (record model, archive call
-  and recorder) and the History window lists them newest first with each name's wins, but there is no export,
-  no filter, no way to delete one, and no per-player detail beyond the win count.
+  and the list is capped at 100. A finished match is filed to `history.json` only when the operator presses
+  SAVE TO HISTORY (record model, archive call and save path), and the History window lists them newest first with
+  each name's wins and deletes one behind a confirmation, but there is no export, no filter, no bulk clear, and no
+  per-player detail beyond the win count.
 - Ball colors in the Controller's live view are placeholder standard billiard-ball colors,
   not yet informed by the WNT visual reference.
 - Flag end-caps are artwork ("Choose Flag..." bundles country and US-state SVGs) stored as the
@@ -272,6 +274,28 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-27 — A match is saved when the operator says so, and a saved match can be deleted
+
+- Saving is now a decision. `MatchHistoryRecorder` is gone: nothing files a match on its own. The live view gained
+  **SAVE TO HISTORY** beside "Saved to history", shown with the winner banner, enabled only while that match is not
+  yet in the file, and gone again after RESET MATCH. `GameViewModel.SaveMatch` archives through the same
+  `MatchHistoryStore.TryArchive` the recorder used, so the id rule still stops a second press, a relaunch of the
+  same won match and the corrected winning point from making a duplicate.
+- Deletion is per match, not a wipe. `MatchArchive.Forget` and `MatchStanding` recounting come from the remaining
+  records; `MatchHistoryStore.TryDelete` rewrites the file through the same durable temporary-file move.
+  `HistoryWindow` now takes the store rather than a loaded archive, shows a Delete button per row behind a
+  confirmation, and reloads list and chips from what is left — so the screen cannot drift from the file. It is
+  still read-and-delete only.
+- A match saved before a relaunch shows as saved: the view model looks the archive up once per match, when the
+  winner appears, instead of remembering the save in memory only.
+- Mutation-proved, then reverted: `Forget` not matching the id, `Contains` not matching it, the archive's dedupe
+  neutered (twice — Core and view-model facts), `TryDelete` forgetting to write, the resumed-match lookup pinned to
+  false, the button left enabled after saving, the reset leaving the saved mark, and the delete confirmation
+  ignored. Each failed the fact that covers it.
+- 0.30.0 -> 0.31.0. Full suite 126 Core + 29 Overlay + 165 Controller, 0 warnings. Not checked by hand: the save
+  button and the Delete column were never seen in the running app; the window tests show it off the visible desktop
+  and read it back.
 
 ### 2026-11-27 — The match-history checks are written down, and a stale gap is corrected
 

@@ -82,6 +82,7 @@
                 <ColumnDefinition Width="90" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0" Text="WHEN" Style="{StaticResource HistoryHeaderStyle}" />
@@ -90,7 +91,7 @@
             <TextBlock Grid.Row="0" Grid.Column="3" Text="AWAY" Style="{StaticResource HistoryHeaderStyle}" />
             <TextBlock Grid.Row="0" Grid.Column="4" Text="WON BY" Style="{StaticResource HistoryHeaderStyle}" />
 
-            <ScrollViewer Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="5"
+            <ScrollViewer Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="6"
                           VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl x:Name="MatchesList" ItemsSource="{Binding Matches}">
                     <ItemsControl.ItemTemplate>
@@ -103,6 +104,7 @@
                                         <ColumnDefinition Width="90" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="{Binding When}" Style="{StaticResource HistoryCellStyle}"
                                                Foreground="{StaticResource TextSecondaryBrush}" />
@@ -111,6 +113,10 @@
                                     <TextBlock Grid.Column="3" Text="{Binding Away}" Style="{StaticResource HistoryCellStyle}" />
                                     <TextBlock Grid.Column="4" Text="{Binding Winner}" Style="{StaticResource HistoryCellStyle}"
                                                Foreground="{StaticResource AccentBrush}" />
+                                    <Button Grid.Column="5" Content="Delete" Tag="{Binding}" Click="DeleteMatch_Click"
+                                            Style="{StaticResource InactiveButtonStyle}" Padding="10,4"
+                                            VerticalAlignment="Center"
+                                            ToolTip="Remove this match from the history." />
                                 </Grid>
                             </Border>
                         </DataTemplate>

@@ -165,6 +165,41 @@ public sealed class MatchHistoryStoreTests : IDisposable
         Assert.Single(new MatchHistoryStore(_root).Load().Matches);
     }
 
+    [Fact]
+    public void TryDelete_RemovesThatMatchAndKeepsTheRest()
+    {
+        var newest = Store.TryArchive(FinishedState(homeWins: true), CompletedAt);
+        Store.TryArchive(FinishedState(homeWins: false), CompletedAt.AddMinutes(10));
+
+        Assert.True(Store.TryDelete(newest!.MatchId));
+
+        var kept = Assert.Single(Store.Load().Matches);
+        Assert.False(kept.HomeWon);
+
+        // A fresh instance reads the removal back: it is on the file, not just in the caller.
+        Assert.Single(new MatchHistoryStore(_root).Load().Matches);
+    }
+
+    [Fact]
+    public void TryDelete_ReportsFalseForAMatchItDoesNotHold()
+    {
+        Store.TryArchive(FinishedState(), CompletedAt);
+
+        Assert.False(Store.TryDelete("not-a-match"));
+        Assert.False(Store.TryDelete(null));
+        Assert.False(Store.TryDelete(string.Empty));
+        Assert.Single(Store.Load().Matches);
+    }
+
+    [Fact]
+    public void TryDelete_OnAnEmptyFolder_LeavesNoFile()
+    {
+        // Nothing to remove means nothing to write: a History window opened before any match was saved should not
+        // create the file just because the store was asked.
+        Assert.False(Store.TryDelete("not-a-match"));
+        Assert.False(File.Exists(Path.Combine(_root, "history.json")));
+    }
+
     /// <summary>A real 8-ball match played to its target, so the state carries a winner the way the app's does.</summary>
     private static GameState FinishedState(bool homeWins = true)
     {

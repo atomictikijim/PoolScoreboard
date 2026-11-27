@@ -101,6 +101,20 @@ internal sealed class MatchHistoryStore
         }
     }
 
+    /// <summary>
+    /// Removes one recorded match by id and rewrites the rest, returning false when the history held no such
+    /// match or could not be written. The history is rewritten whole rather than patched in place, so a crash
+    /// mid-removal leaves the previous history rather than a half-edited file.
+    /// </summary>
+    public bool TryDelete(string? matchId)
+    {
+        lock (_sync)
+        {
+            var archive = Load();
+            return archive.Forget(matchId) && TrySave(archive);
+        }
+    }
+
     /// <summary>Rewrites the whole history, through the temporary file <see cref="DurableFile"/> uses.</summary>
     public bool TrySave(MatchArchive archive)
     {

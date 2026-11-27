@@ -55,6 +55,23 @@ public class MatchArchive
         return record;
     }
 
+    /// <summary>Whether this archive holds the match — what tells a match already saved from one that is not.</summary>
+    public bool Contains(string? matchId) =>
+        !string.IsNullOrEmpty(matchId) &&
+        Matches.Any(match => string.Equals(match.MatchId, matchId, StringComparison.Ordinal));
+
+    /// <summary>
+    /// Drops one recorded match, by id. Returns false when nothing has that id, so a caller can tell a stale
+    /// row from a real removal — the same answer the roster's <c>Forget</c> gives for a name it does not hold.
+    /// </summary>
+    public bool Forget(string? matchId)
+    {
+        if (string.IsNullOrEmpty(matchId))
+            return false;
+
+        return Matches.RemoveAll(match => string.Equals(match.MatchId, matchId, StringComparison.Ordinal)) > 0;
+    }
+
     /// <summary>
     /// Who won what across the whole archive, most wins first and names in order within a tie. A player is their
     /// name, compared the way the roster compares names — ignoring case and surrounding space — because that is

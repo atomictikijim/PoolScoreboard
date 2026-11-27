@@ -38,13 +38,6 @@ public partial class App : System.Windows.Application
     /// </summary>
     private readonly MatchAutosave _matchAutosave;
 
-    /// <summary>
-    /// The finished-match history and the thing that files into it. The rule — one record per match, keyed on the
-    /// match's own id — lives in there, so it can be tested without an app around it.
-    /// </summary>
-    private readonly MatchHistoryStore _matchHistoryStore = new();
-
-    private readonly MatchHistoryRecorder _matchHistoryRecorder;
 
     /// <summary>
     /// Applies the saved port before anything binds and records the port in use when the profile is saved.
@@ -55,7 +48,6 @@ public partial class App : System.Windows.Application
     public App()
     {
         _matchAutosave = new MatchAutosave(SharedGameManager, _matchStore);
-        _matchHistoryRecorder = new MatchHistoryRecorder(SharedGameManager, _matchHistoryStore);
         _overlayPortSettings = new OverlayPortSettings(OverlaySession);
     }
 
@@ -123,10 +115,6 @@ public partial class App : System.Windows.Application
         // After the profile — it supplies the players and Race-To targets the scores are judged against — and
         // before the window, which reads state when it is constructed.
         _matchAutosave.Restore();
-
-        // After the restore, so a match that was already won before the crash is not filed again; from here every
-        // finished match — played in the window, on the keyboard or through the Stream Deck — is recorded once.
-        _matchHistoryRecorder.Start();
 
         _saveTimer.Tick += (_, _) =>
         {
@@ -239,7 +227,6 @@ public partial class App : System.Windows.Application
         {
             // Log last, so a warning from the stop above still reaches the file (the writer flushes per
             // line), and in a finally so an unexpected throw can't leave the log handle open.
-            _matchHistoryRecorder.Dispose();
             _matchAutosave.Dispose();
             guard.Dispose();
             _traceLog.Dispose();

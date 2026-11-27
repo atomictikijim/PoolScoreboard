@@ -180,16 +180,19 @@ on the port the overlay was really served on rather than the default or a value 
   groups — and fills the live view from the restored snapshot, since no event fires until the operator touches
   something. An unreadable `match.json` is moved to `match.corrupt.json`; one written by another version is
   left in place and ignored.
-- `Persistence/MatchHistoryStore` owns `history.json`; `Persistence/MatchHistoryRecorder` is the wiring around
-  it, started in `OnStartup` after the autosave restore and subscribed to `GameStateChanged`, so a finished match
-  is filed by whichever control produced the winning point. It archives once, keyed on `GameState.MatchId`: the
-  winner stays in state while its banner is up, so later ball toggles, a rack reset and a relaunch of the same
-  match all arrive with a winner and must not file a second record, while a rematch — same names, same score — is
-  a new match and is filed. The rule lives in `MatchArchive` against the file, so it holds across a restart.
-  The reading side is `HistoryWindow`, opened from the History button beside Help: read-only, given the loaded
-  archive rather than loading it, so a test can show it with no file behind it, and listing the matches newest
-  first with `MatchArchive.Standings()` as a chip per name. The window is separate on purpose — the live view
-  and the setup screen are unchanged.
+- `Persistence/MatchHistoryStore` owns `history.json`, and nothing files into it automatically: a finished match
+  is recorded when the operator presses **SAVE TO HISTORY**, which appears on the live view with the winner banner
+  and goes again on RESET MATCH, so what belongs in the history is a decision rather than a side effect. The record
+  is keyed on `GameState.MatchId`, which is what stops a second press — and a relaunch of the same won match, whose
+  banner is still up — from filing a duplicate; the rule lives in `MatchArchive` against the file, so it holds
+  across a restart. A rematch with the same names and score is a new match and is filed separately.
+  `GameViewModel` looks the file up once per match, when its winner appears, which is how a match saved before the
+  relaunch shows as saved instead of offering the button again.
+  The reading side is `HistoryWindow`, opened from the History button beside Help: given the store rather than a
+  copy of the archive, listing the matches newest first with `MatchArchive.Standings()` as a chip per name, and
+  letting one row be deleted behind a confirmation — the row goes, the chips are recounted from what is left, and
+  `MatchHistoryStore.TryDelete` rewrites the file. Nothing there creates a record. The window is separate on
+  purpose — the live view and the setup screen gained nothing but the save control.
 - `Diagnostics/TraceLogFile` appends every `Trace` line to `%AppData%\PoolScoreboard\controller.log`
   (attached first in `OnStartup`, disposed last in `OnExit`), so shutdown warnings can be read after the
   fact. At startup a log over 1 MiB is moved to `controller.old.log`, replacing the previous run's. Each
@@ -283,15 +286,16 @@ alignment, not a pixel match).
 - Persistence covers the operator profile (`settings.json`: colour theme, scoreboard style, element visibility,
   both players' setup fields) and the match in progress (`match.json`: scores, game type and Race-To mode, ball
   groups, pocketed balls, shooter), which is restored automatically on the next launch — there is no prompt, so
-  RESET MATCH is how an operator discards a resumed match. A finished match is filed to `history.json` once and
-  the read-only History window lists those newest first with each name's wins; there is no export or filter, the
-  history is capped at 200 matches, and a record is per match rather than per player.
+  RESET MATCH is how an operator discards a resumed match. A finished match is filed to `history.json` only when
+  SAVE TO HISTORY is pressed, and the History window lists those newest first with each name's wins and deletes one
+  at a time; there is no export, no filter and no bulk clear, the history is capped at 200 matches, and a record is
+  per match rather than per player.
 - `controller.log` is capped by size only, never by age: at startup a log over 1 MiB becomes
   `controller.old.log`, so exactly one previous session survives and older ones are discarded.
 - The roster only holds players who have actually been on screen for a started match (or present
   when the window closed). A "Delete" button beside each side's picker drops an entry (and its icon);
   renaming means reusing the name, which updates that entry rather than adding one. The list is capped
-  at 100, and there is no match history: scores are never stored per player.
+  at 100; the match history stores results, not per-player statistics.
 
 ## Testing Notes
 
@@ -385,13 +389,14 @@ live. `MatchArchiveTests` pins the archive call: a finished match is
   `MatchHistoryStoreTests` pins the file the way `MatchStateStoreTests` pins `match.json` — a fresh read gets every
   byte, no `.tmp` is left, earlier matches survive, a match in progress writes nothing, an unreadable file is kept
   aside as `history.corrupt.json`, a file from another version is left in place and ignored, and the cap survives
-  the round trip. Nothing calls `TryArchive` yet, so the tests are its only caller until a later slice wires it to
-  the winning point. `MatchHistoryRecorderTests` covers the wiring: a finished match is filed with
-  its score, winner and clock; a match still being played files nothing; later changes to a won match file nothing
-  more; a rematch with the same names and score files a second record; a match already in the file is not filed
-  again by a recorder that starts after a relaunch; and a disposed recorder stops watching. `HistoryWindowTests` reads the window back off the screen: three
-  records come out newest first with their scores and winners, the win chips read "Bob 2" then "Alice 1", and an
-  empty archive shows the placeholder instead of a blank list. `MatchArchiveTests` also pins `Standings()` — the
+  the round trip — and that deleting one match keeps the rest and reaches the file. `GameViewModelTests` covers the
+  explicit save: a win on its own writes nothing; the button is offered only with a winner; pressing it files the
+  match once and a second press files nothing; a match already in the file reads as saved when the view model is
+  rebuilt from a resumed state; and starting the next match clears the saved mark. `HistoryWindowTests` reads the
+  window back off the screen: three records come out newest first with their scores and winners, the win chips
+  read "Bob 2" then "Alice 1", an empty archive shows the placeholder instead of a blank list, and deleting a row
+  removes it from the list, recounts the chips from what is left and is gone from the file afterwards — while
+  declining the confirmation changes nothing. `MatchArchiveTests` also pins `Standings()` — the
   winner is credited rather than the loser, the most wins come first with names in order within a tie, one player
   across two spellings counts once under the newest spelling, and a nameless side credits nobody.
 - Overlay/control-API endpoints should be tested against a `GameManager` test instance, not

@@ -503,6 +503,16 @@
 
                 <!-- New rack / reset match controls -->
                 <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <!-- Filing a match is the operator's decision: a win on its own writes nothing, so this button
+                         appears with the winner banner and goes again when the match is reset or a new one starts. -->
+                    <TextBlock Text="Saved to history" Foreground="{StaticResource AccentBrush}" FontSize="12"
+                               VerticalAlignment="Center" Margin="0,0,12,0"
+                               Visibility="{Binding MatchSaved, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <Button Content="SAVE TO HISTORY" Style="{StaticResource InactiveButtonStyle}"
+                            Command="{Binding SaveMatchCommand}" IsEnabled="{Binding CanSaveMatch}"
+                            Visibility="{Binding MatchWon, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Padding="16,8" Margin="0,0,12,0"
+                            ToolTip="Record this finished match in the match history." />
                     <Button Content="NEW RACK" Style="{StaticResource InactiveButtonStyle}" Command="{Binding NewRackCommand}" Padding="16,8" Margin="0,0,12,0" />
                     <Button Content="RESET MATCH" Style="{StaticResource InactiveButtonStyle}" Command="{Binding ResetMatchCommand}" Padding="16,8" />
                 </StackPanel>

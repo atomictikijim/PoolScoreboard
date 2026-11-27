@@ -35,6 +35,18 @@ public partial class GameViewModel : ObservableObject
     private readonly PlayerRosterStore _rosterStore;
 
     /// <summary>
+    /// The recorded matches: what the save button files into and what the History window reads. A path, not a
+    /// cache, so handing the same folder a second instance reads what the first wrote.
+    /// </summary>
+    private readonly MatchHistoryStore _historyStore;
+
+    /// <summary>
+    /// The match whose record has already been looked for in the history, so a won match costs one file read — at
+    /// the moment it is won — rather than one per state change while its banner is up.
+    /// </summary>
+    private string? _historyCheckedMatchId;
+
+    /// <summary>
     /// Where game-state events are marshalled to. Supplied rather than read from
     /// <see cref="Application.Current"/>: a test has no running app and wants the handlers to run inline, which
     /// is what null means here.
@@ -171,6 +183,17 @@ public partial class GameViewModel : ObservableObject
     [ObservableProperty]
     private bool overlayIsOffline;
 
+    /// <summary>True once the match has a winner — the only time its record can be saved.</summary>
+    [ObservableProperty]
+    private bool matchWon;
+
+    /// <summary>True while the history already holds this match, so the button cannot file it twice.</summary>
+    [ObservableProperty]
+    private bool matchSaved;
+
+    /// <summary>What the save button enables on: a finished match that is not in the history yet.</summary>
+    public bool CanSaveMatch => MatchWon && !MatchSaved;
+
     public bool IsEightBall => SelectedGameType == GameType.EightBall;
 
     public bool IsSplitRaceTo => SelectedRaceToMode == RaceToMode.Split;
@@ -192,12 +215,14 @@ public partial class GameViewModel : ObservableObject
         IOverlaySession? overlaySession,
         PlayerRosterStore rosterStore,
         Dispatcher? dispatcher,
-        Window? owner)
+        Window? owner,
+        MatchHistoryStore? historyStore = null)
     {
         _gameManager = gameManager;
         _persist = persist;
         _overlaySession = overlaySession;
         _rosterStore = rosterStore;
+        _historyStore = historyStore ?? new MatchHistoryStore();
         _dispatcher = dispatcher;
         _owner = owner;
         _gameManager.GameStateChanged += OnGameStateChanged;
@@ -643,11 +668,38 @@ public partial class GameViewModel : ObservableObject
     [RelayCommand]
     private void ShowHelp() => new HelpWindow(OverlayBaseUrl) { Owner = _owner }.ShowDialog();
 
-    // Read once, when the window opens: the history file only changes when a match finishes, and a view of it
-    // that refreshed underneath a reader would be worse than one that is simply current as of opening. The store
-    // is a path, not a cache, so a second instance reads the same file the recorder writes.
+    /// <summary>
+    /// Files the finished match, by explicit request: the operator decides what belongs in the history, so a win
+    /// on its own does not write one. Pressing it again for the same match files nothing — the archive refuses an
+    /// id it already holds — which is also what covers a resumed match that was saved before the relaunch.
+    /// </summary>
     [RelayCommand]
-    private void ShowHistory() => new HistoryWindow(new MatchHistoryStore().Load()) { Owner = _owner }.ShowDialog();
+    private void SaveMatch()
+    {
+        var state = _gameManager.GetStateSnapshot();
+        if (state.Winner is null)
+            return;
+
+        if (_historyStore.TryArchive(state, DateTimeOffset.Now) is null &&
+            !_historyStore.Load().Contains(state.MatchId))
+        {
+            // Not archived and not present: the write failed and the store has logged why. The button stays
+            // enabled, which is the honest state — the operator can press it again.
+            return;
+        }
+
+        _historyCheckedMatchId = state.MatchId;
+        MatchSaved = true;
+    }
+
+    partial void OnMatchWonChanged(bool value) => OnPropertyChanged(nameof(CanSaveMatch));
+
+    partial void OnMatchSavedChanged(bool value) => OnPropertyChanged(nameof(CanSaveMatch));
+
+    // The window loads from the store itself, so it can refresh after a match is deleted without the view model
+    // holding a copy that has gone stale.
+    [RelayCommand]
+    private void ShowHistory() => new HistoryWindow(_historyStore) { Owner = _owner }.ShowDialog();
 
     private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e)
     {
@@ -687,6 +739,21 @@ public partial class GameViewModel : ObservableObject
         WinnerAnnouncement = state.Winner == null
             ? null
             : $"{(string.IsNullOrEmpty(state.Winner.Name) ? (ReferenceEquals(state.Winner, state.Player1) ? "Home" : "Away") : state.Winner.Name)} wins!";
+
+        MatchWon = state.Winner is not null;
+        if (!MatchWon)
+        {
+            // No winner, nothing to save, and the next one is a different match.
+            _historyCheckedMatchId = null;
+            MatchSaved = false;
+        }
+        else if (!string.Equals(_historyCheckedMatchId, state.MatchId, StringComparison.Ordinal))
+        {
+            // One look per match, at the moment it is won. A resumed match is the case this exists for: the record
+            // was written by a previous run, so nothing in this one remembers saving it.
+            _historyCheckedMatchId = state.MatchId;
+            MatchSaved = _historyStore.Load().Contains(state.MatchId);
+        }
 
         ScoreBarVisible = state.Visibility.ScoreBarVisible;
         BallTrackerVisible = state.Visibility.BallTrackerVisible;

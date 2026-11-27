@@ -211,6 +211,46 @@ public sealed class MatchArchiveTests
         Assert.Single(archive.Matches);
     }
 
+    [Fact]
+    public void Forget_RemovesOnlyTheMatchWithThatId()
+    {
+        var archive = new MatchArchive();
+        var newest = archive.Archive(FinishedMatch(2, 2, homeWins: true).GetStateSnapshot(), CompletedAt);
+        archive.Archive(FinishedMatch(2, 2, homeWins: false).GetStateSnapshot(), CompletedAt.AddMinutes(10));
+
+        Assert.True(archive.Forget(newest!.MatchId));
+
+        // The other match keeps its place and its chip; only the named one goes.
+        var kept = Assert.Single(archive.Matches);
+        Assert.False(kept.HomeWon);
+        Assert.False(archive.Contains(newest.MatchId));
+        Assert.Equal(new[] { "Away 1" }, archive.Standings().Select(standing => $"{standing.Name} {standing.Wins}"));
+    }
+
+    [Fact]
+    public void Forget_SaysWhenItHeldNothing()
+    {
+        var archive = new MatchArchive();
+        archive.Archive(FinishedMatch(2, 2, homeWins: true).GetStateSnapshot(), CompletedAt);
+
+        Assert.False(archive.Forget("not-a-match"));
+        Assert.False(archive.Forget(null));
+        Assert.False(archive.Forget(string.Empty));
+        Assert.Single(archive.Matches);
+    }
+
+    [Fact]
+    public void Contains_AnswersOnlyForAMatchItHolds()
+    {
+        var archive = new MatchArchive();
+        var record = archive.Archive(FinishedMatch(2, 2, homeWins: true).GetStateSnapshot(), CompletedAt);
+
+        Assert.True(archive.Contains(record!.MatchId));
+        Assert.False(archive.Contains("not-a-match"));
+        Assert.False(archive.Contains(null));
+        Assert.False(archive.Contains(string.Empty));
+    }
+
     private static GameManager FinishedMatch(
         int homeTarget,
         int awayTarget,

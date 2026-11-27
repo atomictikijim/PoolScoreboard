@@ -19,8 +19,18 @@ public sealed class GameViewModelTests : IDisposable
     private readonly string _root =
         Path.Combine(Path.GetTempPath(), "poolscoreboard-viewmodel-tests", Guid.NewGuid().ToString("n"));
 
-    private GameViewModel BuildViewModel(GameManager manager) =>
-        new(manager, persist: null, overlaySession: null, new PlayerRosterStore(_root), dispatcher: null, owner: null);
+    // The history store is rooted in the same throwaway folder as the roster: a save test must never be able to
+    // read or write the operator's %AppData% history.
+    private GameViewModel BuildViewModel(GameManager manager, MatchHistoryStore? historyStore = null) =>
+        new(manager, persist: null, overlaySession: null, new PlayerRosterStore(_root), dispatcher: null, owner: null,
+            historyStore ?? new MatchHistoryStore(_root));
+
+    private static void StartMatch(GameManager manager, int homeTarget, int awayTarget)
+    {
+        manager.SetPlayerDetails(isHome: true, "Home", "Team H", homeTarget, null);
+        manager.SetPlayerDetails(isHome: false, "Away", "Team A", awayTarget, null);
+        manager.InitializeGame(GameType.EightBall, RaceToMode.Split);
+    }
 
     [Fact]
     public void FreshLaunch_StaysOnTheNineBallDefault()
@@ -150,6 +160,93 @@ public sealed class GameViewModelTests : IDisposable
     }
 
     /// <summary>Stands in for the host: records the port it was pointed at and whether it was started again.</summary>
+    [Fact]
+    public void AWinnerAloneWritesNothing_AndSavingFilesTheMatchOnce()
+    {
+        var manager = new GameManager();
+        var history = new MatchHistoryStore(_root);
+        var viewModel = BuildViewModel(manager, history);
+        StartMatch(manager, homeTarget: 2, awayTarget: 2);
+
+        while (manager.GetStateSnapshot().Winner is null)
+            manager.AddPoint(isPlayer1: true);
+
+        // A win is not a record: the operator decides what belongs in the history.
+        Assert.True(viewModel.MatchWon);
+        Assert.True(viewModel.CanSaveMatch);
+        Assert.Empty(history.Load().Matches);
+
+        viewModel.SaveMatchCommand.Execute(null);
+
+        Assert.True(viewModel.MatchSaved);
+        Assert.False(viewModel.CanSaveMatch);
+        Assert.Single(history.Load().Matches);
+
+        // Pressing it again files nothing: the archive refuses the id it already holds.
+        viewModel.SaveMatchCommand.Execute(null);
+        Assert.Single(history.Load().Matches);
+    }
+
+    [Fact]
+    public void SaveIsNotOfferedBeforeThereIsAWinner()
+    {
+        var manager = new GameManager();
+        var history = new MatchHistoryStore(_root);
+        var viewModel = BuildViewModel(manager, history);
+        StartMatch(manager, homeTarget: 3, awayTarget: 3);
+        manager.AddPoint(isPlayer1: true);
+
+        Assert.False(viewModel.MatchWon);
+        Assert.False(viewModel.CanSaveMatch);
+
+        viewModel.SaveMatchCommand.Execute(null);
+
+        Assert.False(viewModel.MatchSaved);
+        Assert.Empty(history.Load().Matches);
+    }
+
+    [Fact]
+    public void AResumedMatchAlreadyInTheHistory_ShowsAsSavedAndCannotBeFiledAgain()
+    {
+        var manager = new GameManager();
+        StartMatch(manager, homeTarget: 2, awayTarget: 2);
+        while (manager.GetStateSnapshot().Winner is null)
+            manager.AddPoint(isPlayer1: false);
+
+        var history = new MatchHistoryStore(_root);
+        Assert.NotNull(history.TryArchive(manager.GetStateSnapshot(), DateTimeOffset.Now));
+
+        // What a relaunch builds: nothing in this run remembers the save, so the window has to read the file to
+        // offer the button honestly.
+        var viewModel = BuildViewModel(manager, history);
+
+        Assert.True(viewModel.MatchWon);
+        Assert.True(viewModel.MatchSaved);
+        Assert.False(viewModel.CanSaveMatch);
+
+        viewModel.SaveMatchCommand.Execute(null);
+        Assert.Single(history.Load().Matches);
+    }
+
+    [Fact]
+    public void StartingTheNextMatch_ClearsTheSavedMark()
+    {
+        var manager = new GameManager();
+        var history = new MatchHistoryStore(_root);
+        var viewModel = BuildViewModel(manager, history);
+        StartMatch(manager, homeTarget: 1, awayTarget: 1);
+        manager.AddPoint(isPlayer1: true);
+        viewModel.SaveMatchCommand.Execute(null);
+        Assert.True(viewModel.MatchSaved);
+
+        manager.ResetGame();
+        StartMatch(manager, homeTarget: 1, awayTarget: 1);
+
+        Assert.False(viewModel.MatchWon);
+        Assert.False(viewModel.MatchSaved);
+        Assert.False(viewModel.CanSaveMatch);
+    }
+
     private sealed class FakeOverlaySession : IOverlaySession
     {
         public FakeOverlaySession(int port) => Port = port;
