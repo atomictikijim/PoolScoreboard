@@ -15,6 +15,11 @@
                      check the window says the overlay is off and offers Retry, then free the port,
                      press Retry and check the overlay serves and the banner is gone.
 
+      port-change    move the port from the OVERLAY PORT field and check the overlay follows it, that the
+                     choice is saved and a relaunch comes back on it, that Help lists the overlay on that
+                     port and no longer on the old one, and that a foreign listener on the *configured*
+                     port is named in the banner with Retry recovering once it is freed.
+
       leftover       run a Controller built from before the single-instance guard, which keeps the port
                      with a window showing. The current build must leave it alone and tell the operator
                      to close that window; hiding the window and pressing Retry must then close the
@@ -24,7 +29,10 @@
     this script started is stopped, and the pre-guard worktree is removed.
 
 .PARAMETER Scenario
-    all (default), or one of the three names above.
+    all (default), or one of the four names above.
+
+.PARAMETER SecondPort
+    Port the port-change scenario moves to. Defaults to 7 above -Port, so the two can never be confused.
 
 .PARAMETER Exe
     Controller to test. Defaults to the Debug build.
@@ -42,12 +50,14 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('all', 'crash-resume', 'banner-retry', 'leftover')]
+    [ValidateSet('all', 'port-change', 'crash-resume', 'banner-retry', 'leftover')]
     [string]$Scenario = 'all',
 
     [string]$Exe,
 
     [int]$Port = 51234,
+
+    [int]$SecondPort = 0,
 
     [string]$PreGuardCommit = '1acddbd'
 )
@@ -55,6 +65,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Add-Type -AssemblyName System.Windows.Forms
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -62,6 +73,40 @@ public static class VerifyWin32
 {
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hwnd, int command);
     [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr w, IntPtr l);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+
+    // UIA's Invoke on the button that opens the modal Help window does not run its command reliably, so the
+    // window is opened the way the operator opens it: give the Controller the keyboard, focus the button and
+    // press space. This only reports whether the window exists; the caller reads it through UIA.
+    public static bool HasWindow(int targetProcessId, string title)
+    {
+        bool found = false;
+        EnumWindows((handle, state) =>
+        {
+            uint processId;
+            GetWindowThreadProcessId(handle, out processId);
+            if (processId == targetProcessId && TitleOf(handle) == title)
+            {
+                found = true;
+                return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
+
+    private delegate bool EnumProc(IntPtr handle, IntPtr state);
+
+    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumProc callback, IntPtr state);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr handle, out uint processId);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowTextW(IntPtr handle, System.Text.StringBuilder text, int count);
+
+    private static string TitleOf(IntPtr handle)
+    {
+        var text = new System.Text.StringBuilder(256);
+        GetWindowTextW(handle, text, 256);
+        return text.ToString();
+    }
 }
 "@
 
@@ -69,13 +114,14 @@ $root = Split-Path $PSScriptRoot -Parent
 if (-not $Exe) { $Exe = Join-Path $root 'PoolScoreboard.Controller\bin\Debug\net8.0-windows\PoolScoreboard.Controller.exe' }
 $AppData = Join-Path $env:APPDATA 'PoolScoreboard'
 $MatchPath = Join-Path $AppData 'match.json'
+$SettingsPath = Join-Path $AppData 'settings.json'
 $BaseUrl = "http://127.0.0.1:$Port"
 
 $script:Started = New-Object System.Collections.ArrayList
 $script:Failures = New-Object System.Collections.ArrayList
 $script:Worktree = $null
 $script:AppDataBackup = $null
-$script:BlockerScript = $null
+$script:TempScripts = New-Object System.Collections.ArrayList
 
 function Write-Step([string]$Text) {
     Write-Host ''
@@ -104,13 +150,146 @@ function Wait-ControllerWindow([int]$TargetPid, [int]$TimeoutSeconds = 25) {
     throw "no window appeared for pid $TargetPid within $TimeoutSeconds s"
 }
 
-function Get-WindowText([int]$TargetPid) {
-    $window = Get-ControllerWindow $TargetPid
-    if (-not $window) { return '' }
-    $all = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+function Get-ElementText($Element) {
+    if (-not $Element) { return '' }
+    $all = $Element.FindAll([System.Windows.Automation.TreeScope]::Descendants,
         [System.Windows.Automation.Condition]::TrueCondition)
-    $names = foreach ($element in $all) { if ($element.Current.Name) { $element.Current.Name } }
+    $names = foreach ($item in $all) { if ($item.Current.Name) { $item.Current.Name } }
     return ($names -join ' | ')
+}
+
+function Get-WindowText([int]$TargetPid) {
+    return Get-ElementText (Get-ControllerWindow $TargetPid)
+}
+
+function Get-OverlayPortField([int]$TargetPid) {
+    $window = Get-ControllerWindow $TargetPid
+    if (-not $window) { return $null }
+    $byId = [System.Windows.Automation.PropertyCondition]::new(
+        [System.Windows.Automation.AutomationElement]::AutomationIdProperty, 'OverlayPortBox')
+    return $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $byId)
+}
+
+function Set-OverlayPort([int]$TargetPid, [int]$Value) {
+    $field = Get-OverlayPortField $TargetPid
+    if (-not $field) { return $false }
+    $field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue("$Value")
+
+    # The field commits when it loses focus, so move focus within the window the way leaving it would.
+    $window = Get-ControllerWindow $TargetPid
+    $byName = [System.Windows.Automation.PropertyCondition]::new(
+        [System.Windows.Automation.AutomationElement]::NameProperty, 'Help')
+    $anchor = $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $byName)
+    if ($anchor) { $anchor.SetFocus() }
+    return $true
+}
+
+function Wait-SavedOverlayPort([int]$Expected, [int]$TimeoutSeconds = 15) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        if (Test-Path $SettingsPath) {
+            try {
+                $saved = Get-Content $SettingsPath -Raw | ConvertFrom-Json
+                if ($saved.profile.overlayPort -eq $Expected) { return $true }
+            } catch {
+                # A save that is half read is not a failure; read it again on the next pass.
+            }
+        }
+        Start-Sleep -Milliseconds 300
+    }
+    return $false
+}
+
+function Get-HelpWindow([int]$TargetPid) {
+    $windows = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+        [System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)
+    foreach ($window in $windows) {
+        if ($window.Current.ProcessId -eq $TargetPid -and $window.Current.Name -eq 'PoolScoreboard Help') {
+            return $window
+        }
+    }
+
+    # Being owned by the Controller, the dialog is as often a child of that window in the UIA tree as a sibling
+    # of it, so look there too before giving up.
+    $controller = Get-ControllerWindow $TargetPid
+    if ($controller) {
+        $byName = [System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::NameProperty, 'PoolScoreboard Help')
+        $nested = $controller.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $byName)
+        if ($nested) { return $nested }
+    }
+    return $null
+}
+
+# A window launched by a background process is normally refused the foreground, and without it the space key
+# below never reaches the app. Minimizing and restoring is the way round that.
+function Show-ControllerForeground([IntPtr]$Handle) {
+    [VerifyWin32]::ShowWindow($Handle, 6) | Out-Null   # SW_MINIMIZE
+    Start-Sleep -Milliseconds 250
+    [VerifyWin32]::ShowWindow($Handle, 9) | Out-Null   # SW_RESTORE
+    [VerifyWin32]::SetForegroundWindow($Handle) | Out-Null
+    Start-Sleep -Milliseconds 800
+}
+
+function Get-FocusedElementName {
+    try {
+        $focused = [System.Windows.Automation.AutomationElement]::FocusedElement
+        if ($focused) { return $focused.Current.Name }
+    } catch { }
+    return ''
+}
+
+function Open-HelpWindow([int]$TargetPid, [int]$TimeoutSeconds = 20) {
+    $controller = Get-ControllerWindow $TargetPid
+    if (-not $controller) { throw "no Controller window for pid $TargetPid" }
+
+    # The operator's own click: give the Controller the keyboard, focus the button, press space. UIA's Invoke on
+    # this button does not run its command dependably - it is what opens the modal dialog, which no other check
+    # here has to do - so it is not used.
+    Show-ControllerForeground ([IntPtr]$controller.Current.NativeWindowHandle)
+    $controller = Get-ControllerWindow $TargetPid
+    $byName = [System.Windows.Automation.PropertyCondition]::new(
+        [System.Windows.Automation.AutomationElement]::NameProperty, 'Help')
+    $helpButton = $controller.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $byName)
+    if (-not $helpButton) { throw 'the Help button is not in the top bar' }
+    $helpButton.SetFocus()
+    Start-Sleep -Milliseconds 400
+    [System.Windows.Forms.SendKeys]::SendWait(' ')
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        $opened = Get-HelpWindow $TargetPid
+        if ($opened) { return $opened }
+        Start-Sleep -Milliseconds 250
+    }
+
+    # Worth keeping: the two ways this fails look identical in the assertions. A window Win32 can see but UIA
+    # cannot means the lookup is wrong; a window neither sees means the key never reached the button.
+    $visible = [VerifyWin32]::HasWindow($TargetPid, 'PoolScoreboard Help')
+    Write-Host "  ..  Help did not open (window seen by Win32: $visible, focused element: '$(Get-FocusedElementName)')"
+    return $null
+}
+
+function Close-HelpWindow($HelpWindow, [int]$TimeoutSeconds = 10) {
+    $targetPid = [int]$HelpWindow.Current.ProcessId
+    $handle = [IntPtr]$HelpWindow.Current.NativeWindowHandle
+    [VerifyWin32]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        if (-not [VerifyWin32]::HasWindow($targetPid, 'PoolScoreboard Help')) { return $true }
+        Start-Sleep -Milliseconds 250
+    }
+    return $false
+}
+
+function Invoke-NamedElement($Root, [string]$Label) {
+    $byName = [System.Windows.Automation.PropertyCondition]::new(
+        [System.Windows.Automation.AutomationElement]::NameProperty, $Label)
+    $element = $Root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $byName)
+    if (-not $element) { return $false }
+    $element.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    return $true
 }
 
 function Wait-WindowText([int]$TargetPid, [string]$Pattern, [int]$TimeoutSeconds = 20) {
@@ -165,29 +344,45 @@ function Hide-ProcessWindow([System.Diagnostics.Process]$Process) {
     throw "could not hide the window of pid $($Process.Id)"
 }
 
-function Get-PortOwnerPid {
-    $connection = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+function Get-PortOwnerPid([int]$OnPort = $Port) {
+    $connection = Get-NetTCPConnection -LocalPort $OnPort -State Listen -ErrorAction SilentlyContinue |
         Select-Object -First 1
     if ($connection) { return [int]$connection.OwningProcess }
     return 0
 }
 
-function Wait-PortOwner([int]$ExpectedPid, [int]$TimeoutSeconds = 25) {
+function Wait-PortOwner([int]$ExpectedPid, [int]$TimeoutSeconds = 25, [int]$OnPort = $Port) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
-        if ((Get-PortOwnerPid) -eq $ExpectedPid) { return $true }
+        if ((Get-PortOwnerPid $OnPort) -eq $ExpectedPid) { return $true }
         Start-Sleep -Milliseconds 250
     }
     return $false
 }
 
-function Wait-PortFree([int]$TimeoutSeconds = 20) {
+function Wait-PortFree([int]$TimeoutSeconds = 20, [int]$OnPort = $Port) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
-        if ((Get-PortOwnerPid) -eq 0) { return $true }
+        if ((Get-PortOwnerPid $OnPort) -eq 0) { return $true }
         Start-Sleep -Milliseconds 250
     }
     return $false
+}
+
+# A listener in another process: not this app, so the Controller can only report it.
+function Start-ForeignHolder([int]$OnPort) {
+    $path = Join-Path ([IO.Path]::GetTempPath()) ("pool-block-$([guid]::NewGuid().ToString('n')).ps1")
+    Set-Content -Path $path -Encoding ASCII -Value @"
+`$listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $OnPort)
+`$listener.Start()
+try { Start-Sleep -Seconds 300 } finally { `$listener.Stop() }
+"@
+    $script:TempScripts.Add($path) | Out-Null
+    $holder = Start-Process -FilePath 'powershell.exe' `
+        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $path) `
+        -WindowStyle Hidden -PassThru
+    $script:Started.Add($holder) | Out-Null
+    return $holder
 }
 
 function Start-Controller([string]$Path) {
@@ -196,11 +391,11 @@ function Start-Controller([string]$Path) {
     return $process
 }
 
-function Wait-State([int]$TimeoutSeconds = 25) {
+function Wait-State([int]$TimeoutSeconds = 25, [int]$OnPort = $Port) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
         try {
-            return Invoke-RestMethod -Uri "$BaseUrl/overlay/api/scoreboard/state" -TimeoutSec 3
+            return Invoke-RestMethod -Uri "http://127.0.0.1:$OnPort/overlay/api/scoreboard/state" -TimeoutSec 3
         } catch {
             Start-Sleep -Milliseconds 300
         }
@@ -208,11 +403,11 @@ function Wait-State([int]$TimeoutSeconds = 25) {
     return $null
 }
 
-function Wait-OverlayDown([int]$TimeoutSeconds = 10) {
+function Wait-OverlayDown([int]$TimeoutSeconds = 10, [int]$OnPort = $Port) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
         try {
-            Invoke-RestMethod -Uri "$BaseUrl/overlay/api/scoreboard/state" -TimeoutSec 2 | Out-Null
+            Invoke-RestMethod -Uri "http://127.0.0.1:$OnPort/overlay/api/scoreboard/state" -TimeoutSec 2 | Out-Null
             Start-Sleep -Milliseconds 300
         } catch {
             return $true
@@ -297,17 +492,7 @@ function Invoke-BannerRetry {
     Write-Step 'banner-retry'
     Assert-That ((Get-PortOwnerPid) -eq 0) "port $Port is free before the scenario starts"
 
-    # A listener in another process: not this app, so the Controller can only report it.
-    $script:BlockerScript = Join-Path ([IO.Path]::GetTempPath()) ("pool-block-$([guid]::NewGuid().ToString('n')).ps1")
-    Set-Content -Path $script:BlockerScript -Encoding ASCII -Value @"
-`$listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $Port)
-`$listener.Start()
-try { Start-Sleep -Seconds 300 } finally { `$listener.Stop() }
-"@
-    $blocker = Start-Process -FilePath 'powershell.exe' `
-        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $script:BlockerScript) `
-        -WindowStyle Hidden -PassThru
-    $script:Started.Add($blocker) | Out-Null
+    $blocker = Start-ForeignHolder $Port
     Assert-That (Wait-PortOwner $blocker.Id 20) "a foreign process ($($blocker.Id)) took port $Port"
 
     $controller = Start-Controller $Exe
@@ -329,6 +514,72 @@ try { Start-Sleep -Seconds 300 } finally { `$listener.Stop() }
     $deadline = (Get-Date).AddSeconds(15)
     while ((Get-Date) -lt $deadline -and (Test-RetryButton $controller.Id)) { Start-Sleep -Milliseconds 300 }
     Assert-That (-not (Test-RetryButton $controller.Id)) 'the banner and its Retry are gone'
+}
+
+function Invoke-PortChange {
+    Write-Step 'port-change'
+    $target = if ($SecondPort -ne 0) { $SecondPort } else { $Port + 7 }
+    Assert-That ((Get-PortOwnerPid) -eq 0) "port $Port is free before the scenario starts"
+    Assert-That ((Get-PortOwnerPid $target) -eq 0) "port $target is free before the scenario starts"
+
+    # A known starting point: with no saved port the app opens on the default, so the field has a default to
+    # move away from instead of whatever the operator's own settings happen to hold.
+    Remove-Item $SettingsPath -ErrorAction SilentlyContinue
+
+    $controller = Start-Controller $Exe
+    Wait-ControllerWindow $controller.Id | Out-Null
+    Assert-That ($null -ne (Wait-State)) "the overlay serves on the default $Port"
+
+    $field = Get-OverlayPortField $controller.Id
+    Assert-That ($null -ne $field) 'the OVERLAY PORT field is in the top bar'
+    $shown = $field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
+    Assert-That ($shown -eq "$Port") "the field shows $Port (got '$shown')"
+
+    Assert-That (Set-OverlayPort $controller.Id $target) 'the field took the new port'
+    Assert-That ($null -ne (Wait-State 25 $target)) "the overlay moved to $target without a restart"
+    Assert-That (Wait-OverlayDown 15 $Port) "$Port stopped answering"
+    Assert-That (Wait-SavedOverlayPort $target) "settings.json records overlayPort $target"
+
+    Stop-ProcessQuietly $controller
+    $controller.WaitForExit(10000) | Out-Null
+    Assert-That (Wait-PortFree 20) 'the moved process released its port'
+
+    $relaunched = Start-Controller $Exe
+    Wait-ControllerWindow $relaunched.Id | Out-Null
+    Assert-That ($null -ne (Wait-State 25 $target)) "a relaunch comes back on the saved $target"
+
+    # The only check that reads the Help page on screen. Every URL there is built from the port the app is
+    # serving on, so a page still hard-coding the default would show it here.
+    $help = Open-HelpWindow $relaunched.Id
+    Assert-That ($null -ne $help) 'the Help window opened'
+    Assert-That (Invoke-NamedElement $help 'OBS Studio Setup') 'the OBS Studio Setup page was opened'
+    Start-Sleep -Milliseconds 800
+    $helpText = Get-ElementText $help
+    Assert-That ($helpText -match "(?<!\d)$target/overlay/scoreboard") "Help lists the scoreboard overlay on $target"
+    Assert-That ($helpText -notmatch "(?<!\d)$Port(?!\d)") "Help shows nothing on the old $Port"
+    foreach ($line in ($helpText -split ' \| ' | Where-Object { $_ -match 'overlay/(scoreboard|cueball)' })) {
+        Write-Host "  ..  Help shows $($line.Trim())"
+    }
+    Assert-That (Close-HelpWindow $help) 'the Help window closed'
+
+    Stop-ProcessQuietly $relaunched
+    $relaunched.WaitForExit(10000) | Out-Null
+    Assert-That (Wait-PortFree 20) 'the relaunched process released its port'
+
+    # A foreign listener on the port that is now configured, not on the default.
+    $holder = Start-ForeignHolder $target
+    Assert-That (Wait-PortOwner $holder.Id 20 $target) "a foreign process ($($holder.Id)) took port $target"
+    $controller = Start-Controller $Exe
+    Wait-ControllerWindow $controller.Id | Out-Null
+    $banner = Wait-WindowText $controller.Id 'overlay is off|could not start'
+    Assert-That ($null -ne $banner) 'the window says the overlay is off'
+    Assert-That ($banner -match "(?<!\d)$target(?!\d)") "the banner names the configured port $target"
+    Assert-That ($banner -notmatch "(?<!\d)$Port(?!\d)") "the banner does not name the default $Port"
+
+    Stop-ProcessQuietly $holder
+    Assert-That (Wait-PortFree 20 $target) 'the configured port was released'
+    Assert-That (Invoke-WindowButton $controller.Id 'Retry') 'Retry was pressed'
+    Assert-That ($null -ne (Wait-State 25 $target)) "the overlay serves on $target after Retry"
 }
 
 function Invoke-Leftover {
@@ -396,12 +647,13 @@ if (Test-Path $AppData) {
     Write-Host "  backed up %AppData%\PoolScoreboard"
 }
 
-$scenarios = if ($Scenario -eq 'all') { @('crash-resume', 'banner-retry', 'leftover') } else { @($Scenario) }
+$scenarios = if ($Scenario -eq 'all') { @('port-change', 'crash-resume', 'banner-retry', 'leftover') } else { @($Scenario) }
 
 try {
     foreach ($name in $scenarios) {
         try {
             switch ($name) {
+                'port-change' { Invoke-PortChange }
                 'crash-resume' { Invoke-CrashResume }
                 'banner-retry' { Invoke-BannerRetry }
                 'leftover' { Invoke-Leftover }
@@ -427,7 +679,7 @@ try {
         if ($removed.ExitCode -ne 0) { Invoke-Native 'git' @('-C', $root, 'worktree', 'prune') | Out-Null }
     }
 
-    if ($script:BlockerScript) { Remove-Item $script:BlockerScript -ErrorAction SilentlyContinue }
+    foreach ($path in $script:TempScripts) { Remove-Item $path -ErrorAction SilentlyContinue }
 
     if ($script:AppDataBackup) {
         if (Test-Path $AppData) { Remove-Item -Recurse -Force $AppData }

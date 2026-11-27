@@ -194,6 +194,30 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The port change becomes a live check, and Help is read on screen
+
+- The port work above had only been proven by hand, in scripts that died with `%TEMP%`. `tools/verify-live.ps1
+  -Scenario port-change` now repeats it: starting from no saved settings (so the field has the default to move away
+  from), it moves the port from the OVERLAY PORT field to 51241 and asserts the overlay follows without a restart,
+  that 51234 stops answering and that `settings.json` records the choice; it kills and relaunches and asserts the
+  saved port comes back; it opens Help and asserts the page lists `http://127.0.0.1:51241/overlay/scoreboard` and
+  nothing on 51234; then it holds 51241 with a foreign listener and asserts the banner names the *configured* port
+  (not the default), offers Retry, and that Retry serves 51241 once the port is free.
+- That closes the one gap the port change left: the Help page's URLs had never been read on screen. Doing it needed
+  two things the script now carries. UIA's `Invoke` on the button that opens the modal Help window does not run its
+  command reliably, so the window is raised the way the operator raises it — minimize and restore to take the
+  foreground, focus the button, press space. And the dialog is an automation child of the Controller as often as a
+  sibling of it, so it is looked for in both places; searching only the desktop children is what made every earlier
+  attempt look like "the window never opened" while Win32 could see it.
+- The foreign listener is a shared helper now (`Start-ForeignHolder`, also used by `banner-retry`), and the port
+  helpers take the port they watch, so one scenario can work on two. `crash-resume`, `banner-retry` and `leftover`
+  were re-run after the refactor.
+- Reviewed with fresh eyes after the first green run and cut what the run had made unnecessary: the UIA `Invoke`
+  retry behind the keyboard path (which proves reliable once the window has the foreground), the `AppActivate`
+  belt-and-braces, two banner assertions that duplicate `banner-retry`'s (the advice rule and that Retry is
+  offered — pressing it already proves it), and the magic sleeps, which are now `WaitForExit`.
+- Developer tooling only, so no version bump.
+
 ### 2026-11-27 — The overlay port is the operator's, not a constant
 
 - 51234 was hard-coded: another program holding it left the overlay and the Stream Deck API dead for the whole
