@@ -303,7 +303,10 @@ the port was a setting (no `overlayPort` key) gives `OperatorProfile.DefaultOver
 the real Help window at 51241 and reads its 13 URL lines back, asserting every one carries that port and none carries
 51234, which is the CI-side twin of the live check's Help step. `OverlayPortSettingsTests` covers the two `App` port
 steps with a session that records what it was asked for: the saved port reaches the session (and an unusable one
-becomes the default), and a save records the port the session is on, not the one the profile still held. Two things that test had to work around: a full
+becomes the default), and a save records the port the session is on, not the one the profile still held. `NoHardCodedOverlayAddressTests`
+guards the rule behind all of it: it scans the Controller's own sources — markup as raw text, C# only inside string
+literals — and fails on a literal `51234` or on `127.0.0.1:` followed by a digit, so `$"http://127.0.0.1:{Port}/…"`
+passes while an address with its port baked in cannot come back. Comments stay out of scope; several name both. Two things that test had to work around: a full
 `pack://` URI is only parsed once WPF has registered the scheme, so the theme dictionary is loaded by its relative
 `/Assembly;component/` form; and a window's bindings resolve only once its tree is loaded, so the test shows the
 window at (-20000, -20000) rather than merely constructing it. `MatchStateStoreTests` pins what a save leaves behind: the
@@ -313,7 +316,8 @@ a test, so losing power is still an argument rather than a measurement, unlike a
 live.
 - Overlay/control-API endpoints should be tested against a `GameManager` test instance, not
   a live one.
-- `.githooks/pre-push` mirrors CI (Release build, then every test project) and is enabled per clone
+- `.githooks/pre-push` mirrors CI (a parse of `tools/verify-live.ps1`, the Release build, then every test project)
+  and is enabled per clone
   with `git config core.hooksPath .githooks`. `master` also has a required `build-and-test` check,
   which GitHub only enforces on merges — the hook is what covers direct pushes.
 - `tools/verify-live.ps1` is what used to be hand-run in `%TEMP%` and vanished with it, so the four things a unit
@@ -329,7 +333,9 @@ live.
   `powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify-live.ps1 [-Scenario <name>]`. It backs up and
   restores `%APPDATA%\PoolScoreboard`, stops only the processes it started, needs the port free to begin (`-Port`,
   51234, and `-SecondPort`, 7 above it, for `port-change`), removes its git worktree, and exits non-zero naming the
-  assertion that failed. Every scenario starts from no saved `settings.json` (the operator's own file is the backup
+  assertion that failed. CI cannot run it — it needs the real window and real sockets — so the workflow parses it
+  instead (`Parse the live-check script`), naming the file, line and message when it no longer parses; the pre-push
+  hook does the same when PowerShell is on PATH and skips it with a note otherwise. Every scenario starts from no saved `settings.json` (the operator's own file is the backup
   restored on exit), so `port-change` has the default to move away from and the others find the app on the port they
   test — without that, `port-change` leaves 51241 saved and the next three all launch a Controller already moved.
   Opening the modal Help window from a script needs two things worth knowing: UIA's `Invoke` on the button that opens

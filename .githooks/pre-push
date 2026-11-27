@@ -21,6 +21,19 @@ if ! command -v dotnet > /dev/null 2>&1; then
   exit 1
 fi
 
+# tools/verify-live.ps1 cannot run here — it needs the real window and sockets — but a file that no longer
+# parses would only fail the next time someone ran it by hand, which is exactly the rot this mirrors from CI.
+ps="$(command -v pwsh || command -v powershell || true)"
+if [ -n "$ps" ]; then
+  echo "pre-push: parsing tools/verify-live.ps1 ..."
+  if ! "$ps" -NoProfile -Command '$t=$null; $e=$null; [System.Management.Automation.Language.Parser]::ParseFile("tools/verify-live.ps1", [ref]$t, [ref]$e) | Out-Null; if ($e.Count -gt 0) { $e | ForEach-Object { Write-Error ("line {0}: {1}" -f $_.Extent.StartLineNumber, $_.Message) }; exit 1 }'; then
+    echo "pre-push: tools/verify-live.ps1 does not parse - push blocked." >&2
+    exit 1
+  fi
+else
+  echo "pre-push: no PowerShell on PATH; skipping the live-check parse (CI checks it)."
+fi
+
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
 

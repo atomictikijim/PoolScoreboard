@@ -28,6 +28,23 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      # tools/verify-live.ps1 drives the real window and real sockets, so CI can never run it. Parsing it is
+      # cheap and is what stops a typo in a scenario only used by hand from waiting for the next manual run.
+      - name: Parse the live-check script
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          $path = (Resolve-Path 'tools/verify-live.ps1').Path
+          [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) {
+            foreach ($problem in $errors) {
+              Write-Host "::error file=tools/verify-live.ps1,line=$($problem.Extent.StartLineNumber)::$($problem.Message)"
+            }
+            exit 1
+          }
+          Write-Host 'tools/verify-live.ps1 parses.'
+
       # Keyed on the project files (and the shared version props) so a dependency or version
       # change invalidates the cache rather than reusing stale packages.
       - name: Cache NuGet packages

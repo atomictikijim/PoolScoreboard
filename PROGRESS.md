@@ -194,6 +194,26 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — Two guards: the overlay address can't be hard-coded, and the live check can't rot unnoticed
+
+- `NoHardCodedOverlayAddressTests` (2 tests) fails if the Controller's own sources hard-code the overlay address or
+  the default port. Markup is checked as raw text; C# only inside string literals, so `$"http://127.0.0.1:{Port}/…"`
+  (the Help base URL and every banner message) passes while an address with a port baked in (`127.0.0.1:` followed
+  by a digit) or a literal `51234` fails. Comments stay out of scope — they name both, and they are documentation
+  rather than behaviour. Proven by mutation: a `$"http://127.0.0.1:51234"` in `GameViewModel` and a `Title="… 51234"`
+  in `MainWindow.xaml` each failed their test, and reverting them restored 2/2.
+- CI now parses `tools/verify-live.ps1` (`Parse the live-check script`, `shell: pwsh`). The script drives the real
+  window and sockets, so it can never run on a runner; a syntax error would otherwise sit until the next manual run.
+  On failure the step annotates the file, line and message and exits non-zero. The exact workflow block was run
+  locally both ways: `tools/verify-live.ps1 parses.` (exit 0) on the real script, and
+  `::error file=tools/verify-live.ps1,line=2::Missing ')' in function parameter list.` (exit 1) on a deliberately
+  broken copy. The pre-push hook runs the same check when PowerShell is on PATH and says so when it is not, keeping
+  the hook's "mirrors CI" promise true.
+- Writing the step turned up a real bug in its first draft: `foreach ($error in $errors)` collides with PowerShell's
+  read-only `$Error` automatic variable, so the loop threw instead of reporting. Renamed to `$problem` and re-tested
+  before committing.
+- Full suite 109 Core + 129 Controller, 0 warnings. Tests and CI wiring only, no behaviour change: no version bump.
+
 ### 2026-11-27 — The App port wiring gets tests, and App gets two lines shorter
 
 - The last part of the port work that only the live check covered was in `App`: applying a saved port before
