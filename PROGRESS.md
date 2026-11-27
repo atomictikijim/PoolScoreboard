@@ -70,7 +70,7 @@ live:
 
 ### Parked 2026-11-27 — the overlay CI guards: where to pick this up
 
-Done and on `master` (tip `2f7817a`, CI green, 109 Core + 29 Overlay + 137 Controller, 0 warnings):
+Done and on `master` (tip `073668b`, CI green, 109 Core + 29 Overlay + 137 Controller, 0 warnings):
 
 - Source guards in `Controller.Tests`, all sharing `RepositorySources`: `NoHardCodedOverlayAddressTests` (no literal
   `51234`, no `127.0.0.1:` + digit in the Controller's markup or C# literals), `OverlayRouteTests` (every
@@ -86,22 +86,22 @@ Done and on `master` (tip `2f7817a`, CI green, 109 Core + 29 Overlay + 137 Contr
 - `OverlayHost.Build` (host mapped, not started) exists so those tests can use `TestServer`; `Start` is the same list
   plus the loopback address. CI parses `tools/verify-live.ps1` (syntax only) before building.
 
+Re-verified since: on 2026-11-27 `tools/verify-live.ps1` with no `-Scenario` passed all four scenarios — 59
+assertions, exit 0 — against the build from `073668b`, so the outstanding full live-check run is closed (see the
+Change Log entry of the same date). What follows is what is still open.
+
 Not done, most useful first:
 
-1. **Re-run the full live check.** `powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify-live.ps1` with no
-   `-Scenario` (all four scenarios). The last full run predates the `OverlayHost.Build` split and the whole HTTP-test
-   batch. Nothing in this batch changed startup, save or the window, but that script is the only thing that drives the
-   real window and sockets — worth one run before calling the overlay re-verified.
-2. **`streamdeck/` routes are unchecked.** A route renamed in `Endpoints/*.cs` is now caught in Help, both pages and
-   the probe, but the Stream Deck mapping doc is not one of the sources `OverlayRouteTests` reads. Cheap to add: point
-   it at the markdown and assert every `/api/control/…` token there is a mapped route.
-3. **`OverlayBaseUrl` has no change notification.** `GameViewModel.OverlayBaseUrl` is computed and
+1. **`streamdeck/` routes are unchecked.** A route renamed in `Endpoints/*.cs` is now caught in Help, both pages and
+   the probe, but the Stream Deck mapping doc is not one of the sources `OverlayRouteTests` reads. Cheap to add:
+   point it at the markdown and assert every `/api/control/…` token there is a mapped route.
+2. **`OverlayBaseUrl` has no change notification.** `GameViewModel.OverlayBaseUrl` is computed and
    `OnOverlayPortChanged` raises nothing for it. Harmless today because only `ShowHelp()` reads it, fresh, at click
    time; the first XAML binding to it would show a stale port. The fix is one
    `OnPropertyChanged(nameof(OverlayBaseUrl))` plus the test that would currently fail.
-4. **Script parameter parity** (`-Port 51234` / `-SecondPort` +7 vs `OperatorProfile.DefaultOverlayPort`, scenario names
-   vs these docs). Ranked lowest: brittle, and it catches doc drift rather than behaviour.
-5. The old "JS keys vs DTO without a server" idea is now redundant — the HTTP payload tests do it against the real
+3. **Script parameter parity** (`-Port 51234` / `-SecondPort` +7 vs `OperatorProfile.DefaultOverlayPort`, scenario
+   names vs these docs). Ranked lowest: brittle, and it catches doc drift rather than behaviour.
+4. The old "JS keys vs DTO without a server" idea is now redundant — the HTTP payload tests do it against the real
    serializer, so don't rebuild it as a text comparison.
 
 Two things worth remembering from this batch: a mutation script must match the source's real indentation (a failed
@@ -233,6 +233,25 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-27 — The full live check runs green on the guarded build
+
+- `tools/verify-live.ps1` with no `-Scenario`, against the build from `073668b`: all four scenarios passed, 59
+  assertions, no `FAIL` line, exit 0. This is the run the parked note had left outstanding — the previous full run
+  predated the `OverlayHost.Build` split and the whole HTTP-test batch, so nothing had driven the real window and
+  sockets since.
+- `port-change` (24): the field moves the overlay to 51241 with no restart, 51234 stops answering,
+  `settings.json` records it, a relaunch returns on 51241, Help lists the overlay on 51241 and shows nothing on
+  51234, and a foreign listener on the *configured* port is named in the banner with Retry recovering.
+  `crash-resume` (12): 2-1 survives a `Stop-Process` kill with no `OnExit` and the file is not deleted at startup,
+  then RESET deletes it. `banner-retry` (11) still names the foreign holder and recovers on Retry. `leftover` (12)
+  still leaves the windowed copy from pre-guard `1acddbd` alone and names its PID, then closes it and takes the
+  port once its window is hidden.
+- The two checks that mattered most here still bite: the Help window is read on a non-default port and asserts no
+  stale `51234` (the one place a hard-coded overlay URL could hide), and the `leftover` scenario's worktree build of
+  `1acddbd` succeeded, so the single-instance guard is checked against a genuinely older binary, not a mock.
+- The run cleaned up after itself — `git status` clean, its temporary worktree gone, no listener on 51234, and the
+  operator's `%APPDATA%\PoolScoreboard` restored with their own `settings.json`. Checks only: no version bump.
 
 ### 2026-11-27 — Every Stream Deck route's effect is read back through the payload
 
