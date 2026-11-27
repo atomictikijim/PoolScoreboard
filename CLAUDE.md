@@ -315,7 +315,11 @@ second fact that fails if any of those sources stops naming a path, so the guard
 `[::]`) anywhere in the Overlay, and a string literal handing Kestrel a loopback address — literals rather than raw
 text, because the class comment already says "127.0.0.1 only" and a comment must not count. All three guards read
 sources through `RepositorySources` (the root walk, the `bin`/`obj` filter, the literal regex), so they scan the same
-set. Two things that test had to work around: a full
+set. `NoExternalOverlayAssetTests` keeps the overlay offline, which CI had never checked at all: no absolute URL and
+no scheme-less `//host` reference in any file under `PoolScoreboard.Overlay/Assets`. A web font or script from a CDN
+would otherwise show up only as a half-styled page in OBS on the machine this is built for. The rule is the whole
+scheme rather than a list of CDNs, because no asset needs one today; a data-URI SVG's `w3.org` namespace would be a
+deliberate, documented exception rather than a silent allowance. Two things that test had to work around: a full
 `pack://` URI is only parsed once WPF has registered the scheme, so the theme dictionary is loaded by its relative
 `/Assembly;component/` form; and a window's bindings resolve only once its tree is loaded, so the test shows the
 window at (-20000, -20000) rather than merely constructing it. `MatchStateStoreTests` pins what a save leaves behind: the

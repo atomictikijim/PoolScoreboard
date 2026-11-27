@@ -194,6 +194,19 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The overlay's assets are held to "works with no network"
+
+- `NoExternalOverlayAssetTests` (2 facts) covers the one rule in CLAUDE.md that CI never looked at: the overlay must
+  render with no network, and nothing was checking the six files under `PoolScoreboard.Overlay/Assets`. An absolute
+  URL anywhere in them now fails, and so does a scheme-less `//host/…` reference in an attribute, `url(…)`,
+  `@import`, `fetch(` or `EventSource(` — that form has no scheme but still resolves off this machine.
+- The rule is the whole scheme rather than a list of CDN hosts: no asset needs one today, so a host list would only
+  be a thing to keep up to date. If a data-URI SVG ever needs `xmlns="http://www.w3.org/2000/svg"`, that namespace is
+  an identifier no browser fetches and belongs in the test as a precise, documented exception.
+- Mutation-proved, then reverted: a `fonts.googleapis.com` stylesheet in `scoreboard.html` failed naming the URL, and
+  an `@import url(//cdn.example.com/reset.css)` in `cueball.css` failed naming the reference. Reverting restored 2/2.
+- Full suite 109 Core + 135 Controller, 0 warnings. Tests only, no behaviour change: no version bump.
+
 ### 2026-11-27 — The five copies of an overlay path are now checked against each other
 
 - `OverlayRouteTests` (2 facts). `Endpoints/*.cs` chooses the 26 routes; `HelpWindow.xaml` (13 URLs),
