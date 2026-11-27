@@ -228,6 +228,28 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
+### 2026-11-27 — The window test shares the WPF thread that already shows windows
+
+- CI on the trim commit (`28a280a`) failed the same test again, and the diagnostic added an hour earlier named the
+  stage: `Windows reported no window 15s after the window thread started (Show() returned: no, thread state:
+  Background)` — `Window.Show()` itself never returned on that agent — while the next push of identical test code
+  passed. The earlier change had only made the flake legible; the test still created the fragile thing.
+- The difference from `HelpWindowTests`, whose window has never stalled there, was the thread. That test shows its
+  window on a thread that has an `Application` and the app's theme merged; this one created a fresh STA thread with
+  neither, in a process that already had an `Application`. WPF allows one `Application` per process, so
+  `WpfTestThread` is now the single UI thread both tests use — extracted from `HelpWindowTests` rather than duplicated —
+  and the window test shows its window there. `TestWindow` (its own thread, dispatcher reference, start handshake and
+  disposal) is gone.
+- Calls into that thread are bounded (`InvokeWithin`): a `Show()` that wedges fails the assertion with
+  `the WPF test thread did not run its work within 15s` instead of holding the test run open, and one that throws
+  surfaces as itself (`System.InvalidOperationException : mutation: Show() failed`), not wrapped in an
+  `AggregateException`. The assertion still polls `StaleController.Observe(ProcessId)` and says what it saw.
+- Tried and rejected on the way: showing the window in a child process (`notepad`), which on this machine starts as the
+  packaged app whose `MainWindowHandle` stays 0, so it is not a dependable subject for "a process with a window".
+- Mutation-proved, then reverted: a throwing `Show()` and a `Show()` sleeping 40 s both failed as described, the second
+  in about 17 s rather than 40. Full suite 109 Core + 29 Overlay + 141 Controller, 0 warnings. Tests only: no version
+  bump.
+
 ### 2026-11-27 — The window test waits on the window, not on Show()
 
 - `StaleControllerTests.Observe_SeesTheWindowAProcessShows` failed once on CI with "the test window never appeared"
