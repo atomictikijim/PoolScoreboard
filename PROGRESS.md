@@ -194,6 +194,22 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The new stream and icon assertions are mutation-proved
+
+- Broke the scoreboard stream's first frame (`Serialize` returning `"{}"`): the frame test failed naming all 23 paths
+  the page reads (`raceToMode, home.raceToTarget, … visibility.winnerBannerVisible`). Broke the icon route
+  (`Results.Bytes(Array.Empty<byte>(), …)`): `Assert.Equal() Failure: Collections differ` with `Expected: [137, 80, 78,
+  71, 13, ···]  Actual: []`. Both reverted.
+- New `AControlCallPushesTheNextStateOnTheOpenStream`: the stream was only tested at connect, but a page that never
+  receives the second frame shows the score from connect time until it reloads. The test reads the first frame, calls
+  `/api/control/score/home/add`, reads the next frame off the same body and asserts the score moved by one.
+- Reading consecutive frames needed a small `EventFrames` reader: it keeps the bytes that arrived past the frame it
+  returned (one read can span two frames), and scans bytes rather than text so a character is never decoded across a
+  read boundary.
+- Mutation-proved too: making the stream stop after its snapshot failed that test immediately rather than waiting out
+  its 10 s timeout, because the response ends and the second read sees EOF.
+- Full suite 109 Core + 15 Overlay + 137 Controller, 0 warnings. Tests only: no version bump.
+
 ### 2026-11-27 — The stream's first frame and the icon's 200 are tested too
 
 - Two gaps the HTTP tests left. The streams were only checked for status and content type, which is the wrong half:

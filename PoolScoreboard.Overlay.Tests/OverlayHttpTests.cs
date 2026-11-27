@@ -114,19 +114,41 @@ public sealed class OverlayHttpTests : IAsyncLifetime
 
         // The page gets its first picture from this frame, not from the snapshot route: EventSource only ever sees
         // what the stream sends, so a payload that resolves on /state and not here is still a blank overlay.
-        var frame = await ReadFirstFrame(response, timeout.Token);
-        Assert.StartsWith("data: ", frame);
-
-        using var document = JsonDocument.Parse(frame["data: ".Length..]);
+        var payload = FramePayload(await ReadFirstFrame(response, timeout.Token));
 
         var read = PathsReadBy(asset);
         Assert.NotEmpty(read);
 
-        var missing = read.Where(path => !TryResolve(document.RootElement, path)).ToArray();
+        var missing = read.Where(path => !TryResolve(payload, path)).ToArray();
 
         Assert.True(
             missing.Length == 0,
             $"the first frame of {streamPath} does not carry what the page reads: {string.Join(", ", missing)}");
+    }
+
+    [Fact]
+    public async Task AControlCallPushesTheNextStateOnTheOpenStream()
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var response = await _client.GetAsync(
+            "/overlay/api/scoreboard/stream",
+            HttpCompletionOption.ResponseHeadersRead,
+            timeout.Token);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        await using var body = await response.Content.ReadAsStreamAsync(timeout.Token);
+        var frames = new EventFrames(body);
+
+        var before = HomeScore(FramePayload(await frames.ReadFrameAsync(timeout.Token)));
+
+        (await _client.GetAsync("/api/control/score/home/add")).EnsureSuccessStatusCode();
+
+        // Without this the page shows the score from connect time until something forces a reload: the route that
+        // changes state and the frame that reaches OBS are wired together only by GameStateChanged.
+        var after = HomeScore(FramePayload(await frames.ReadFrameAsync(timeout.Token)));
+
+        Assert.Equal(before + 1, after);
     }
 
     [Fact]
@@ -191,25 +213,65 @@ public sealed class OverlayHttpTests : IAsyncLifetime
     private static int HomeScore(JsonElement payload) =>
         payload.GetProperty("home").GetProperty("score").GetInt32();
 
-    /// <summary>The first event of a stream: everything before the blank line that ends a frame.</summary>
     private static async Task<string> ReadFirstFrame(HttpResponseMessage response, CancellationToken ct)
     {
         await using var body = await response.Content.ReadAsStreamAsync(ct);
+        return await new EventFrames(body).ReadFrameAsync(ct);
+    }
 
-        using var received = new MemoryStream();
-        var chunk = new byte[1024];
+    /// <summary>The JSON an SSE frame carries, which is what the page's <c>JSON.parse(event.data)</c> sees.</summary>
+    private static JsonElement FramePayload(string frame)
+    {
+        Assert.StartsWith("data: ", frame);
 
-        while (true)
+        using var document = JsonDocument.Parse(frame["data: ".Length..]);
+        return document.RootElement.Clone();
+    }
+
+    /// <summary>
+    /// Reads SSE frames off a live response body, one at a time. It keeps whatever arrived past the frame it returned,
+    /// because a single read can span two frames and dropping the tail would lose the next event — the thing the
+    /// push-on-change test is looking for. Bytes, not text, so a character is never decoded across a read boundary.
+    /// </summary>
+    private sealed class EventFrames
+    {
+        private readonly Stream _body;
+        private readonly byte[] _chunk = new byte[1024];
+        private MemoryStream _pending = new();
+
+        internal EventFrames(Stream body) => _body = body;
+
+        internal async Task<string> ReadFrameAsync(CancellationToken ct)
         {
-            var read = await body.ReadAsync(chunk, ct);
-            Assert.True(read > 0, "the stream ended before it sent a frame");
+            while (true)
+            {
+                var buffered = _pending.ToArray();
+                var end = IndexOfBlankLine(buffered);
+                if (end >= 0)
+                {
+                    var frame = Encoding.UTF8.GetString(buffered, 0, end);
 
-            received.Write(chunk, 0, read);
+                    _pending = new MemoryStream();
+                    _pending.Write(buffered, end + 2, buffered.Length - end - 2);
+                    return frame;
+                }
 
-            var text = Encoding.UTF8.GetString(received.ToArray());
-            var end = text.IndexOf("\n\n", StringComparison.Ordinal);
-            if (end >= 0)
-                return text[..end];
+                var read = await _body.ReadAsync(_chunk, ct);
+                Assert.True(read > 0, "the stream ended before it sent the frame under test");
+
+                _pending.Write(_chunk, 0, read);
+            }
+        }
+
+        private static int IndexOfBlankLine(byte[] bytes)
+        {
+            for (var i = 0; i + 1 < bytes.Length; i++)
+            {
+                if (bytes[i] == '\n' && bytes[i + 1] == '\n')
+                    return i;
+            }
+
+            return -1;
         }
     }
 

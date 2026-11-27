@@ -337,7 +337,8 @@ path `scoreboard.js`/`cueball.js` reads has to resolve in the JSON, so renaming 
 property names the page sends and reads, a player's icon comes back as its own bytes under the mime it was stored
 with while an unknown player 404s, and each stream's first `data:` frame — the only picture an `EventSource` page ever
 gets — carries the same paths that page reads (a payload that resolves on `/state` and not in the frame is still a
-blank overlay). Two things that test had to work around: a full
+blank overlay), and a control call has to push a second frame on the stream that is already open, because that is the
+only thing that updates OBS between page loads. Two things that test had to work around: a full
 `pack://` URI is only parsed once WPF has registered the scheme, so the theme dictionary is loaded by its relative
 `/Assembly;component/` form; and a window's bindings resolve only once its tree is loaded, so the test shows the
 window at (-20000, -20000) rather than merely constructing it. `MatchStateStoreTests` pins what a save leaves behind: the
