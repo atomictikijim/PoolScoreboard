@@ -228,6 +228,26 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
+### 2026-11-27 — Ten green re-runs of the window test's job, on the commit that fixed it
+
+- Two passes after `9c2dcaf` did not answer the question the flake raised: at the rate it was failing before (~2
+  failures in 6 runs, about 1 in 3), two passes are the expected outcome 44% of the time whether or not anything was
+  fixed. So the job was re-run until that commit had ten attempts behind it.
+- Ten runs of run 46072310460's `build-and-test` job on `9c2dcaf` (`attempt=10`) — the original push and nine
+  `gh run rerun`s: **10 passed, 0 failed**. Every attempt is a fresh execution: the job rebuilds and runs all three
+  test projects, and the last attempt reports `Total tests: 141`.
+- Ten consecutive passes are about 1.7% likely if the old ~1/3 rate still held, so the flake is very unlikely to be
+  there at its old rate. It is not proof it is gone: ten runs put a rough 26% upper bound on any remaining per-run
+  failure rate (95% confidence), a rarer failure would still slip through, and every attempt shares one runner image
+  and one commit rather than an independent environment.
+- Kept as the check on a recurrence: in the passing attempt this assertion took **14 ms** (`HelpWindowTests`, on the
+  same shared thread, 4 s) against the 10-19 s the old flake spent failing, so a repeat is still legible from the
+  duration column, and the bounded waits name their stage — `did not run its work within 15s` for a thread that never
+  ran, versus a window that was shown and not reported.
+- Docs only; no code changed. No version bump.
+
+## Change Log
+
 ### 2026-11-27 — The window test shares the WPF thread that already shows windows
 
 - CI on the trim commit (`28a280a`) failed the same test again, and the diagnostic added an hour earlier named the
