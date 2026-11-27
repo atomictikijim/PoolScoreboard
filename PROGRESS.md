@@ -77,8 +77,8 @@ not for symmetry with work already done.
    the difference between a live display and an app that accumulates value: who won last time, a session's win
    count, a season record. Core already has the pieces (`ResumableMatch` for the snapshot shape, `DurableFile` for
    the write, the roster for identity). *Done 2026-11-27: the record model, the Core archive call and
-   `history.json` are wired through `MatchHistoryRecorder`, so a finished match is filed once. The screen that
-   shows the history back is still to come.*
+   `history.json` are wired through `MatchHistoryRecorder`, so a finished match is filed once, and
+   `HistoryWindow` — the History button beside Help — lists them newest first with each name's wins.*
 2. **Undo that covers everything, not just points.** `GameManager` keeps one stack — who scored each point — so
    `UndoPoint` reverses a point and nothing else. A wrong shooter toggle, ball or group assignment has to be
    corrected by hand mid-stream, which is the most frequent real failure. Bounded command history, not new UI.
@@ -257,9 +257,9 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
   end-cap icon — is saved to `%AppData%\PoolScoreboard\settings.json` and restored on launch.
 - The roster only remembers players who were on screen for a started match (or still there when the
   window closed). "Delete" beside a picker drops an entry and its icon; renaming means reusing the name,
-  and the list is capped at 100. A finished match is filed to `history.json` once (record model, archive call and recorder, wired 2026-11-27),
-  but nothing reads it back — there is no history screen — and a record is per match rather than per player, so
-  the roster still holds no win counts.
+  and the list is capped at 100. A finished match is filed to `history.json` once (record model, archive call and recorder, wired 2026-11-27) and
+  the History window lists them newest first with each name's wins, but there is no export, no filter, and no
+  per-player detail beyond the win count.
 - Ball colors in the Controller's live view are placeholder standard billiard-ball colors,
   not yet informed by the WNT visual reference.
 - Flag end-caps are artwork ("Choose Flag..." bundles country and US-state SVGs) stored as the
@@ -270,6 +270,24 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-27 — A read-only window for the recorded matches
+
+- The history can be read. `HistoryWindow` lists the archive newest first — when, both names, the score and who
+  won — with `MatchArchive.Standings()` above it as one chip per name and its win count. It is a window of its
+  own, opened from a History button beside Help, so the live view and the setup screen are untouched: no screen
+  toggle, no XAML moved, and nothing new in the view model beyond the command that opens it.
+- Standings are computed in Core, where they can be tested: the winner is credited rather than the side that
+  lost, the most wins come first with names alphabetical within a tie, one player across two spellings counts
+  once under the newest spelling, and a nameless side credits nobody. Names are compared ignoring case and
+  surrounding space the way the roster compares them; a record carries no roster id, so deleting a saved player
+  cannot take their wins with it.
+- Formatting lives in the window, not in the record: local time, and a dash for a side the operator never named.
+- Mutation-proved, then reverted: crediting the loser, reversing the wins order, comparing names case-sensitively,
+  showing the list oldest first, and pinning the empty-history placeholder to hidden — each failed the fact that
+  covers it.
+- 0.29.0 -> 0.30.0. Full suite 123 Core + 29 Overlay + 161 Controller, 0 warnings. Not checked by hand: the window
+  was never opened in the running app; the tests show it off the visible desktop and read it back.
 
 ### 2026-11-27 — A finished match is filed once, through the history store
 

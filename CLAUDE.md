@@ -185,7 +185,10 @@ on the port the overlay was really served on rather than the default or a value 
   winner stays in state while its banner is up, so later ball toggles, a rack reset and a relaunch of the same
   match all arrive with a winner and must not file a second record, while a rematch — same names, same score — is
   a new match and is filed. The rule lives in `MatchArchive` against the file, so it holds across a restart.
-  Nothing reads the history back yet.
+  The reading side is `HistoryWindow`, opened from the History button beside Help: read-only, given the loaded
+  archive rather than loading it, so a test can show it with no file behind it, and listing the matches newest
+  first with `MatchArchive.Standings()` as a chip per name. The window is separate on purpose — the live view
+  and the setup screen are unchanged.
 - `Diagnostics/TraceLogFile` appends every `Trace` line to `%AppData%\PoolScoreboard\controller.log`
   (attached first in `OnStartup`, disposed last in `OnExit`), so shutdown warnings can be read after the
   fact. At startup a log over 1 MiB is moved to `controller.old.log`, replacing the previous run's. Each
@@ -278,11 +281,10 @@ alignment, not a pixel match).
 
 - Persistence covers the operator profile (`settings.json`: colour theme, scoreboard style, element visibility,
   both players' setup fields) and the match in progress (`match.json`: scores, game type and Race-To mode, ball
-  groups, pocketed balls, shooter), which is restored automatically on the next launch — and there is a history
-  file (`history.json`) that each finished match is filed to once; nothing shows that history back yet, and a
-  record is per match rather than per player — there is no prompt, so
-  RESET MATCH is how an operator discards a resumed match. There is no match history: a finished match is not
-  kept anywhere.
+  groups, pocketed balls, shooter), which is restored automatically on the next launch — there is no prompt, so
+  RESET MATCH is how an operator discards a resumed match. A finished match is filed to `history.json` once and
+  the read-only History window lists those newest first with each name's wins; there is no export or filter, the
+  history is capped at 200 matches, and a record is per match rather than per player.
 - `controller.log` is capped by size only, never by age: at startup a log over 1 MiB becomes
   `controller.old.log`, so exactly one previous session survives and older ones are discarded.
 - The roster only holds players who have actually been on screen for a started match (or present
@@ -386,7 +388,11 @@ live. `MatchArchiveTests` pins the archive call: a finished match is
   the winning point. `MatchHistoryRecorderTests` covers the wiring: a finished match is filed with
   its score, winner and clock; a match still being played files nothing; later changes to a won match file nothing
   more; a rematch with the same names and score files a second record; a match already in the file is not filed
-  again by a recorder that starts after a relaunch; and a disposed recorder stops watching.
+  again by a recorder that starts after a relaunch; and a disposed recorder stops watching. `HistoryWindowTests` reads the window back off the screen: three
+  records come out newest first with their scores and winners, the win chips read "Bob 2" then "Alice 1", and an
+  empty archive shows the placeholder instead of a blank list. `MatchArchiveTests` also pins `Standings()` — the
+  winner is credited rather than the loser, the most wins come first with names in order within a tie, one player
+  across two spellings counts once under the newest spelling, and a nameless side credits nobody.
 - Overlay/control-API endpoints should be tested against a `GameManager` test instance, not
   a live one.
 - `.githooks/pre-push` mirrors CI (a parse of `tools/verify-live.ps1`, the Release build, then every test project)

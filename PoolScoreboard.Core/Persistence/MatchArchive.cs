@@ -3,8 +3,8 @@ using PoolScoreboard.Core.Models;
 namespace PoolScoreboard.Core.Persistence;
 
 /// <summary>
-/// The recorded matches, newest first. Pure: which match becomes a record and how many are kept live here so both
-/// are unit-tested; the Controller owns the file they are read from and written to.
+/// The recorded matches, newest first. Pure: which match becomes a record, how many are kept and who has won what
+/// live here so all three are unit-tested; the Controller owns the file they are read from and written to.
 /// </summary>
 public class MatchArchive
 {
@@ -54,4 +54,42 @@ public class MatchArchive
 
         return record;
     }
+
+    /// <summary>
+    /// Who won what across the whole archive, most wins first and names in order within a tie. A player is their
+    /// name, compared the way the roster compares names — ignoring case and surrounding space — because that is
+    /// the only identity a record carries: the roster's ids are not written into the history, so deleting a saved
+    /// player does not take their wins with them. Only names that actually won something appear, and a blank name
+    /// (a side the operator never filled in) counts for nobody. The spelling shown is the one from the most recent
+    /// match, because the list is walked newest first — a corrected name is what the operator last typed.
+    /// </summary>
+    public IReadOnlyList<MatchStanding> Standings()
+    {
+        var wins = new Dictionary<string, MatchStanding>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var match in Matches)
+        {
+            var name = (match.HomeWon ? match.HomeName : match.AwayName)?.Trim();
+            if (string.IsNullOrEmpty(name))
+                continue;
+
+            if (wins.TryGetValue(name, out var standing))
+                standing.Wins++;
+            else
+                wins[name] = new MatchStanding { Name = name, Wins = 1 };
+        }
+
+        return wins.Values
+            .OrderByDescending(standing => standing.Wins)
+            .ThenBy(standing => standing.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+}
+
+/// <summary>One name's record across the archive: how many of the recorded matches they won.</summary>
+public class MatchStanding
+{
+    public string Name { get; set; } = string.Empty;
+
+    public int Wins { get; set; }
 }

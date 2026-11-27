@@ -643,6 +643,12 @@ public partial class GameViewModel : ObservableObject
     [RelayCommand]
     private void ShowHelp() => new HelpWindow(OverlayBaseUrl) { Owner = _owner }.ShowDialog();
 
+    // Read once, when the window opens: the history file only changes when a match finishes, and a view of it
+    // that refreshed underneath a reader would be worse than one that is simply current as of opening. The store
+    // is a path, not a cache, so a second instance reads the same file the recorder writes.
+    [RelayCommand]
+    private void ShowHistory() => new HistoryWindow(new MatchHistoryStore().Load()) { Owner = _owner }.ShowDialog();
+
     private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e)
     {
         // State changes can be raised from a Kestrel thread — the HTTP control API the Stream Deck

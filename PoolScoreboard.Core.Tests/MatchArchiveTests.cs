@@ -154,11 +154,73 @@ public sealed class MatchArchiveTests
         Assert.Equal(2, archive.Matches.Count);
     }
 
-    private static GameManager FinishedMatch(int homeTarget, int awayTarget, bool homeWins)
+    [Fact]
+    public void Standings_CountTheWinsEachNameHas()
+    {
+        var archive = new MatchArchive();
+        archive.Archive(FinishedMatch(2, 2, homeWins: true).GetStateSnapshot(), CompletedAt);
+        archive.Archive(FinishedMatch(2, 2, homeWins: true).GetStateSnapshot(), CompletedAt.AddMinutes(10));
+        archive.Archive(FinishedMatch(2, 2, homeWins: false).GetStateSnapshot(), CompletedAt.AddMinutes(20));
+
+        var standings = archive.Standings();
+
+        Assert.Equal(2, standings.Count);
+        Assert.Equal("Home", standings[0].Name);
+        Assert.Equal(2, standings[0].Wins);
+        Assert.Equal("Away", standings[1].Name);
+        Assert.Equal(1, standings[1].Wins);
+    }
+
+    [Fact]
+    public void Standings_TreatACaseAndSpacingDifferenceAsTheSameName()
+    {
+        var archive = new MatchArchive();
+        archive.Archive(FinishedMatch(2, 2, homeWins: true, "Alice", "Bob").GetStateSnapshot(), CompletedAt);
+        archive.Archive(FinishedMatch(2, 2, homeWins: true, "alice ", "Bob").GetStateSnapshot(), CompletedAt.AddMinutes(5));
+
+        var standing = Assert.Single(archive.Standings());
+
+        // One player, two spellings: the wins add up, and the name shown is the most recent spelling — what the
+        // operator last typed — because the archive is walked newest first.
+        Assert.Equal("alice", standing.Name);
+        Assert.Equal(2, standing.Wins);
+    }
+
+    [Fact]
+    public void Standings_PutTheMostWinsFirst_ThenOrderByName()
+    {
+        var archive = new MatchArchive();
+        archive.Archive(FinishedMatch(2, 2, homeWins: true, "Zed", "Opponent").GetStateSnapshot(), CompletedAt);
+        archive.Archive(FinishedMatch(2, 2, homeWins: true, "Bea", "Opponent").GetStateSnapshot(), CompletedAt.AddMinutes(5));
+        archive.Archive(FinishedMatch(2, 2, homeWins: true, "Zed", "Opponent").GetStateSnapshot(), CompletedAt.AddMinutes(10));
+        archive.Archive(FinishedMatch(2, 2, homeWins: true, "Amy", "Opponent").GetStateSnapshot(), CompletedAt.AddMinutes(15));
+
+        var names = archive.Standings().Select(standing => $"{standing.Name} {standing.Wins}").ToArray();
+
+        Assert.Equal(new[] { "Zed 2", "Amy 1", "Bea 1" }, names);
+    }
+
+    [Fact]
+    public void Standings_IgnoreASideWithNoName()
+    {
+        var archive = new MatchArchive();
+        archive.Archive(FinishedMatch(2, 2, homeWins: true, string.Empty, "Away").GetStateSnapshot(), CompletedAt);
+
+        // Nobody to credit, so no chip; the match itself is still recorded.
+        Assert.Empty(archive.Standings());
+        Assert.Single(archive.Matches);
+    }
+
+    private static GameManager FinishedMatch(
+        int homeTarget,
+        int awayTarget,
+        bool homeWins,
+        string home = "Home",
+        string away = "Away")
     {
         var manager = new GameManager();
-        manager.SetPlayerDetails(isHome: true, "Home", "Team H", homeTarget, null);
-        manager.SetPlayerDetails(isHome: false, "Away", "Team A", awayTarget, null);
+        manager.SetPlayerDetails(isHome: true, home, "Team H", homeTarget, null);
+        manager.SetPlayerDetails(isHome: false, away, "Team A", awayTarget, null);
         manager.InitializeGame(GameType.EightBall, RaceToMode.Split);
 
         while (manager.GetStateSnapshot().Winner is null)
