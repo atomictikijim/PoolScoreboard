@@ -28,6 +28,20 @@ public class GameState
     public ScoreboardVisibility Visibility { get; set; } = new();
     public CueBallSpin? CueBallSpin { get; set; }
 
+    /// <summary>How long a shot gets once the clock is started. Fixed for now: nothing offers to change it.</summary>
+    public const int DefaultShotClockSeconds = 40;
+
+    /// <summary>How long each shot gets, which is what the overlay counts down from.</summary>
+    public int ShotClockSeconds { get; set; } = DefaultShotClockSeconds;
+
+    /// <summary>
+    /// When the current shot's countdown runs out, or null when no clock is showing. A deadline rather than a
+    /// remaining-second count: the overlay must keep ticking between state changes, and neither the Controller nor
+    /// the overlay host should have to send a frame every second to make that happen. Null is also how the clock
+    /// disappears — a new rack and a reset both clear it.
+    /// </summary>
+    public DateTimeOffset? ShotClockEndsAt { get; set; }
+
     /// <summary>
     /// A deep-enough copy for handing to subscribers and HTTP responses: players, theme, style,
     /// visibility and the pocketed-ball set are cloned, and <see cref="CurrentShooter"/>
@@ -54,7 +68,9 @@ public class GameState
             PocketedBalls = new HashSet<int>(PocketedBalls),
             ScoreboardStyle = ScoreboardStyle.Copy(),
             Visibility = Visibility.Copy(),
-            CueBallSpin = CueBallSpin?.Copy()
+            CueBallSpin = CueBallSpin?.Copy(),
+            ShotClockSeconds = ShotClockSeconds,
+            ShotClockEndsAt = ShotClockEndsAt
         };
     }
 }

@@ -26,6 +26,96 @@ public class GameManagerTests
     }
 
     [Fact]
+    public void StartShotClock_SetsTheDeadlineToNowPlusTheShotLength()
+    {
+        var now = new DateTimeOffset(2026, 11, 27, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 2, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 2, endCapIcon: null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        manager.StartShotClock();
+
+        // A deadline, not a countdown: the overlay ticks it out itself, so the only thing to get right here is
+        // which instant the shot runs out.
+        Assert.Equal(now.AddSeconds(GameState.DefaultShotClockSeconds), manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void StartShotClock_RestartsFromTheMomentItIsPressed()
+    {
+        var now = new DateTimeOffset(2026, 11, 27, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 2, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 2, endCapIcon: null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        manager.StartShotClock();
+        now = now.AddSeconds(12);
+        manager.StartShotClock();
+
+        // The shot gets its full time again rather than the twelve seconds already spent counting against it.
+        Assert.Equal(now.AddSeconds(GameState.DefaultShotClockSeconds), manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void StartShotClock_IsIgnoredAtSetup()
+    {
+        var manager = new GameManager(() => DateTimeOffset.Now);
+
+        manager.StartShotClock();
+
+        // Setup is not a shot; a clock started there would be one nobody is playing to.
+        Assert.Null(manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void APoint_RestartsARunningClock_ButNeverStartsOne()
+    {
+        var now = new DateTimeOffset(2026, 11, 27, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        manager.StartShotClock();
+        now = now.AddSeconds(5);
+        manager.AddPoint(isPlayer1: true);
+
+        // The point ends one shot and the next one is now on the clock.
+        Assert.Equal(now.AddSeconds(GameState.DefaultShotClockSeconds), manager.GetStateSnapshot().ShotClockEndsAt);
+
+        // A match nobody started a clock on stays without one: the first point must not sprout a clock halfway
+        // through a stream the operator had chosen to run without it.
+        var quiet = new GameManager(() => now);
+        quiet.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        quiet.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        quiet.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        quiet.AddPoint(isPlayer1: true);
+
+        Assert.Null(quiet.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void ANewRackOrAReset_HidesTheClock()
+    {
+        var manager = NewMatch();
+        manager.StartShotClock();
+
+        manager.ResetBalls();
+
+        // A new rack is a new game; the previous shot's countdown has nothing left to time.
+        Assert.Null(manager.GetStateSnapshot().ShotClockEndsAt);
+
+        manager.StartShotClock();
+        manager.ResetGame();
+
+        // And a reset ends the match, so it must not leave a clock counting down on the setup screen.
+        Assert.Null(manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
     public void InitializeGame_SetsUpActiveGameWithPlayer1AsCurrentShooter()
     {
         var manager = NewMatch();

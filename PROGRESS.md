@@ -87,7 +87,10 @@ not for symmetry with work already done.
    focused while the operator scores. `RegisterHotKey` for the same five actions, enabled only during a match.
 4. **A shot clock / match timer on the overlay.** The WNT reference the developer chose has a clock and
    `GameState` has no time in it at all. Additive (one field, one overlay element, one control route, one key) and
-   it feeds #1 with match duration. Needs a decision: per shot with a reset, or continuous.
+   it feeds #1 with match duration. Needs a decision: per shot with a reset, or continuous. *Done 2026-11-27, as a
+   per-shot countdown: `GameState.ShotClockEndsAt` is a deadline, the overlay ticks it down itself, `T` and
+   `/api/control/shotclock/*` start/restart or hide it, a point restarts a running clock, and a new rack or a
+   reset hides it.*
 5. **Tag-triggered release workflow.** Phase 6 packaging is a `dotnet publish` typed by hand, and CLAUDE.md asks
    versions to keep in step with the `v0.<major>.<ui>-beta` tags — a rule nothing checks. A `push: tags: v*` job
    that publishes the single-file win-x64 build and asserts `VersionPrefix` matches the tag. Zero runtime risk.
@@ -274,6 +277,29 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-27 — A per-shot countdown on the overlay
+
+- Decided, since it was open: **per shot, with a restart**, not a continuous match clock. `GameState` gained
+  `ShotClockEndsAt` (a deadline, or null for no clock) and `ShotClockSeconds` (40, fixed), and `GameManager` gained
+  `StartShotClock`/`ClearShotClock`. The `now` comes from a clock injected into the constructor, so the deadline
+  arithmetic is asserted exactly rather than slept through.
+- The deadline is the design: one frame when the clock starts, and the page counts down on its own — forty frames a
+  shot would be a lot of traffic for a number a browser can subtract. `scoreboard.js` re-reads the instant on every
+  state frame and ticks four times a second, reads red under five seconds, and hides the element when the payload
+  carries null rather than sitting at 0:00.
+- A running clock restarts on every point, because a point ends one shot and begins the next; a clock nobody started
+  is never started by a point. A new rack and a reset hide it — a countdown belongs to a game still being played —
+  and a repeated clear raises nothing, so a Stream Deck button held down cannot flood the pages.
+- The operator starts it with `T` (live view) or `/api/control/shotclock/start`, and hides it with
+  `/api/control/shotclock/clear`. Both routes are in the Help window and both Stream Deck docs, which the route
+  guard enforces: it failed first with "no button could be built for them: /api/control/shotclock/start,
+  /api/control/shotclock/clear" until the docs gained their rows.
+- Mutation-proved, then reverted: the setup guard dropped (a clock started at setup), the point restart removed
+  (the restarted deadline stopped moving), the new-rack clear removed, and the deadline written as `now` instead
+  of `now + ShotClockSeconds`. Each failed the fact that covers it.
+- 0.31.1 -> 0.32.0. Full suite 131 Core + 30 Overlay + 168 Controller, 0 warnings. Not checked by hand: the clock
+  has not been seen in OBS or in the running window; the payload and the page's reads are what the tests pin.
 
 ### 2026-11-27 — The live view stops claiming a save that was deleted
 

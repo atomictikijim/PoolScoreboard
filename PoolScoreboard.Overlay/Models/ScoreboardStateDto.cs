@@ -19,6 +19,16 @@ public class ScoreboardStateDto
     public required ColorThemeDto Colors { get; init; }
     public required ScoreboardStyleDto Style { get; init; }
     public required ScoreboardVisibilityDto Visibility { get; init; }
+
+    /// <summary>How long a shot gets, so the clock can still say what it is counting down from.</summary>
+    public int ShotClockSeconds { get; init; }
+
+    /// <summary>
+    /// When the current shot's clock runs out, as an ISO 8601 instant with its offset, or null when no clock is
+    /// showing. A deadline rather than a remaining-second count, because the page counts down on its own between
+    /// frames — exactly one frame is sent when the clock starts, not forty.
+    /// </summary>
+    public string? ShotClockEndsAt { get; init; }
 }
 
 public class PlayerDto

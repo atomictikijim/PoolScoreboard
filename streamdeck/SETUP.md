@@ -80,6 +80,8 @@ same "run in background" setting, just a different **Title** and **Website** URL
 | Away: Stripes   | `http://127.0.0.1:51234/api/control/balls/away/stripes`        |
 | New Rack        | `http://127.0.0.1:51234/api/control/rack/new`                  |
 | Reset Match     | `http://127.0.0.1:51234/api/control/match/reset`                |
+| Start Shot Clock | `http://127.0.0.1:51234/api/control/shotclock/start`        |
+| Hide Shot Clock  | `http://127.0.0.1:51234/api/control/shotclock/clear`        |
 
 ### Ball display buttons (1-15)
 

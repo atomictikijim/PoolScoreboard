@@ -17,7 +17,15 @@ public class GameManager
 {
     private readonly object _sync = new();
 
+    /// <summary>
+    /// What "now" means to the shot clock. Injected so a test can say exactly when the clock was started and
+    /// assert the deadline it produced, rather than sleeping and comparing with a tolerance.
+    /// </summary>
+    private readonly Func<DateTimeOffset> _clock;
+
     private GameState _currentGame = new();
+
+    public GameManager(Func<DateTimeOffset>? clock = null) => _clock = clock ?? (() => DateTimeOffset.Now);
 
     /// <summary>
     /// Which player scored each point, in order, so <see cref="UndoPoint"/> can reverse the most
@@ -88,6 +96,11 @@ public class GameManager
                 _currentGame.Player2Score++;
                 _pointHistory.Add(false);
             }
+
+            // A point ends a shot and the next one begins, so a clock that is running restarts for it. Only when
+            // one is running: a match nobody started a clock on must not sprout one on the first point.
+            if (_currentGame.ShotClockEndsAt is not null)
+                _currentGame.ShotClockEndsAt = _clock().AddSeconds(_currentGame.ShotClockSeconds);
 
             UpdateWinner();
             RaiseGameStateChanged(_currentGame.Clone());
@@ -282,11 +295,49 @@ public class GameManager
         }
     }
 
+    /// <summary>
+    /// A new rack is a new game, so the previous shot's countdown has nothing left to time and is cleared.
+    /// </summary>
     public void ResetBalls()
     {
         lock (_sync)
         {
             _currentGame.PocketedBalls.Clear();
+            _currentGame.ShotClockEndsAt = null;
+            RaiseGameStateChanged(_currentGame.Clone());
+        }
+    }
+
+    /// <summary>
+    /// Starts, or restarts, the shot clock: the overlay counts down from <see cref="GameState.ShotClockSeconds"/> as
+    /// of now, and keeps counting on its own — no frame per second is sent for it. Restarting is the point: each
+    /// shot of a match gets its own countdown, started by the operator (the Controller's key or a Stream Deck
+    /// button) as the player addresses the ball. Ignored at setup, where there is no shot to time.
+    /// </summary>
+    public void StartShotClock()
+    {
+        lock (_sync)
+        {
+            if (!_currentGame.IsGameActive)
+                return;
+
+            _currentGame.ShotClockEndsAt = _clock().AddSeconds(_currentGame.ShotClockSeconds);
+            RaiseGameStateChanged(_currentGame.Clone());
+        }
+    }
+
+    /// <summary>
+    /// Hides the clock. Nothing is raised when there was none, so a repeated clear cannot wake the overlay pages
+    /// for a state they already show.
+    /// </summary>
+    public void ClearShotClock()
+    {
+        lock (_sync)
+        {
+            if (_currentGame.ShotClockEndsAt is null)
+                return;
+
+            _currentGame.ShotClockEndsAt = null;
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }

@@ -4,6 +4,7 @@ using PoolScoreboard.Controller.Persistence;
 using PoolScoreboard.Controller.ViewModels;
 using PoolScoreboard.Core;
 using PoolScoreboard.Core.Enums;
+using PoolScoreboard.Core.Models;
 using PoolScoreboard.Core.Persistence;
 
 namespace PoolScoreboard.Controller.Tests;
@@ -160,6 +161,21 @@ public sealed class GameViewModelTests : IDisposable
     }
 
     /// <summary>Stands in for the host: records the port it was pointed at and whether it was started again.</summary>
+    [Fact]
+    public void StartingTheShotClock_StartsItOnTheOverlay()
+    {
+        var now = new DateTimeOffset(2026, 11, 27, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        var viewModel = BuildViewModel(manager);
+        StartMatch(manager, homeTarget: 3, awayTarget: 3);
+
+        viewModel.StartShotClockCommand.Execute(null);
+
+        // The key (and the command behind it) only has to reach GameManager; the deadline itself is Core's to
+        // compute, which its own tests pin.
+        Assert.Equal(now.AddSeconds(GameState.DefaultShotClockSeconds), manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
     [Fact]
     public void AWinnerAloneWritesNothing_AndSavingFilesTheMatchOnce()
     {

@@ -42,8 +42,15 @@
   const capIconAway = document.getElementById('capIconAway');
   const winnerBanner = document.getElementById('winnerBanner');
   const ballTracker = document.getElementById('ballTracker');
+  const shotClock = document.getElementById('shotClock');
+  const shotClockValue = document.getElementById('shotClockValue');
 
   let hasRenderedOnce = false;
+
+  // The state carries the instant the shot's clock runs out, not the seconds left, so the countdown happens here
+  // between frames: one frame when the clock starts, and it ticks in the OBS capture without the host sending
+  // forty of them.
+  let shotClockEndsAtMs = null;
 
   function applyTheme(colors) {
     root.style.setProperty('--bg-home', colors.homeBackground);
@@ -160,6 +167,22 @@
     return (value || fallback).toUpperCase();
   }
 
+  function clockText(remainingMs) {
+    const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  function tickShotClock() {
+    if (shotClockEndsAtMs === null) return;
+
+    const remaining = shotClockEndsAtMs - Date.now();
+    shotClockValue.textContent = clockText(remaining);
+    shotClock.classList.toggle('low', remaining > 0 && remaining <= 5000);
+    shotClock.classList.toggle('expired', remaining <= 0);
+  }
+
   function render(state) {
     applyTheme(state.colors);
 
@@ -198,9 +221,15 @@
     const showWinner = scoreBarVisible && hasWinner && state.visibility.winnerBannerVisible;
     const skipAnimation = !hasRenderedOnce;
 
+    // A clock with no deadline is not a clock showing zero: a new rack and a reset both send null, and the
+    // element disappears with them rather than sitting at 0:00 for the rest of the match.
+    shotClockEndsAtMs = state.shotClockEndsAt ? Date.parse(state.shotClockEndsAt) : null;
+    if (shotClockEndsAtMs !== null) tickShotClock();
+
     setElementVisible(scorePill, scoreBarVisible, skipAnimation);
     setElementVisible(ballTracker, showBallTracker, skipAnimation);
     setElementVisible(winnerBanner, showWinner, skipAnimation);
+    setElementVisible(shotClock, shotClockEndsAtMs !== null, skipAnimation);
 
     renderBalls(state);
 
@@ -217,6 +246,10 @@
       }
     };
   }
+
+  // Four ticks a second: enough to land on each whole second without the display ever looking late, cheap enough
+  // to run for a whole match in an OBS browser source. It does nothing at all while no clock is set.
+  setInterval(tickShotClock, 250);
 
   connect();
 })();

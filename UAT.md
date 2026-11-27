@@ -168,3 +168,56 @@ history.
 *Expected:* unchanged, except that the live view gains **SAVE TO HISTORY** beside "Saved to history" when a match
 is won, and the top bar gains **History** next to **Help**. History still opens while the overlay is off (for
 example with another program holding the overlay port).
+
+## Shot clock
+
+The overlay draws a countdown only while a shot's clock is running. It is started by `T` on the live view or by the
+Stream Deck start button, and it is not the same thing as a match timer: a new rack or a reset hides it.
+
+### SC-1 — Nothing before a match
+
+1. At Match Setup, press `T`.
+
+*Expected:* nothing happens — no clock on the overlay, nothing in the Controller. The key is live-view only, like
+the others.
+
+### SC-2 — A countdown, started by hand
+
+*Precondition:* a match running, the overlay open in a browser.
+
+1. Press `T`.
+2. Watch the overlay without touching anything else for the full countdown.
+
+*Expected:* a "SHOT 0:40" pill appears under the score bar and counts down on its own to 0:00, turning red for the
+last five seconds. It reaches 0:00 and stays there — OBS keeps showing it, the app is not frozen.
+
+### SC-3 — Pressing again restarts the whole shot
+
+1. Start the clock, wait about 15 seconds, then press `T` again.
+
+*Expected:* the display jumps back to 0:40 rather than continuing from 0:25 — each press is a fresh shot.
+
+### SC-4 — A point starts the next shot's clock
+
+*Precondition:* a clock running.
+
+1. Score a point (keyboard `Q` or `P`, or the Stream Deck).
+
+*Expected:* the clock restarts from 0:40 for the next shot. A match where the clock was never started must not sprout
+one when a point is scored.
+
+### SC-5 — Hiding it
+
+1. Start the clock, then press **NEW RACK**.
+2. Start it again, then **RESET MATCH**.
+3. Start it once more, then press the Stream Deck hide button (`/api/control/shotclock/clear`).
+
+*Expected:* each of the three removes the clock from the overlay at once. Steps 1 and 2 also do what they already
+did to the score and balls; nothing else on the overlay changes.
+
+### SC-6 — What is written down
+
+1. Open **Help** and read the Stream Deck endpoint list, then the shortcut list.
+
+*Expected:* both shot-clock endpoints appear with the current port, and `T — start or restart the shot clock` is
+listed with the other shortcuts.

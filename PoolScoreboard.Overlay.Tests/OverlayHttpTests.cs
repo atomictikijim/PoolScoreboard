@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Http.Json;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using PoolScoreboard.Core;
 using PoolScoreboard.Core.Enums;
+using PoolScoreboard.Core.Models;
 using PoolScoreboard.Core.Persistence;
 
 namespace PoolScoreboard.Overlay.Tests;
@@ -161,6 +163,30 @@ public sealed class OverlayHttpTests : IAsyncLifetime
         (await _client.GetAsync("/api/control/score/home/add")).EnsureSuccessStatusCode();
 
         Assert.Equal(before + 1, HomeScore(await GetJson(ScoreboardState)));
+    }
+
+    [Fact]
+    public async Task TheShotClockRoutesStartAndClearTheClockThePageCountsDown()
+    {
+        (await _client.GetAsync("/api/control/shotclock/start")).EnsureSuccessStatusCode();
+
+        var started = await GetJson(ScoreboardState);
+        var endsAt = started.GetProperty("shotClockEndsAt");
+
+        // The page counts down from this instant on its own, so a deadline in the past would show 0:00 for the
+        // whole shot, and a value it cannot parse would leave the clock stuck at whatever it last read.
+        Assert.Equal(JsonValueKind.String, endsAt.ValueKind);
+        Assert.True(
+            DateTimeOffset.TryParse(
+                endsAt.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var deadline),
+            $"the page cannot parse {endsAt.GetString()} as a deadline");
+        Assert.True(deadline > DateTimeOffset.UtcNow, "the deadline is already past");
+        Assert.Equal(GameState.DefaultShotClockSeconds, started.GetProperty("shotClockSeconds").GetInt32());
+
+        (await _client.GetAsync("/api/control/shotclock/clear")).EnsureSuccessStatusCode();
+
+        var cleared = await GetJson(ScoreboardState);
+        Assert.Equal(JsonValueKind.Null, cleared.GetProperty("shotClockEndsAt").ValueKind);
     }
 
     [Fact]

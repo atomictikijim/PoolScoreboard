@@ -97,5 +97,19 @@ internal static class ControlEndpoints
             gameManager.ResetGame();
             return Results.Ok();
         });
+
+        // Two routes rather than one toggle: a shot clock is started at the start of a shot and only ever
+        // restarted, so a button that sometimes hides it would be a trap mid-match.
+        app.MapGet("/api/control/shotclock/start", () =>
+        {
+            gameManager.StartShotClock();
+            return Results.Ok();
+        });
+
+        app.MapGet("/api/control/shotclock/clear", () =>
+        {
+            gameManager.ClearShotClock();
+            return Results.Ok();
+        });
     }
 }

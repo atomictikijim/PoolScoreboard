@@ -34,6 +34,8 @@ using the mapping below, then export/share it from there if needed.
 | Ball N Pocketed   | `/api/control/balls/N/toggle` (N = 1-15)   | Toggles ball N's pocketed state — greys it out in the ball display if it was live, or brings it back if it was already marked pocketed. Same toggle behavior as clicking the ball in the Controller's live view. Returns `400` for N outside 1-15. |
 | New Rack          | `/api/control/rack/new`                    | Clears all pocketed-ball markers for a fresh rack. Does not touch scores. |
 | Reset Match       | `/api/control/match/reset`                 | Ends the current match entirely and returns the Controller to the Match Setup screen — same as clicking "Reset Match" in the app. Use between matches, not mid-rack. |
+| Start Shot Clock  | `/api/control/shotclock/start`             | Starts the 40-second shot clock on the overlay, or restarts it from the full time for the next shot. A point restarts a running clock too; a new rack or a reset hides it. |
+| Hide Shot Clock   | `/api/control/shotclock/clear`             | Hides the shot clock. The overlay draws it only while it is running, so this is "no clock on screen", not "paused". |
 
 ## Notes
 

@@ -79,7 +79,8 @@ dotnet clean
   `ColorTheme`, `ScoreboardStyle` (corner roundness, scale, gloss finish, end-cap style,
   shooter-indicator style), `Visibility` (score bar / ball tracker / winner banner shown or
   hidden), `PocketedBalls` (ball numbers 1-15 currently off the table), `CueBallSpin` (the
-  overlay's contact point, or null), active/winner status.
+  overlay's contact point, or null), `ShotClockSeconds` (40, fixed for now) and `ShotClockEndsAt` (when the current
+  shot's countdown runs out, or null when no clock is showing), active/winner status.
 - `ColorTheme` — operator-set background/accent/text colors, applied to the overlay pages.
 - `GameState.MatchId` — which match this is. Assigned when a match starts, carried into `ResumableMatch` so a
   relaunch restores the same one, and stored on each history record, which is what keeps a finished match from
@@ -102,8 +103,14 @@ dotnet clean
 ### PoolScoreboard.Core (Game Logic)
 
 - `GameManager` — orchestrator for all game state and operations: `InitializeGame`,
-  `AddPoint`/`SubtractPoint`, `UndoPoint`, `ToggleCurrentShooter`, `AssignBallGroup`, `ResetGame`.
-  Raises `GameStateChanged` after every mutation.
+  `AddPoint`/`SubtractPoint`, `UndoPoint`, `ToggleCurrentShooter`, `AssignBallGroup`, `ResetGame`,
+  `StartShotClock`/`ClearShotClock`. Raises `GameStateChanged` after every mutation.
+  The shot clock is a deadline, not a tick: `StartShotClock` stamps `now + ShotClockSeconds` and the overlay
+  counts it down locally, so no frame per second is sent for it. It restarts from the full length whenever a
+  running clock's match scores a point (a point ends a shot and the next one begins), it is ignored at setup, and
+  a new rack or a reset clears it — the countdown belongs to a shot in a game that is still being played. Its
+  "now" comes from a clock injected into the constructor, so a test can assert the exact instant rather than
+  sleep and tolerate.
 - No database, no async I/O — pure, fast, unit-testable.
 - `Persistence/OperatorProfile` (capture/apply of the saved profile), `Persistence/PlayerRoster`
   (saved-player identity — a name, ignoring case — ordering and the 100-entry cap),
@@ -217,13 +224,15 @@ on the port the overlay was really served on rather than the default or a value 
   plus the loopback address and `app.Start()`. The split is what lets `PoolScoreboard.Overlay.Tests` drive the real
   routes under `TestServer` without binding a port, and keeps one mapping list for the app and the tests.
 - `/overlay/scoreboard` — browser-source page: scores, Race-To, shooter indicator, ball
-  display, operator colors. Read-only; polls or subscribes (SSE/WebSocket) for state.
+  display, shot clock, operator colors. Read-only; polls or subscribes (SSE/WebSocket) for state. The shot clock
+  is drawn only while the payload carries a deadline, reads red in its last five seconds, and ticks inside the
+  page (`Date.parse` of the ISO instant, four times a second) so an OBS capture counts down between frames.
 - `/overlay/cueball` — separate browser-source page: a cue-ball graphic; clicking it places
   a red dot marking the spin/contact point. Independent of and separately positionable from
   the scoreboard overlay in the OBS scene.
 - `/api/control/*` — local HTTP endpoints for Stream Deck buttons (add a point per side, undo
   the last point, shooter toggle, ball assignment, per-ball pocketed toggle, new rack, reset
-  match). Same `GameManager` instance as the UI.
+  match, start/restart and hide the shot clock). Same `GameManager` instance as the UI.
 - `Diagnostics/TraceLoggerProvider` forwards the host's own `ILogger` warnings and errors to `Trace`, which the
   Controller's log file records — without it they went to the Console/Debug providers and a WPF process has no
   console to write them to.
@@ -290,6 +299,10 @@ alignment, not a pixel match).
   SAVE TO HISTORY is pressed, and the History window lists those newest first with each name's wins and deletes one
   at a time; there is no export, no filter and no bulk clear, the history is capped at 200 matches, and a record is
   per match rather than per player.
+- The shot clock is 40 seconds and nothing offers to change it: the field is on `GameState` with nothing in
+  either screen to edit it. It is not part of `match.json`, so a resumed match shows no clock — a countdown from a
+  previous session would be a lie — and there is no pause: a clock hides with a new rack or a reset, or through the
+  clear route, and starts again at full time.
 - `controller.log` is capped by size only, never by age: at startup a log over 1 MiB becomes
   `controller.old.log`, so exactly one previous session survives and older ones are discarded.
 - The roster only holds players who have actually been on screen for a started match (or present

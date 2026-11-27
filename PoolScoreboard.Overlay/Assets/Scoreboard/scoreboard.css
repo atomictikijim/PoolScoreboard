@@ -276,6 +276,40 @@ html, body {
   transition: none !important;
 }
 
+.shot-clock {
+  margin-top: 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 20px;
+  border-radius: calc(18px * var(--radius-scale));
+  background: rgba(0, 0, 0, 0.45);
+  color: #f0f0f0;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.shot-clock-label {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: rgba(240, 240, 240, 0.6);
+}
+
+.shot-clock-value {
+  font-size: 24px;
+  letter-spacing: 1px;
+}
+
+/* The last five seconds read red, but only while there is time left to lose: an expired clock is a
+   dead clock, and shaking it every frame it sits at zero would be noise in the OBS capture. */
+.shot-clock.low .shot-clock-value {
+  color: #ff6b5e;
+}
+
+.shot-clock.expired .shot-clock-value {
+  color: #ff3b30;
+}
+
 .winner-banner {
   margin-top: 14px;
   padding: 8px 22px;

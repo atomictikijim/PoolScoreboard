@@ -669,6 +669,14 @@ public partial class GameViewModel : ObservableObject
     private void ShowHelp() => new HelpWindow(OverlayBaseUrl) { Owner = _owner }.ShowDialog();
 
     /// <summary>
+    /// Starts or restarts the shot clock the overlay counts down. The operator presses it as each player settles
+    /// over the ball — only they can tell when a shot has begun, which is why this is a key rather than something
+    /// the score changes trigger on their own.
+    /// </summary>
+    [RelayCommand]
+    private void StartShotClock() => _gameManager.StartShotClock();
+
+    /// <summary>
     /// Files the finished match, by explicit request: the operator decides what belongs in the history, so a win
     /// on its own does not write one. Pressing it again for the same match files nothing — the archive refuses an
     /// id it already holds — which is also what covers a resumed match that was saved before the relaunch.

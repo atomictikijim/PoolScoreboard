@@ -1,3 +1,4 @@
+using System.Globalization;
 using PoolScoreboard.Core.Models;
 
 namespace PoolScoreboard.Overlay.Models;
@@ -37,7 +38,12 @@ public static class ScoreboardStateMapper
             ScoreBarVisible = state.Visibility.ScoreBarVisible,
             BallTrackerVisible = state.Visibility.BallTrackerVisible,
             WinnerBannerVisible = state.Visibility.WinnerBannerVisible
-        }
+        },
+
+        // Round-trip format with the offset, so the page's own clock reads the same instant wherever OBS and the
+        // Controller sit. `Date.parse` accepts it; a bare local time would not.
+        ShotClockSeconds = state.ShotClockSeconds,
+        ShotClockEndsAt = state.ShotClockEndsAt?.ToString("o", CultureInfo.InvariantCulture)
     };
 
     private static PlayerDto ToPlayerDto(Player player, int score) => new()

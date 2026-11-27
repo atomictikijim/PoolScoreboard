@@ -34,8 +34,9 @@ public partial class MainWindow : Window
     }
 
     // Live-view shortcuts: Q/P score the home/away player, A undoes the last point,
-    // Space toggles the current shooter, N starts a new rack. Only active once a match
-    // is running, and ignored while a setup TextBox has focus.
+    // Space toggles the current shooter, N starts a new rack, T starts or restarts the
+    // shot clock. Only active once a match is running, and ignored while a setup TextBox
+    // has focus.
     private void MainWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (!_viewModel.GameInitialized || Keyboard.FocusedElement is TextBox)
@@ -61,6 +62,12 @@ public partial class MainWindow : Window
                 break;
             case Key.N:
                 _viewModel.NewRackCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.T:
+                // One press per shot: the clock restarts from the full time, and a point restarts it again for the
+                // shot the point sets up.
+                _viewModel.StartShotClockCommand.Execute(null);
                 e.Handled = true;
                 break;
         }

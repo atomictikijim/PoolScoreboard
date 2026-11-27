@@ -49,7 +49,7 @@ public sealed class HelpWindowTests
 
         // Every overlay page and Stream Deck endpoint the page lists. A line that silently disappears is a
         // regression too, so the count is pinned rather than merely "at least one".
-        Assert.Equal(13, urls.Length);
+        Assert.Equal(15, urls.Length);
         Assert.All(urls, url => Assert.Contains(BaseUrl + "/", url, StringComparison.Ordinal));
         Assert.DoesNotContain(urls, url => url.Contains("51234", StringComparison.Ordinal));
     }
