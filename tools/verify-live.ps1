@@ -522,10 +522,8 @@ function Invoke-PortChange {
     Assert-That ((Get-PortOwnerPid) -eq 0) "port $Port is free before the scenario starts"
     Assert-That ((Get-PortOwnerPid $target) -eq 0) "port $target is free before the scenario starts"
 
-    # A known starting point: with no saved port the app opens on the default, so the field has a default to
-    # move away from instead of whatever the operator's own settings happen to hold.
-    Remove-Item $SettingsPath -ErrorAction SilentlyContinue
-
+    # The runner removed settings.json for this scenario, so the app opens on the default and the field has a
+    # default to move away from rather than whatever the previous scenario left saved.
     $controller = Start-Controller $Exe
     Wait-ControllerWindow $controller.Id | Out-Null
     Assert-That ($null -ne (Wait-State)) "the overlay serves on the default $Port"
@@ -652,6 +650,11 @@ $scenarios = if ($Scenario -eq 'all') { @('port-change', 'crash-resume', 'banner
 try {
     foreach ($name in $scenarios) {
         try {
+            # Every scenario expects a Controller that opens on the port it tests, and port-change leaves 51241
+            # saved behind it, so each one starts from no saved profile. The operator's own settings.json is the
+            # backup taken above and restored on exit.
+            Remove-Item $SettingsPath -ErrorAction SilentlyContinue
+
             switch ($name) {
                 'port-change' { Invoke-PortChange }
                 'crash-resume' { Invoke-CrashResume }

@@ -194,6 +194,20 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The full live run catches one scenario leaking into the next
+
+- Running `tools/verify-live.ps1` with no `-Scenario` failed three of the four: `port-change` leaves
+  `overlayPort: 51241` in `settings.json`, and `crash-resume`, `banner-retry` and `leftover` all assume a Controller
+  that opens on 51234 — so each of them launched a Controller already moved to another port and tested the wrong
+  thing. The run is only useful as a whole if the scenarios cannot see each other's leftovers.
+- Each scenario now starts from no saved `settings.json`: the runner deletes it before every one (the operator's own
+  file is the backup taken at the start and restored on exit). That also removes the reset `port-change` carried,
+  which only protected itself, and it makes the other three robust to an operator who has saved a port of their own.
+- Verified live: the full run with no `-Scenario` now passes all four back to back — 25 assertions in `port-change`
+  (`Help shows Scoreboard: http://127.0.0.1:51241/overlay/scoreboard` and `.../cueball`), then `crash-resume`
+  answering on 127.0.0.1 and resuming 2-1, `banner-retry`, and `leftover`.
+- Developer tooling only, so no version bump.
+
 ### 2026-11-27 — The port change becomes a live check, and Help is read on screen
 
 - The port work above had only been proven by hand, in scripts that died with `%TEMP%`. `tools/verify-live.ps1

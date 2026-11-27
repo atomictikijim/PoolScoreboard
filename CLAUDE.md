@@ -317,7 +317,9 @@ live.
   `powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify-live.ps1 [-Scenario <name>]`. It backs up and
   restores `%APPDATA%\PoolScoreboard`, stops only the processes it started, needs the port free to begin (`-Port`,
   51234, and `-SecondPort`, 7 above it, for `port-change`), removes its git worktree, and exits non-zero naming the
-  assertion that failed. `port-change` starts from no saved settings so the field has the default to move away from.
+  assertion that failed. Every scenario starts from no saved `settings.json` (the operator's own file is the backup
+  restored on exit), so `port-change` has the default to move away from and the others find the app on the port they
+  test — without that, `port-change` leaves 51241 saved and the next three all launch a Controller already moved.
   Opening the modal Help window from a script needs two things worth knowing: UIA's `Invoke` on the button that opens
   it does not run the command reliably, so the script raises the window the way the operator does — minimize and
   restore to take the foreground, focus the button, press space — and the dialog is a child of the Controller in the
