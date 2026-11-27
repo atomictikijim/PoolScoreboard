@@ -194,6 +194,22 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The saved match survives a power cut, not just a killed process
+
+- `MatchStateStore.TrySave` serialized straight through `File.WriteAllText` and then moved the file into place: a
+  process kill was safe (the previous snapshot stayed whole, and the live check killed the app and resumed 2–1), but
+  nothing ever asked the OS to put the bytes on the disk. After a power cut the rename could be recorded while the
+  contents were still in the cache — `match.json` present, empty or half written, and the match gone.
+- The snapshot is now written through a `FileStream` and `Flush(flushToDisk: true)` before the move publishes it, so
+  the name cannot point at bytes that are not on the disk yet. The rename itself is metadata, which NTFS journals
+  rather than anything this code can flush; the guarantee is about the snapshot's contents.
+- Test (1 new): `TrySave_LeavesTheWholeSnapshotOnDisk_SoAFreshReadLoadsIt` reopens the published file through a
+  handle of its own with no sharing, asserts its length is exactly the serialized payload's, parses it back with all
+  15 balls and leaves no `.tmp`. The flush call is not observable from a test — what is pinned is the published file
+  being complete — so power-loss tolerance remains an argument plus the live process-kill proof, not a measurement.
+- Version 0.23.1 → 0.24.0 (a durability change in behaviour, the same bucket as the corrupt-file and leftover-port
+  fixes).
+
 ### 2026-11-26 — Crash-safety has tests instead of a hand-run
 
 - The match autosave — debounce timer, `OnExit` snapshot, delete when back at setup, resume, unreadable file — lived

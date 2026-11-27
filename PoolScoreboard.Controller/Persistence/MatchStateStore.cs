@@ -94,7 +94,20 @@ internal sealed class MatchStateStore : IMatchSnapshotStore
                 // Write then move, like the other files here: a crash mid-save leaves the previous snapshot
                 // intact rather than a truncated file that would fail to load next time.
                 var temporaryPath = MatchPath + ".tmp";
-                File.WriteAllText(temporaryPath, JsonSerializer.Serialize(match, PersistenceJson.Options));
+
+                // Flush(true) is what makes this survive a power cut and not just a process kill: it pushes the
+                // bytes, and the file's new length, through the OS cache to the disk before the move gives the
+                // name to them. Without it a machine that loses power can come back to a file that exists and is
+                // empty or half written, because the rename was recorded while the contents were still in memory.
+                using (var stream = new FileStream(
+                           temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    JsonSerializer.Serialize(stream, match, PersistenceJson.Options);
+                    stream.Flush(flushToDisk: true);
+                }
+
+                // The rename itself is metadata, which NTFS journals rather than something this can flush; the
+                // guarantee above is about the snapshot's contents being on the disk under that name.
                 File.Move(temporaryPath, MatchPath, overwrite: true);
                 return true;
             }

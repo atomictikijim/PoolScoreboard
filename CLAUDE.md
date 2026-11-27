@@ -154,8 +154,10 @@ dotnet clean
   `OnExit`, when the debounce may not have run; and a state back at setup deletes the file, so a reset match is not
   resumed. Watching starts at `Restore()` rather than in the constructor on purpose: applying the operator profile
   fires the event while the match is still at setup, and that snapshot deletes the file the same launch is about to
-  load. `App` builds one, calls `Restore()` at startup after the profile and before the window, and disposes it on
-  exit.
+  load. A snapshot is written through a stream and `Flush(flushToDisk: true)` before the move gives `match.json`
+  its name, so a power cut cannot leave a published file that is empty or half written; the rename's own metadata
+  is left to NTFS. `App` builds one, calls `Restore()` at startup after the profile and before the window, and
+  disposes it on exit.
   `GameViewModel` therefore takes the game type and Race-To mode from state — a resumed 8-ball match shows its
   groups — and fills the live view from the restored snapshot, since no event fires until the operator touches
   something. An unreadable `match.json` is moved to `match.corrupt.json`; one written by another version is
@@ -281,7 +283,11 @@ including the recycled-PID guard. `MatchAutosaveTests` covers the autosave that 
 points becomes one snapshot, a reset deletes it instead of writing a blank one, the exit snapshot does not wait for
 the debounce, changes after dispose are ignored, changes before `Restore()` are not watched (so applying the profile
 cannot delete the match about to be resumed), a saved match is restored, a fresh install stays at setup, and an
-unreadable file is kept aside without blocking startup.
+unreadable file is kept aside without blocking startup. `MatchStateStoreTests` pins what a save leaves behind: the
+published file opens with no sharing, is exactly the serialized length, parses back with every ball, and leaves no
+`.tmp` behind — the state a power cut has to find. The `Flush(flushToDisk: true)` call itself is not observable from
+a test, so losing power is still an argument rather than a measurement, unlike a killed process, which was checked
+live.
 - Overlay/control-API endpoints should be tested against a `GameManager` test instance, not
   a live one.
 - `.githooks/pre-push` mirrors CI (Release build, then every test project) and is enabled per clone

@@ -60,6 +60,38 @@ public sealed class MatchStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void TrySave_LeavesTheWholeSnapshotOnDisk_SoAFreshReadLoadsIt()
+    {
+        var match = new ResumableMatch
+        {
+            GameType = GameType.EightBall,
+            RaceToMode = RaceToMode.Split,
+            HomeScore = 4,
+            AwayScore = 3,
+            PocketedBalls = Enumerable.Range(1, 15).ToList()
+        };
+
+        Assert.True(Store.TrySave(match));
+
+        // Read the published file through a handle of its own, with no sharing: what a machine that lost power
+        // has to find is a name pointing at every byte the serializer produced, not at an empty or short file.
+        var expected = JsonSerializer.Serialize(match, PersistenceJson.Options);
+        using (var stream = new FileStream(MatchPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            Assert.Equal(expected.Length, (int)stream.Length);
+
+            using var reader = new StreamReader(stream);
+            var reloaded = JsonSerializer.Deserialize<ResumableMatch>(reader.ReadToEnd(), PersistenceJson.Options);
+            Assert.NotNull(reloaded);
+            Assert.Equal(match.HomeScore, reloaded.HomeScore);
+            Assert.Equal(match.PocketedBalls, reloaded.PocketedBalls);
+        }
+
+        Assert.NotNull(Store.Load());
+        Assert.False(File.Exists(MatchPath + ".tmp"));
+    }
+
+    [Fact]
     public void Delete_RemovesTheSavedMatch_AndIsSafeWhenThereIsNone()
     {
         Assert.True(Store.TrySave(new ResumableMatch { HomeScore = 1 }));
