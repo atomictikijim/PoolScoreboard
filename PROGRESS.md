@@ -194,6 +194,32 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — Crash-safety has tests instead of a hand-run
+
+- The match autosave — debounce timer, `OnExit` snapshot, delete when back at setup, resume, unreadable file — lived
+  in `App`, so a live run was its only proof. It is now `Persistence/MatchAutosave`, taking a `GameManager`, an
+  `IMatchSnapshotStore` (which `MatchStateStore` implements) and an optional delay: the real timer can be driven with
+  a 40 ms delay, and a store that counts writes replaces watching a file's timestamp.
+- `App` keeps only the wiring — it builds one after `SharedGameManager` exists, calls `Restore()` where
+  `RestoreMatch()` was, and `SaveNow()`/`Dispose()` in `OnExit`.
+- Watching starts at `Restore()`, not in the constructor. A first cut subscribed on construction, which is before
+  `OnStartup` applies the operator profile; those `ApplyTo` calls fire `GameStateChanged` five times while the match
+  is still at setup, so the timer they armed would run `SaveNow()` → `Delete()` — deleting `match.json` in the 500 ms
+  window before `Restore()` read it, and losing the resume it was there to perform. Starting to watch at the resume
+  removes the race and also stops a fresh launch scheduling a pointless delete. Dropped the `_disposed` flag with it:
+  `Timer.Dispose` and `-=` are both idempotent, so it guarded nothing.
+- Tests (8 new): a 20-point burst is one write carrying the latest score; a reset is one delete and no write; the
+  exit snapshot writes immediately despite a 30 s delay; a change after `Dispose` writes nothing; a profile applied
+  before `Restore()` leaves the saved match on disk and the resume then finds it; a saved 8-ball split match comes
+  back with its scores, groups and balls; a fresh install stays at setup; a hand-broken `match.json` leaves the game
+  at setup and is kept as `match.corrupt.json`.
+- Mutation check: replacing the timer re-arm with an immediate `SaveNow()` fails four of them (burst, reset, exit and
+  dispose), so they pin the debounce instead of restating it.
+- Verified live against the real app: START MATCH plus two home points produced one 241-byte `match.json` with
+  `"homeScore": 2`; `/api/control/match/reset` deleted it; `Stop-Process -Force` (no `OnExit`) then a relaunch served
+  2–0 from the restored snapshot.
+- Build 0 warnings; 200/200 tests (97 Core + 103 Controller). No version bump: no behaviour change.
+
 ### 2026-11-26 — The banner says what to do about the window it cannot close
 
 - A Controller that still has a window is left running by design, but the banner only named it — the operator had to

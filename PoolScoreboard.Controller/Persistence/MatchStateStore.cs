@@ -11,7 +11,7 @@ namespace PoolScoreboard.Controller.Persistence;
 /// what lets it be rewritten after every change, unlike the profile next to it, whose icon files are up to
 /// 1.5 MB.
 /// </summary>
-internal sealed class MatchStateStore
+internal sealed class MatchStateStore : IMatchSnapshotStore
 {
     /// <summary>
     /// Serializes saves and deletes against each other. The debounce timer and <c>OnExit</c> can both reach this

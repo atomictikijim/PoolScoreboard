@@ -147,11 +147,15 @@ dotnet clean
 - `Persistence/OperatorSettingsStore` reads/writes `%AppData%\PoolScoreboard\settings.json` plus the
   end-cap icon files; `App` applies the saved profile before the window exists, then saves on a
   750 ms debounce and on exit.
-- `Persistence/MatchStateStore` keeps the match in progress in `match.json`: `App` subscribes to
-  `GameStateChanged` and re-arms a pool timer, so a burst of points costs one small write 500 ms later (the
-  event arrives inside `GameManager`'s lock, often from an HTTP control thread, and the write never runs on the
-  UI thread); a final snapshot is written in `OnExit`, and a state back at setup deletes the file so a reset
-  match is not resumed. Restore happens at startup after the profile and before the window.
+- `Persistence/MatchStateStore` is the file; `Persistence/MatchAutosave` is the wiring around it, kept out of
+  `App` so its rules are testable. From `Restore()` on it watches `GameStateChanged` and only re-arms a pool timer,
+  so a burst of points costs one small write 500 ms later (the event arrives inside `GameManager`'s lock, often from
+  an HTTP control thread, and the write never runs on the UI thread); `SaveNow` is the snapshot `App` takes in
+  `OnExit`, when the debounce may not have run; and a state back at setup deletes the file, so a reset match is not
+  resumed. Watching starts at `Restore()` rather than in the constructor on purpose: applying the operator profile
+  fires the event while the match is still at setup, and that snapshot deletes the file the same launch is about to
+  load. `App` builds one, calls `Restore()` at startup after the profile and before the window, and disposes it on
+  exit.
   `GameViewModel` therefore takes the game type and Race-To mode from state — a resumed 8-ball match shows its
   groups — and fills the live view from the restored snapshot, since no event fires until the operator touches
   something. An unreadable `match.json` is moved to `match.corrupt.json`; one written by another version is
@@ -273,7 +277,11 @@ alignment, not a pixel match).
 `StaleControllerTests` covers the leftover rule both ways — a windowless copy of this app is closed, one that still
 shows a window is not, and neither is this process or any other program — plus the one-snapshot look itself (a real
 window shown on an STA thread, a spawned process with none, and `null` for a PID that cannot be read) and the close,
-including the recycled-PID guard.
+including the recycled-PID guard. `MatchAutosaveTests` covers the autosave that used to live in `App`: a burst of
+points becomes one snapshot, a reset deletes it instead of writing a blank one, the exit snapshot does not wait for
+the debounce, changes after dispose are ignored, changes before `Restore()` are not watched (so applying the profile
+cannot delete the match about to be resumed), a saved match is restored, a fresh install stays at setup, and an
+unreadable file is kept aside without blocking startup.
 - Overlay/control-API endpoints should be tested against a `GameManager` test instance, not
   a live one.
 - `.githooks/pre-push` mirrors CI (Release build, then every test project) and is enabled per clone
