@@ -334,7 +334,10 @@ source guards cannot reach: 12 tests over the real endpoints, no socket. Every p
 its content type, the scoreboard and cue-ball payloads are checked against the pages themselves — every `state.…`
 path `scoreboard.js`/`cueball.js` reads has to resolve in the JSON, so renaming `PlayerDto.Score` fails with
 `home.score, away.score` — `home/add` moves the score the page renders, the cue-ball contact round-trips through the
-property names the page sends and reads, an unknown player has no icon, and the SSE route opens as `text/event-stream`. Two things that test had to work around: a full
+property names the page sends and reads, a player's icon comes back as its own bytes under the mime it was stored
+with while an unknown player 404s, and each stream's first `data:` frame — the only picture an `EventSource` page ever
+gets — carries the same paths that page reads (a payload that resolves on `/state` and not in the frame is still a
+blank overlay). Two things that test had to work around: a full
 `pack://` URI is only parsed once WPF has registered the scheme, so the theme dictionary is loaded by its relative
 `/Assembly;component/` form; and a window's bindings resolve only once its tree is loaded, so the test shows the
 window at (-20000, -20000) rather than merely constructing it. `MatchStateStoreTests` pins what a save leaves behind: the

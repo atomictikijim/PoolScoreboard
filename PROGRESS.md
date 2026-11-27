@@ -194,6 +194,20 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The stream's first frame and the icon's 200 are tested too
+
+- Two gaps the HTTP tests left. The streams were only checked for status and content type, which is the wrong half:
+  an `EventSource` page never requests `/overlay/api/scoreboard/state`, so what it renders comes from the first
+  `data:` frame. Both streams now have their first frame read off the response, parsed, and held to the same `state.…`
+  paths their pages read — the assertion walks the frame's own JSON, so a frame that is empty, malformed, or carrying
+  the other page's payload fails.
+- The icon route only had its 404 tested. `APlayerIconIsServedAsItsOwnBytes` now sets a real data URI through
+  `SetPlayerDetails` and asserts 200, the stored mime type, and the exact bytes back.
+- Reading a frame needs the body, which `HttpClient.Timeout` does not cover once headers have arrived with
+  `ResponseHeadersRead` — so both stream cases carry their own 10 s `CancellationTokenSource` and still cannot hang a
+  runner.
+- Full suite 109 Core + 14 Overlay + 137 Controller, 0 warnings. Tests only: no version bump.
+
 ### 2026-11-27 — The overlay's routes and payload get an HTTP-level test
 
 - New `PoolScoreboard.Overlay.Tests` (net8.0, `Microsoft.AspNetCore.TestHost`): the guards in `Controller.Tests`
