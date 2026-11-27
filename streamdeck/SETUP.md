@@ -26,6 +26,9 @@ With the Controller running, open a browser on the same PC and go to:
 http://127.0.0.1:51234/overlay/api/scoreboard/state
 ```
 
+51234 is the Controller's default port; if you changed **OVERLAY PORT** in its top bar, use that number in
+every URL in this guide instead.
+
 You should see a small block of JSON (game type, scores, colors, etc.). If you get a "can't
 connect" error instead, the Controller isn't running or hasn't finished starting yet — fix that
 before moving on, since every Stream Deck button depends on this same server.

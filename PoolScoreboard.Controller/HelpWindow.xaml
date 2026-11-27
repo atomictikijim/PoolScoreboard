@@ -215,8 +215,8 @@
                             In OBS Studio, add a new source to your scene: <Bold>Sources → + → Browser</Bold>.
                             Create one for each overlay you want, and paste in the matching URL:
                         </TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Scoreboard: http://127.0.0.1:51234/overlay/scoreboard</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Cue Ball: http://127.0.0.1:51234/overlay/cueball</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Scoreboard: {0}/overlay/scoreboard'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Cue Ball: {0}/overlay/cueball'}" />
                         <TextBlock Style="{StaticResource HelpBodyStyle}" Margin="0,8,0,0">
                             Leave "Local file" unchecked — these are live local web pages, not files on disk.
                         </TextBlock>
@@ -274,17 +274,17 @@
                         </TextBlock>
 
                         <TextBlock Text="Button endpoints" Style="{StaticResource HelpSubHeadingStyle}" />
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Home +1 — http://127.0.0.1:51234/api/control/score/home/add</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Away +1 — http://127.0.0.1:51234/api/control/score/away/add</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Undo — http://127.0.0.1:51234/api/control/score/undo</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Toggle Shooter — http://127.0.0.1:51234/api/control/shooter/toggle</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Home: Solids — http://127.0.0.1:51234/api/control/balls/home/solids</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Home: Stripes — http://127.0.0.1:51234/api/control/balls/home/stripes</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Away: Solids — http://127.0.0.1:51234/api/control/balls/away/solids</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Away: Stripes — http://127.0.0.1:51234/api/control/balls/away/stripes</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ball N Pocketed (N = 1-15) — http://127.0.0.1:51234/api/control/balls/N/toggle</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">New Rack — http://127.0.0.1:51234/api/control/rack/new</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Reset Match — http://127.0.0.1:51234/api/control/match/reset</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Home +1 — {0}/api/control/score/home/add'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Away +1 — {0}/api/control/score/away/add'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Undo — {0}/api/control/score/undo'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Toggle Shooter — {0}/api/control/shooter/toggle'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Home: Solids — {0}/api/control/balls/home/solids'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Home: Stripes — {0}/api/control/balls/home/stripes'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Away: Solids — {0}/api/control/balls/away/solids'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Away: Stripes — {0}/api/control/balls/away/stripes'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Ball N Pocketed (N = 1-15) — {0}/api/control/balls/N/toggle'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='New Rack — {0}/api/control/rack/new'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Reset Match — {0}/api/control/match/reset'}" />
 
                         <TextBlock Text="Notes" Style="{StaticResource HelpSubHeadingStyle}" />
                         <TextBlock Style="{StaticResource HelpBulletStyle}">

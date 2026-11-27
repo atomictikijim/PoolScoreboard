@@ -67,9 +67,12 @@ dotnet run --project PoolScoreboard.Controller/PoolScoreboard.Controller.csproj
 ```
 
 Start one Controller at a time: a second launch brings the running window to the front, records why it is
-leaving in the log and exits — two copies would otherwise share `%AppData%` and compete for port 51234.
-If the overlay cannot start because something else holds port 51234, the window says so — naming the process
+leaving in the log and exits — two copies would otherwise share `%AppData%` and compete for the overlay port.
+If the overlay cannot start because something else holds the port, the window says so — naming the process
 when it can identify it — and offers a **Retry**, so the overlay can come back without restarting the app. The
+port is editable too: the **OVERLAY PORT** field in the top bar takes 1024–65535, rebinds the host as soon as it
+loses focus, and is saved in `settings.json`, so another program sitting on the default 51234 costs one edit rather
+than the overlay for the rest of the session. The
 same banner returns if the host stops serving mid-session — the state endpoint is probed every few seconds
 while it runs — so a dead overlay is noticed during a match rather than after it.
 If the port is held by a copy of this app that shows **no window** — a Controller that outlived its window, or one
@@ -85,9 +88,10 @@ snapshot when it does. That was checked against the scoreboard page in Chromium 
 cue-ball page uses the same pattern but was not exercised.
 
 Add the overlay as an OBS **Browser Source** pointed at the local URL the Controller
-prints on startup — `http://127.0.0.1:51234/overlay/scoreboard` — and the cue-ball
-overlay as a second, separate Browser Source at
-`http://127.0.0.1:51234/overlay/cueball`.
+shows in **Help** — `http://127.0.0.1:51234/overlay/scoreboard` at the default port — and
+the cue-ball overlay as a second, separate Browser Source at
+`http://127.0.0.1:51234/overlay/cueball`. If the port was changed, Help and the Stream Deck
+page in this repo's `streamdeck/` folder both use the new one.
 
 ## Architecture
 

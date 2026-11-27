@@ -9,6 +9,29 @@ public class OperatorProfileTests
 {
     private const string HomeIcon = "data:image/png;base64,AAAA";
 
+    [Fact]
+    public void OverlayPort_DefaultsToThePortTheAppHasAlwaysUsed() =>
+        Assert.Equal(51234, new OperatorProfile().OverlayPort);
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(80, false)]
+    [InlineData(1023, false)]
+    [InlineData(1024, true)]
+    [InlineData(51234, true)]
+    [InlineData(65535, true)]
+    [InlineData(65536, false)]
+    public void IsUsablePort_AcceptsOnlyPortsThatCanBeBoundWithoutElevation(int port, bool expected) =>
+        Assert.Equal(expected, OperatorProfile.IsUsablePort(port));
+
+    [Theory]
+    [InlineData(51240, 51240)]
+    [InlineData(1024, 1024)]
+    [InlineData(80, 51234)]
+    [InlineData(0, 51234)]
+    public void NormalizePort_FallsBackToTheDefaultWhenTheSavedPortCannotBeBound(int saved, int expected) =>
+        Assert.Equal(expected, OperatorProfile.NormalizePort(saved));
+
     private static GameManager ManagerWithMatch()
     {
         var manager = new GameManager();

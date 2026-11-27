@@ -13,6 +13,18 @@ public interface IOverlaySession
     bool IsRunning { get; }
 
     /// <summary>
+    /// The port the host binds — the one in the URLs the window shows — so the operator can see and change which
+    /// one it is when something else holds the usual port.
+    /// </summary>
+    int Port { get; }
+
+    /// <summary>
+    /// Points the session at another port, stopping a host that is running so the caller can start it again there.
+    /// Changing the port is always a rebind: a listening socket cannot be moved.
+    /// </summary>
+    void SetPort(int port);
+
+    /// <summary>
     /// Why the last start failed, or why a serving host stopped; null while it is running. The window shows this
     /// text as-is, so naming the port and its owner is the implementation's business.
     /// </summary>

@@ -8,8 +8,10 @@ No custom Elgato SDK plugin is used — every button below is built in the Strea
 its built-in **Website** action, pointed at the local URL in the "Endpoint" column, with
 **"Run in background"** (a.k.a. "don't open a browser window") checked. Every endpoint is a plain
 `GET` request with no request body, since that's all the built-in action can send. All endpoints
-are served by the Controller's in-process Kestrel host on `127.0.0.1:51234` — the Controller must
-be running for any of these to work, and they never leave the local machine.
+are served by the Controller's in-process Kestrel host on `127.0.0.1:51234` — the Controller's default
+port, and the one the table below uses. If you changed it with the **OVERLAY PORT** field, use that
+number in every URL instead. The Controller must be running for any of these to work, and they never
+leave the local machine.
 
 There is no `.streamDeckProfile` file checked into this repo (Stream Deck profiles are a binary
 export tied to a specific physical device layout) — build one manually in the Stream Deck app

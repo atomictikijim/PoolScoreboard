@@ -194,6 +194,31 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The overlay port is the operator's, not a constant
+
+- 51234 was hard-coded: another program holding it left the overlay and the Stream Deck API dead for the whole
+  session, with a banner that could only name the holder. The port is now a setting — an **OVERLAY PORT** field in
+  the window's top bar (1024–65535) and a value in `settings.json`.
+- `OperatorProfile.OverlayPort` owns the default (51234), `IsUsablePort` and `NormalizePort`; it lives in the profile
+  because it is the operator's choice for this machine, not part of a match. `App` hands it to the session before
+  anything binds and writes what the session is actually using on every save. A settings file without the value, or
+  with one that cannot be bound, falls back to 51234 rather than failing to start.
+- `IOverlaySession` gained `Port` and `SetPort`: changing the port stops a running host (a listening socket cannot be
+  moved) and clears the failure reason, because the old reason names a port the app no longer uses. The window's
+  `OverlayPort` property rebinds and saves on change; a value outside the range snaps back to the port in use instead
+  of leaving the field advertising something that was never tried. `OverlayHostSession`'s probe, banner texts and
+  leftover-controller lookups all follow the current port.
+- The Help window's URLs are built from the port now (`HelpWindow(overlayBaseUrl)` and one `OverlayBaseUrl` binding
+  with a `StringFormat` per line), so it cannot list an address the app is not serving on. README and the
+  `streamdeck/` setup guide say 51234 is the default and to substitute the configured port.
+- Tests (new): `OperatorProfileTests` covers the default, the accepted range and the fallback; `OverlayHostSessionTests`
+  covers a failed start re-reported on the newly set port, `SetPort` clearing the old reason, and a serving host being
+  stopped by the move; `GameViewModelTests` covers the field rebinding and saving, and an unusable port snapping back.
+- Verified live: changed the port to 51241 in the running Controller, the banner cleared, the overlay answered on
+  51241 and no longer on 51234, `settings.json` recorded 51241, and a relaunch came up on it. Pointing a second
+  Controller at a port a foreign listener held showed that port in the banner.
+- Version 0.26.0 → 0.27.0.
+
 ### 2026-11-27 — The live checks become a script instead of temp-folder history
 
 - The three things no unit test reaches — a mid-match crash resuming, the overlay banner and its Retry, and the

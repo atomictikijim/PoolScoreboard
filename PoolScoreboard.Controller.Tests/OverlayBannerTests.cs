@@ -141,9 +141,13 @@ public sealed class OverlayBannerTests : IDisposable
     {
         public bool IsRunning { get; set; }
 
+        public int Port { get; set; } = 51234;
+
         public string? FailureReason { get; set; }
 
         public bool StartSucceeds { get; set; }
+
+        public void SetPort(int port) => Port = port;
 
         public int Starts { get; private set; }
 

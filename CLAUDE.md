@@ -118,7 +118,7 @@ dotnet clean
   (8-ball only) or ball display (9/10-ball), new-rack/reset-match controls.
 - On startup, starts the Overlay's Kestrel host in-process, passing it the same
   `GameManager` instance the UI is bound to. `OverlayHostRunner.Start` returns null when the host cannot bind
-  (  `127.0.0.1:51234` already taken, usually a leftover Controller) and logs the reason, so startup continues
+  (the overlay port, 51234 by default, already taken — usually a leftover Controller) and logs the reason, so startup continues
   without the overlay instead of dying before a window exists. `OverlayHostSession` keeps that failure: the main
   window's top bar shows it (naming the process holding the port, via `Diagnostics/PortOwner`) beside a Retry
   button, so a dead overlay is visible and recoverable without restarting the app. While a host is up the
@@ -131,7 +131,10 @@ dotnet clean
   a port only a dead copy of this app is holding (`Diagnostics/StaleController`). A copy that still has a window is
   deliberately left running: that is somebody's session (an older build in use, an instance never shut down), and
   closing it would end their window mid-match — so the banner names it and asks for that window to be closed, and
-  Retry takes the port back as soon as it is. Never
+  Retry takes the port back as soon as it is. The port is the operator's too: an OVERLAY PORT field in the top bar
+  (1024–65535, `OperatorProfile.IsUsablePort`) rebinds the host as soon as it loses focus, the banner always names
+  the port actually tried, and the choice is saved in `settings.json` — so another program sitting on 51234 costs
+  one edit rather than the overlay for the session. Never
   this process, never a program that is not this app, and never a holder whose process cannot be read at all — "no
   window" and "cannot tell" are different answers, and only the first is acted on. The name and the window state
   come from one look at the process (`Diagnostics/StaleController.Observe`), so a holder exiting between them cannot
@@ -145,8 +148,9 @@ dotnet clean
   shuts down before restoring or saving the profile — a duplicate must never write defaults over the running
   instance's `settings.json`/`roster.json`.
 - `Persistence/OperatorSettingsStore` reads/writes `%AppData%\PoolScoreboard\settings.json` plus the
-  end-cap icon files; `App` applies the saved profile before the window exists, then saves on a
-  750 ms debounce and on exit. `settings.json`, `roster.json` and `match.json` all go through
+  end-cap icon files; the saved profile carries the overlay port as well as the look and the last players. `App`
+  applies the saved profile before the window exists (handing the port to `OverlayHostSession` first, and
+  normalizing one it cannot bind), then saves on a 750 ms debounce and on exit. `settings.json`, `roster.json` and `match.json` all go through
   `Persistence/DurableFile`, which writes the text under a `.tmp` name, flushes it to the disk and only then moves
   it into place — so a crash mid-save keeps the previous file, and a power cut cannot publish a half-written one.
   End-cap icon bytes go through the same helper (`WriteAllBytes`), so an icon a saved file names is either the
@@ -287,7 +291,11 @@ including the recycled-PID guard. `MatchAutosaveTests` covers the autosave that 
 points becomes one snapshot, a reset deletes it instead of writing a blank one, the exit snapshot does not wait for
 the debounce, changes after dispose are ignored, changes before `Restore()` are not watched (so applying the profile
 cannot delete the match about to be resumed), a saved match is restored, a fresh install stays at setup, and an
-unreadable file is kept aside without blocking startup. `MatchStateStoreTests` pins what a save leaves behind: the
+unreadable file is kept aside without blocking startup. `OverlayHostSessionTests` also covers moving the port: a
+failed start is reported on the old port, `SetPort` forgets that reason and the next start serves the new one, and a
+serving host is stopped because a listening socket cannot be moved. `GameViewModelTests` covers the field itself: a
+usable port rebinds and saves, one below 1024 snaps back to the port in use, and the Help window is built from the
+same port. `MatchStateStoreTests` pins what a save leaves behind: the
 published file opens with no sharing, is exactly the serialized length, parses back with every ball, and leaves no
 `.tmp` behind — the state a power cut has to find. The `Flush(flushToDisk: true)` call itself is not observable from
 a test, so losing power is still an argument rather than a measurement, unlike a killed process, which was checked

@@ -34,7 +34,6 @@ public sealed class OverlayHostSession : IOverlaySession
     private static readonly TimeSpan ConfirmDelay = TimeSpan.FromMilliseconds(250);
 
     private readonly object _gate = new();
-    private readonly int _port;
     private readonly TimeSpan _checkInterval;
     private readonly HttpClient _probe = new() { Timeout = CheckTimeout };
 
@@ -46,11 +45,18 @@ public sealed class OverlayHostSession : IOverlaySession
     /// <summary>1 while a probe round is running; see <see cref="Check"/>.</summary>
     private int _checking;
 
+    /// <summary>
+    /// The port every URL and message here names. Written only by the constructor and <see cref="SetPort"/>, both
+    /// under the gate; read without it, because <see cref="Stop"/> holds the gate while it waits and a UI thread
+    /// asking which port it is on must not wait behind a shutting-down server.
+    /// </summary>
+    public int Port { get; private set; }
+
     /// <param name="port">The overlay port; a parameter so tests can use a throwaway one.</param>
     /// <param name="checkInterval">How often the running overlay is probed; tests use a short one.</param>
     public OverlayHostSession(int port = OverlayHost.Port, TimeSpan? checkInterval = null)
     {
-        _port = port;
+        Port = port;
         _checkInterval = checkInterval ?? DefaultCheckInterval;
         _watch = new Timer(_ => Check(), null, Timeout.Infinite, Timeout.Infinite);
     }
@@ -95,17 +101,17 @@ public sealed class OverlayHostSession : IOverlaySession
             if (_host != null)
                 return true;
 
-            var host = OverlayHostRunner.Start(gameManager, _port);
+            var host = OverlayHostRunner.Start(gameManager, Port);
             StaleController.Observation? holder = null;
             if (host == null && TryCloseLeftoverController(out holder))
             {
                 // The socket only just came free; one retry is what turns a leftover into a working overlay.
-                host = OverlayHostRunner.Start(gameManager, _port);
+                host = OverlayHostRunner.Start(gameManager, Port);
             }
 
             if (host == null)
             {
-                FailureReason = DescribeFailure(_port, PortOwner.Describe(_port), holder);
+                FailureReason = DescribeFailure(Port, PortOwner.Describe(Port), holder);
                 return false;
             }
 
@@ -116,6 +122,28 @@ public sealed class OverlayHostSession : IOverlaySession
             // ReportStopped is what keeps an older host's slow answer from blaming the new one.
             _watch.Change(_checkInterval, _checkInterval);
             return true;
+        }
+    }
+
+    /// <summary>
+    /// Points the session at <paramref name="port"/>, stopping a running host first — the caller starts it again, and
+    /// the window's Retry does exactly that. The failure reason is cleared because the new port has not been tried:
+    /// leaving the old one would name a port the app is no longer using.
+    /// </summary>
+    public void SetPort(int port)
+    {
+        lock (_gate)
+        {
+            _watch.Change(Timeout.Infinite, Timeout.Infinite);
+
+            if (_host != null)
+            {
+                OverlayHostRunner.StopAndDispose(_host, TimeSpan.FromSeconds(2));
+                _host = null;
+            }
+
+            Port = port;
+            FailureReason = null;
         }
     }
 
@@ -145,7 +173,7 @@ public sealed class OverlayHostSession : IOverlaySession
     private bool TryCloseLeftoverController(out StaleController.Observation? holder)
     {
         holder = null;
-        if (PortOwner.FindOwningProcessId(_port) is not { } pid)
+        if (PortOwner.FindOwningProcessId(Port) is not { } pid)
             return false;
 
         var observed = holder = StaleController.Observe(pid);
@@ -153,7 +181,7 @@ public sealed class OverlayHostSession : IOverlaySession
         {
             // The holder left between the lookup and the look: the port is free, so the retry is worth making even
             // though there was nothing to close.
-            return PortOwner.FindOwningProcessId(_port) is not { };
+            return PortOwner.FindOwningProcessId(Port) is not { };
         }
 
         if (!StaleController.IsThisApp(observed.Name, pid))
@@ -165,21 +193,21 @@ public sealed class OverlayHostSession : IOverlaySession
             // that cannot be read at all is not evidence of anything, so neither is touched. The banner keeps naming
             // it, and the operator closes it when they are ready.
             Trace.TraceInformation(observed.HasWindow == true
-                ? $"127.0.0.1:{_port} is held by {observed.Name} (PID {pid}), which still has a window; leaving it alone."
-                : $"127.0.0.1:{_port} is held by {observed.Name} (PID {pid}), which could not be inspected; leaving it alone.");
+                ? $"127.0.0.1:{Port} is held by {observed.Name} (PID {pid}), which still has a window; leaving it alone."
+                : $"127.0.0.1:{Port} is held by {observed.Name} (PID {pid}), which could not be inspected; leaving it alone.");
             return false;
         }
 
         if (!StaleController.TryClose(pid, StaleController.ProcessName, TimeSpan.FromSeconds(5)))
         {
             Trace.TraceWarning(
-                $"127.0.0.1:{_port} is held by a windowless {StaleController.ProcessName} (PID {pid}) that would not " +
+                $"127.0.0.1:{Port} is held by a windowless {StaleController.ProcessName} (PID {pid}) that would not " +
                 "close; the port stays with it.");
             return false;
         }
 
         Trace.TraceWarning(
-            $"127.0.0.1:{_port} was held by a leftover {StaleController.ProcessName} (PID {pid}); closed it so the " +
+            $"127.0.0.1:{Port} was held by a leftover {StaleController.ProcessName} (PID {pid}); closed it so the " +
             "overlay can start.");
         return true;
     }
@@ -234,7 +262,7 @@ public sealed class OverlayHostSession : IOverlaySession
         try
         {
             using var response = _probe
-                .GetAsync($"http://127.0.0.1:{_port}/overlay/api/scoreboard/state")
+                .GetAsync($"http://127.0.0.1:{Port}/overlay/api/scoreboard/state")
                 .GetAwaiter()
                 .GetResult();
             return response.IsSuccessStatusCode;
@@ -263,11 +291,11 @@ public sealed class OverlayHostSession : IOverlaySession
 
             _host = null;
             _watch.Change(Timeout.Infinite, Timeout.Infinite);
-            FailureReason = $"The overlay stopped serving on 127.0.0.1:{_port}.";
+            FailureReason = $"The overlay stopped serving on 127.0.0.1:{Port}.";
         }
 
         Trace.TraceError(
-            $"Overlay host stopped serving 127.0.0.1:{_port} mid-session; the overlay and Stream Deck " +
+            $"Overlay host stopped serving 127.0.0.1:{Port} mid-session; the overlay and Stream Deck " +
             "control are offline until it is started again.");
 
         // Released before the banner appears, so the Retry the operator reaches for finds the port free. The

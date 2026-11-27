@@ -1,4 +1,5 @@
 using System.IO;
+using PoolScoreboard.Controller;
 using PoolScoreboard.Controller.Persistence;
 using PoolScoreboard.Controller.ViewModels;
 using PoolScoreboard.Core;
@@ -83,6 +84,39 @@ public sealed class GameViewModelTests : IDisposable
         Assert.Empty(viewModel.NumericRowBalls);
     }
 
+    [Fact]
+    public void ChangingTheOverlayPort_RebindsAndSavesTheChoice()
+    {
+        var session = new FakeOverlaySession(51234);
+        var saves = 0;
+        var viewModel = new GameViewModel(
+            new GameManager(), () => saves++, session, new PlayerRosterStore(_root), dispatcher: null, owner: null);
+
+        viewModel.OverlayPort = 51240;
+
+        Assert.Equal(51240, session.Port);
+        Assert.Equal(1, session.Starts);
+        Assert.Equal(1, saves);
+        Assert.False(viewModel.OverlayIsOffline);
+    }
+
+    [Fact]
+    public void AnUnusableOverlayPort_SnapsBackToTheOneTheHostIsOn()
+    {
+        var session = new FakeOverlaySession(51234);
+        var saves = 0;
+        var viewModel = new GameViewModel(
+            new GameManager(), () => saves++, session, new PlayerRosterStore(_root), dispatcher: null, owner: null);
+
+        // Below 1024 needs elevation to bind, so the field goes back to what is really in use rather than
+        // leaving the window advertising a port that was never tried.
+        viewModel.OverlayPort = 80;
+
+        Assert.Equal(51234, viewModel.OverlayPort);
+        Assert.Equal(0, session.Starts);
+        Assert.Equal(0, saves);
+    }
+
     public void Dispose()
     {
         try
@@ -93,6 +127,42 @@ public sealed class GameViewModelTests : IDisposable
         catch (IOException)
         {
             // A leftover temp folder is not worth failing a passing test over.
+        }
+    }
+
+    /// <summary>Stands in for the host: records the port it was pointed at and whether it was started again.</summary>
+    private sealed class FakeOverlaySession : IOverlaySession
+    {
+        public FakeOverlaySession(int port) => Port = port;
+
+        public bool IsRunning { get; private set; } = true;
+
+        public int Port { get; private set; }
+
+        public string? FailureReason { get; private set; }
+
+        public int Starts { get; private set; }
+
+        /// <summary>Never raised here: these tests are about the port, not about a host dying.</summary>
+        public event EventHandler? Stopped
+        {
+            add { }
+            remove { }
+        }
+
+        public void SetPort(int port)
+        {
+            Port = port;
+            IsRunning = false;
+            FailureReason = null;
+        }
+
+        public bool Start(GameManager gameManager)
+        {
+            Starts++;
+            IsRunning = true;
+            FailureReason = null;
+            return true;
         }
     }
 }

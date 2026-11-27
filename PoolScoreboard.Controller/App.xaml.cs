@@ -133,10 +133,12 @@ public partial class App : System.Windows.Application
         _saveTimer.Stop();
 
         var state = SharedGameManager.GetStateSnapshot();
-        _settingsStore.TrySave(
-            OperatorProfile.Capture(state),
-            state.Player1.EndCapIcon,
-            state.Player2.EndCapIcon);
+        var profile = OperatorProfile.Capture(state);
+
+        // Not in the snapshot: the port belongs to the host, and the session is what knows which one is in use.
+        profile.OverlayPort = OverlaySession.Port;
+
+        _settingsStore.TrySave(profile, state.Player1.EndCapIcon, state.Player2.EndCapIcon);
     }
 
     /// <summary>
@@ -178,7 +180,13 @@ public partial class App : System.Windows.Application
     private void RestoreOperatorProfile()
     {
         var loaded = _settingsStore.Load();
-        loaded?.Profile.ApplyTo(SharedGameManager, loaded.HomeIconDataUri, loaded.AwayIconDataUri);
+        if (loaded == null)
+            return;
+
+        // The overlay may be on another port than this app's default: settings.json is where the operator's
+        // choice lives, and the session has to know it before anything tries to bind.
+        OverlaySession.SetPort(OperatorProfile.NormalizePort(loaded.Profile.OverlayPort));
+        loaded.Profile.ApplyTo(SharedGameManager, loaded.HomeIconDataUri, loaded.AwayIconDataUri);
     }
 
     protected override void OnExit(ExitEventArgs e)

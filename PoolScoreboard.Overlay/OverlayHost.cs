@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using PoolScoreboard.Core;
+using PoolScoreboard.Core.Persistence;
 using PoolScoreboard.Overlay.Diagnostics;
 using PoolScoreboard.Overlay.Endpoints;
 
@@ -13,7 +14,8 @@ namespace PoolScoreboard.Overlay;
 /// </summary>
 public static class OverlayHost
 {
-    public const int Port = 51234;
+    /// <summary>The port used when a caller does not name one; the app's own choice lives in its settings.</summary>
+    public const int Port = OperatorProfile.DefaultOverlayPort;
 
     public static IHost Start(GameManager gameManager, int port = Port)
     {

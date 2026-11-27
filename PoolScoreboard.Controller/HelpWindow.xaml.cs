@@ -5,10 +5,19 @@ namespace PoolScoreboard.Controller;
 
 public partial class HelpWindow : Window
 {
-    public HelpWindow()
+    /// <param name="overlayBaseUrl">
+    /// Where the overlay is served, e.g. <c>http://127.0.0.1:51234</c>. Passed in rather than written into the page so
+    /// every URL shown here follows the port the Controller is actually using.
+    /// </param>
+    public HelpWindow(string overlayBaseUrl)
     {
         InitializeComponent();
+        OverlayBaseUrl = overlayBaseUrl;
+        DataContext = this;
     }
+
+    /// <summary>The controller's own address, which every listed overlay and control URL is built from.</summary>
+    public string OverlayBaseUrl { get; }
 
     private void ShowOverview_Click(object sender, RoutedEventArgs e) => ShowSection(OverviewPanel, OverviewNavButton);
 

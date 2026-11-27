@@ -151,6 +151,17 @@ public partial class GameViewModel : ObservableObject
     private bool winnerBannerVisible = true;
 
     /// <summary>
+    /// Where the overlay is served, so the operator can move it when another program already holds the usual port
+    /// instead of losing the overlay for the session. 1024-65535 only; a value outside that snaps back to the one
+    /// the host is actually on.
+    /// </summary>
+    [ObservableProperty]
+    private int overlayPort = OperatorProfile.DefaultOverlayPort;
+
+    /// <summary>The base address the Help window lists, so it never names a port the app is not serving on.</summary>
+    public string OverlayBaseUrl => $"http://127.0.0.1:{OverlayPort}";
+
+    /// <summary>
     /// Set while the overlay host is not serving: the main window shows this reason beside a Retry button, so
     /// a failed start — or a host that died mid-session — is visible instead of only being a line in the log.
     /// </summary>
@@ -201,6 +212,10 @@ public partial class GameViewModel : ObservableObject
         // The change handlers are suppressed via _restoring below — state already agrees, so pushing
         // each property back through SetColorTheme/SetScoreboardStyle would only re-raise it.
         _roster = _rosterStore.Load();
+
+        // The saved port was handed to the session before this window existed; showing it here means the field and
+        // the Help window name the address the overlay really answers on.
+        OverlayPort = _overlaySession?.Port ?? OperatorProfile.DefaultOverlayPort;
 
         // Game type and Race-To mode are per-match choices rather than part of the saved profile, but a
         // resumed match carries its own, and this screen, the ball layout and the overlay preview all read
@@ -437,6 +452,32 @@ public partial class GameViewModel : ObservableObject
         OverlayStatus = null;
     }
 
+    /// <summary>
+    /// The operator changed the port: rebind there and say what happened. A port already in use is not an error to
+    /// hide — the host starts, fails, and the banner names the new port and its new holder, with Retry beside it.
+    /// </summary>
+    partial void OnOverlayPortChanged(int oldValue, int newValue)
+    {
+        if (_overlaySession is not { } session)
+            return;
+
+        if (!OperatorProfile.IsUsablePort(newValue))
+        {
+            // The field is the only editor, and a port outside the range cannot be bound without elevation or at
+            // all: put back what the session is really using rather than leave the window advertising it.
+            OverlayPort = session.Port;
+            return;
+        }
+
+        if (newValue == session.Port)
+            return;
+
+        session.SetPort(newValue);
+        session.Start(_gameManager);
+        RefreshOverlayStatus();
+        _persist?.Invoke();
+    }
+
     [RelayCommand]
     private void StartMatch()
     {
@@ -596,7 +637,7 @@ public partial class GameViewModel : ObservableObject
     private void ResetMatch() => _gameManager.ResetGame();
 
     [RelayCommand]
-    private void ShowHelp() => new HelpWindow { Owner = _owner }.ShowDialog();
+    private void ShowHelp() => new HelpWindow(OverlayBaseUrl) { Owner = _owner }.ShowDialog();
 
     private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e)
     {

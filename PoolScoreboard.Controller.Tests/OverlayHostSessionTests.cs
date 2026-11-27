@@ -150,6 +150,62 @@ public sealed class OverlayHostSessionTests
         Assert.Null(session.FailureReason);
     }
 
+    [Fact]
+    public void SetPort_MovesAFailedStartToTheNewPort_AndForgetsTheReasonForTheOldOne()
+    {
+        var blocked = FreePort();
+        var blocker = new TcpListener(IPAddress.Loopback, blocked);
+        blocker.Start();
+        var open = FreePort();
+        var session = new OverlayHostSession(blocked);
+
+        try
+        {
+            Assert.False(session.Start(new GameManager()));
+            Assert.Contains($"127.0.0.1:{blocked}", session.FailureReason);
+
+            // What the window's port field does: point the session somewhere else, then start again.
+            session.SetPort(open);
+
+            Assert.Equal(open, session.Port);
+            Assert.False(session.IsRunning);
+            Assert.Null(session.FailureReason);
+
+            Assert.True(session.Start(new GameManager()));
+            Assert.True(session.IsRunning);
+            Assert.Null(session.FailureReason);
+        }
+        finally
+        {
+            session.Stop(TimeSpan.FromSeconds(2));
+            blocker.Stop();
+        }
+    }
+
+    [Fact]
+    public void SetPort_StopsAHostThatIsServing_BecauseASocketCannotBeMoved()
+    {
+        var first = FreePort();
+        var session = new OverlayHostSession(first);
+
+        try
+        {
+            Assert.True(session.Start(new GameManager()));
+            Assert.Equal(first, session.Port);
+
+            session.SetPort(FreePort());
+
+            // Naming the new port without a listening socket would leave the banner claiming an overlay that
+            // is not there: the host is down until the caller starts it on the new port.
+            Assert.False(session.IsRunning);
+            Assert.NotEqual(first, session.Port);
+        }
+        finally
+        {
+            session.Stop(TimeSpan.FromSeconds(2));
+        }
+    }
+
     private static int FreePort()
     {
         using var listener = new TcpListener(IPAddress.Loopback, 0);

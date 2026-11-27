@@ -9,6 +9,14 @@ namespace PoolScoreboard.Core.Persistence;
 /// </summary>
 public class OperatorProfile
 {
+    /// <summary>The overlay port this app has always used, and the one a profile without a usable choice gets.</summary>
+    public const int DefaultOverlayPort = 51234;
+
+    /// <summary>Below this Windows needs elevation to bind, so it is not offered to the operator.</summary>
+    public const int MinOverlayPort = 1024;
+
+    public const int MaxOverlayPort = 65535;
+
     public ColorTheme ColorTheme { get; set; } = new();
     public ScoreboardStyle ScoreboardStyle { get; set; } = new();
     public ScoreboardVisibility Visibility { get; set; } = new();
@@ -16,8 +24,22 @@ public class OperatorProfile
     public PlayerProfile AwayPlayer { get; set; } = new();
 
     /// <summary>
+    /// The port the overlay and the Stream Deck control API are served on. Saved here because it is the
+    /// operator's choice for this machine rather than part of a match — the reason it is editable at all is that
+    /// another program holding the usual port used to end the overlay for the whole session.
+    /// </summary>
+    public int OverlayPort { get; set; } = DefaultOverlayPort;
+
+    /// <summary>Whether a port is one the overlay can be bound to without elevation.</summary>
+    public static bool IsUsablePort(int port) => port is >= MinOverlayPort and <= MaxOverlayPort;
+
+    /// <summary>A saved or typed port when it can be bound, and the default when it cannot.</summary>
+    public static int NormalizePort(int port) => IsUsablePort(port) ? port : DefaultOverlayPort;
+
+    /// <summary>
     /// Reads the parts of a state snapshot worth keeping. Scores, ball groups, pocketed balls and the
-    /// current shooter are deliberately left out: they belong to one match, not to the setup.
+    /// current shooter are deliberately left out: they belong to one match, not to the setup. The overlay port is
+    /// not in the snapshot either — whoever owns the host fills it in before saving.
     /// </summary>
     public static OperatorProfile Capture(GameState state) => new()
     {
