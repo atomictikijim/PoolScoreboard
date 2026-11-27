@@ -319,7 +319,14 @@ set. `NoExternalOverlayAssetTests` keeps the overlay offline, which CI had never
 no scheme-less `//host` reference in any file under `PoolScoreboard.Overlay/Assets`. A web font or script from a CDN
 would otherwise show up only as a half-styled page in OBS on the machine this is built for. The rule is the whole
 scheme rather than a list of CDNs, because no asset needs one today; a data-URI SVG's `w3.org` namespace would be a
-deliberate, documented exception rather than a silent allowance. Two things that test had to work around: a full
+deliberate, documented exception rather than a silent allowance. `LiveCheckUiTextTests` keeps the live check's
+contract with the window: it reads the literals the script hands UI Automation — `Invoke-WindowButton` labels,
+`Wait-WindowText` patterns and their `|` alternatives, `NameProperty`/`AutomationIdProperty` lookups — and requires
+each to still exist in the Controller. Where it looks matters: control names must *equal* the value of an attribute
+that becomes a control name (`Content`, `Text`, `Title`, `Header`, `AutomationProperties.*`, `x:Name`), and
+waited-for phrases must appear in a `Text` value or a C# string literal. A first draft that searched the sources for
+the word "Retry" passed a mutation that renamed the button, because a `ToolTip` and
+`Command="{Binding RetryOverlayCommand}"` still contained it. Two things that test had to work around: a full
 `pack://` URI is only parsed once WPF has registered the scheme, so the theme dictionary is loaded by its relative
 `/Assembly;component/` form; and a window's bindings resolve only once its tree is loaded, so the test shows the
 window at (-20000, -20000) rather than merely constructing it. `MatchStateStoreTests` pins what a save leaves behind: the

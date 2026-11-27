@@ -194,6 +194,27 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The live check's grip on the window's text is now a CI test
+
+- `LiveCheckUiTextTests` (2 facts) covers what the parse check cannot: that the script is valid PowerShell says
+  nothing about the text it looks for. It reads the literals the script hands UI Automation —
+  `Invoke-WindowButton` labels (`Retry`, `START MATCH`), `Wait-WindowText` patterns and their `|` alternatives
+  (`overlay is off`, `could not start`), `NameProperty` lookups (`Retry`, `Help`, `PoolScoreboard Help`) and
+  `AutomationIdProperty` lookups (`OverlayPortBox`) — and fails if the Controller stops showing any of them. The
+  literals come from the script, not from a list in the test, so the guard follows it; each extraction asserts it
+  found something, so a rewrite of the script's helpers fails loudly instead of guarding an empty set.
+- The first draft was too loose, and the mutation run showed it: it searched the Controller's sources for each word,
+  so renaming the Retry button still passed — `Retry` survived in a `ToolTip` and in
+  `Command="{Binding RetryOverlayCommand}"`, neither of which is a control name, and `overlay is off` survived in the
+  same tooltip. Now control names must *equal* the value of an attribute that becomes one (`Content`, `Text`,
+  `Title`, `Header`, `AutomationProperties.*`, `x:Name`), and waited-for phrases must appear in a `Text` value or a
+  C# string literal — never in a comment or a tooltip.
+- Mutation-proved, then reverted: renaming `Content="Retry"` to "Try Again", rewording the banner to "The overlay is
+  not running:", and pointing the script at `'PortFieldBox'` produced
+  `button label 'Retry'; element name 'Retry'; automation id 'PortFieldBox'` and `overlay is off`. Reverting restored
+  2/2.
+- Full suite 109 Core + 137 Controller, 0 warnings. Tests only, no behaviour change: no version bump.
+
 ### 2026-11-27 — The overlay's assets are held to "works with no network"
 
 - `NoExternalOverlayAssetTests` (2 facts) covers the one rule in CLAUDE.md that CI never looked at: the overlay must
