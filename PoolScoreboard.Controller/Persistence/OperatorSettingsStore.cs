@@ -123,11 +123,9 @@ internal sealed class OperatorSettingsStore
             AwayIcon = WriteIcon("away", awayIconDataUri)
         };
 
-        // Write then move, so a crash mid-save leaves the previous settings intact rather than a
-        // truncated file that would fail to load next time.
-        var temporaryPath = SettingsPath + ".tmp";
-        File.WriteAllText(temporaryPath, JsonSerializer.Serialize(settings, PersistenceJson.Options));
-        File.Move(temporaryPath, SettingsPath, overwrite: true);
+        // Write then move, flushed to the disk first (see DurableFile), so a crash mid-save leaves the previous
+        // settings intact rather than a truncated file, and a power cut cannot publish a half-written profile.
+        DurableFile.WriteAllText(SettingsPath, JsonSerializer.Serialize(settings, PersistenceJson.Options));
     }
 
     /// <summary>

@@ -194,6 +194,25 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The profile files get the same flushed write as the match
+
+- `settings.json` and `roster.json` had exactly the gap `match.json` just lost: `File.WriteAllText` to a temporary
+  file, then a move, with nothing asking the OS to put the bytes on the disk. A killed process kept the previous
+  file, but a power cut could publish a name whose contents were still in the cache — a half-written profile or
+  player list, read back as `.corrupt.json` on the next launch.
+- Rather than a third copy of the flush block, the write lives in `Persistence/DurableFile`: encode, write under
+  `path + ".tmp"`, `Flush(flushToDisk: true)`, then move. `MatchStateStore`, `OperatorSettingsStore` and
+  `PlayerRosterStore` all use it, so the three files cannot drift apart on this again. The rename's metadata is
+  still left to NTFS; the guarantee is about the contents.
+- Tests (3 new, `DurableFileTests`): the text lands exactly as given (UTF-8, no BOM, length checked in bytes), no
+  `.tmp` is left, replacing a 5 KB file with a short one leaves no tail, and a write into a missing folder throws
+  an `IOException` so a store's `TrySave` reports a failed save instead of a silent success. The existing store
+  round-trip tests now run through it. The match test's length check moved to `Encoding.UTF8.GetByteCount` so it is
+  right for non-ASCII content too.
+- Not covered: the icon files are still written in place with `File.WriteAllBytes` — not atomic at all, so an
+  interrupted icon write can leave a truncated image the roster points at. Separate fix, noted in CLAUDE.md.
+- Version 0.24.0 → 0.25.0.
+
 ### 2026-11-27 — The saved match survives a power cut, not just a killed process
 
 - `MatchStateStore.TrySave` serialized straight through `File.WriteAllText` and then moved the file into place: a

@@ -144,9 +144,9 @@ public sealed class PlayerRosterStore
             }).ToList()
         };
 
-        var temporaryPath = RosterPath + ".tmp";
-        File.WriteAllText(temporaryPath, JsonSerializer.Serialize(document, PersistenceJson.Options));
-        File.Move(temporaryPath, RosterPath, overwrite: true);
+        // Flushed to the disk before the move (see DurableFile): a crash mid-save keeps the previous roster, and a
+        // power cut cannot leave roster.json naming players that were never written.
+        DurableFile.WriteAllText(RosterPath, JsonSerializer.Serialize(document, PersistenceJson.Options));
     }
 
     /// <summary>

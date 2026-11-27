@@ -78,7 +78,7 @@ public sealed class MatchStateStoreTests : IDisposable
         var expected = JsonSerializer.Serialize(match, PersistenceJson.Options);
         using (var stream = new FileStream(MatchPath, FileMode.Open, FileAccess.Read, FileShare.None))
         {
-            Assert.Equal(expected.Length, (int)stream.Length);
+            Assert.Equal(System.Text.Encoding.UTF8.GetByteCount(expected), (int)stream.Length);
 
             using var reader = new StreamReader(stream);
             var reloaded = JsonSerializer.Deserialize<ResumableMatch>(reader.ReadToEnd(), PersistenceJson.Options);
