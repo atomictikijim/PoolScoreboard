@@ -20,6 +20,12 @@ public class ResumableMatch
 
     public int FileVersion { get; set; } = Version;
 
+    /// <summary>
+    /// The match this snapshot belongs to, so a match restored after a crash keeps the identity the history
+    /// records it under — otherwise relaunching a finished match would file it a second time.
+    /// </summary>
+    public string MatchId { get; set; } = string.Empty;
+
     public GameType GameType { get; set; }
 
     public RaceToMode RaceToMode { get; set; }
@@ -47,6 +53,7 @@ public class ResumableMatch
 
         return new ResumableMatch
         {
+            MatchId = state.MatchId,
             GameType = state.GameType,
             RaceToMode = state.RaceToMode,
             HomeScore = state.Player1Score,

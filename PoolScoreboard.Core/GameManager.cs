@@ -46,6 +46,7 @@ public class GameManager
                 GameType = gameType,
                 RaceToMode = raceToMode,
                 CurrentShooter = _currentGame.Player1,
+                MatchId = Guid.NewGuid().ToString("n"),
                 IsGameActive = true
             };
             CarryOperatorStyling(_currentGame, next);
@@ -353,6 +354,11 @@ public class GameManager
                 Player1Score = Math.Max(0, match.HomeScore),
                 Player2Score = Math.Max(0, match.AwayScore),
                 CurrentShooter = match.HomeIsCurrentShooter ? _currentGame.Player1 : _currentGame.Player2,
+
+                // The id the match was played under, so a restored match that already finished is not a second
+                // record on the next launch. A file from before the id existed gets a fresh one: nothing can
+                // know better, and a duplicate is likelier than a missed record.
+                MatchId = string.IsNullOrEmpty(match.MatchId) ? Guid.NewGuid().ToString("n") : match.MatchId,
                 IsGameActive = true
             };
 

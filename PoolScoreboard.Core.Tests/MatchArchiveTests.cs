@@ -1,4 +1,5 @@
 using PoolScoreboard.Core.Enums;
+using PoolScoreboard.Core.Models;
 using PoolScoreboard.Core.Persistence;
 
 namespace PoolScoreboard.Core.Tests;
@@ -101,6 +102,56 @@ public sealed class MatchArchiveTests
 
         // The oldest went, not the newest: the list stays a window on recent play.
         Assert.DoesNotContain(archive.Matches, match => match.HomeName == $"Old {MatchArchive.MaxRecords - 1}");
+    }
+
+    [Fact]
+    public void Archive_FilesTheSameMatchOnlyOnce()
+    {
+        var archive = new MatchArchive();
+        var manager = FinishedMatch(2, 2, homeWins: true);
+
+        Assert.NotNull(archive.Archive(manager.GetStateSnapshot(), CompletedAt));
+
+        // The winner stays in state while the banner is up, so every later change arrives with it.
+        Assert.Null(archive.Archive(manager.GetStateSnapshot(), CompletedAt.AddMinutes(1)));
+        Assert.Single(archive.Matches);
+    }
+
+    [Fact]
+    public void Archive_FilesARematchThatEndsTheSameWay()
+    {
+        var archive = new MatchArchive();
+        var first = FinishedMatch(2, 2, homeWins: true);
+        var second = FinishedMatch(2, 2, homeWins: true);
+
+        archive.Archive(first.GetStateSnapshot(), CompletedAt);
+        var record = archive.Archive(second.GetStateSnapshot(), CompletedAt.AddMinutes(30));
+
+        // Same two people, same race, same score — a different match, because it has its own id.
+        Assert.NotNull(record);
+        Assert.Equal(2, archive.Matches.Count);
+        Assert.NotEqual(archive.Matches[0].MatchId, archive.Matches[1].MatchId);
+    }
+
+    [Fact]
+    public void Archive_StillFilesAStateThatCarriesNoMatchId()
+    {
+        // A hand-made or pre-history state has nothing to tell matches apart by; a possible duplicate record
+        // is better than a silently missing win.
+        var state = new GameState
+        {
+            Player1 = new Player { Name = "Home", RaceToTarget = 1 },
+            Player2 = new Player { Name = "Away", RaceToTarget = 1 },
+            Player1Score = 1,
+            IsGameActive = true
+        };
+        state.Winner = state.Player1;
+
+        var archive = new MatchArchive();
+
+        Assert.NotNull(archive.Archive(state, CompletedAt));
+        Assert.NotNull(archive.Archive(state, CompletedAt));
+        Assert.Equal(2, archive.Matches.Count);
     }
 
     private static GameManager FinishedMatch(int homeTarget, int awayTarget, bool homeWins)

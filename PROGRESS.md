@@ -76,8 +76,9 @@ not for symmetry with work already done.
 1. **Match history and a per-player record.** The Known Gaps entry says a finished match is kept nowhere, which is
    the difference between a live display and an app that accumulates value: who won last time, a session's win
    count, a season record. Core already has the pieces (`ResumableMatch` for the snapshot shape, `DurableFile` for
-   the write, the roster for identity). *Started 2026-11-27: the record model, the Core archive call and the
-   crash-safe `history.json` are on `master`; nothing writes them yet.*
+   the write, the roster for identity). *Done 2026-11-27: the record model, the Core archive call and
+   `history.json` are wired through `MatchHistoryRecorder`, so a finished match is filed once. The screen that
+   shows the history back is still to come.*
 2. **Undo that covers everything, not just points.** `GameManager` keeps one stack — who scored each point — so
    `UndoPoint` reverses a point and nothing else. A wrong shooter toggle, ball or group assignment has to be
    corrected by hand mid-stream, which is the most frequent real failure. Bounded command history, not new UI.
@@ -256,8 +257,9 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
   end-cap icon — is saved to `%AppData%\PoolScoreboard\settings.json` and restored on launch.
 - The roster only remembers players who were on screen for a started match (or still there when the
   window closed). "Delete" beside a picker drops an entry and its icon; renaming means reusing the name,
-  and the list is capped at 100. Match history is recorded nowhere yet: the record model, the Core archive call and `history.json` exist
-  (2026-11-27) but nothing writes them, so no scores are stored against a player.
+  and the list is capped at 100. A finished match is filed to `history.json` once (record model, archive call and recorder, wired 2026-11-27),
+  but nothing reads it back — there is no history screen — and a record is per match rather than per player, so
+  the roster still holds no win counts.
 - Ball colors in the Controller's live view are placeholder standard billiard-ball colors,
   not yet informed by the WNT visual reference.
 - Flag end-caps are artwork ("Choose Flag..." bundles country and US-state SVGs) stored as the
@@ -268,6 +270,27 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-27 — A finished match is filed once, through the history store
+
+- The history is wired in. `MatchHistoryRecorder` (Controller) starts in `OnStartup` immediately after
+  `MatchAutosave.Restore()` and subscribes to `GameStateChanged`, so a match played in the window, on the keyboard
+  or through the Stream Deck is filed by the same path. It touches `MatchHistoryStore.TryArchive` only when the
+  state carries a winner. No XAML, layout or view-model change.
+- Filed once, without bookkeeping in the caller: `GameState.MatchId` is assigned by `InitializeGame` and carried
+  into `ResumableMatch`, so `MatchArchive` can tell a repeated event for a match it already holds — the winner stays
+  in state while the banner is up, so a ball toggle, a rack reset and a relaunch restoring the same match all
+  arrive with it — from a rematch that ends with the same names and score. The check reads the file, so it survives
+  a restart; the recorder also remembers the last id it filed so the common case costs no file read.
+- A state with no id — hand-made, or from a file older than the field — is still filed: a possible duplicate
+  record beats a silently missing win.
+- Mutation-proved, then reverted: the archive's id check neutered, and the same-match and relaunch facts failed;
+  `MatchRecord` no longer copying the id, and dedupe never applied (four facts failed, the rematch one included);
+  `RestoreMatch` assigning a fresh id, and `Restore_KeepsTheMatchIdSoTheSameMatchIsNotFiledTwice` failed;
+  `InitializeGame` leaving the id empty, and both id facts failed with "Strings are equal".
+- 0.28.0 -> 0.29.0. Full suite 119 Core + 29 Overlay + 159 Controller, 0 warnings. Still open: nothing reads the
+  history back — no screen shows it, and a record is per match rather than per player. Also fixed here: the
+  previous entry had repeated the Change Log heading, leaving two of them.
 
 ### 2026-11-27 — A finished match becomes a record, in Core and in a crash-safe file
 
@@ -325,8 +348,6 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
   duration column, and the bounded waits name their stage — `did not run its work within 15s` for a thread that never
   ran, versus a window that was shown and not reported.
 - Docs only; no code changed. No version bump.
-
-## Change Log
 
 ### 2026-11-27 — The window test shares the WPF thread that already shows windows
 

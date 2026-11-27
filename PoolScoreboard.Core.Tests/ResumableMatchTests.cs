@@ -53,6 +53,46 @@ public sealed class ResumableMatchTests
     }
 
     [Fact]
+    public void Restore_KeepsTheMatchIdSoTheSameMatchIsNotFiledTwice()
+    {
+        var manager = new GameManager();
+        manager.SetPlayerDetails(isHome: true, "Home", "", 3, null);
+        manager.SetPlayerDetails(isHome: false, "Away", "", 3, null);
+        manager.InitializeGame(GameType.EightBall, RaceToMode.Single);
+        manager.AddPoint(isPlayer1: true);
+
+        var id = manager.GetStateSnapshot().MatchId;
+        Assert.False(string.IsNullOrEmpty(id));
+
+        var saved = ResumableMatch.Capture(manager.GetStateSnapshot());
+        Assert.NotNull(saved);
+        Assert.Equal(id, saved.MatchId);
+
+        manager.ResetGame();
+        manager.RestoreMatch(saved);
+
+        // The history keys a record on this id, so a restored match is recognisably the one already filed.
+        Assert.Equal(id, manager.GetStateSnapshot().MatchId);
+    }
+
+    [Fact]
+    public void EachNewMatchGetsItsOwnId()
+    {
+        var manager = new GameManager();
+        manager.SetPlayerDetails(isHome: true, "Home", "", 2, null);
+        manager.SetPlayerDetails(isHome: false, "Away", "", 2, null);
+
+        manager.InitializeGame(GameType.EightBall, RaceToMode.Single);
+        var first = manager.GetStateSnapshot().MatchId;
+
+        manager.ResetGame();
+        Assert.True(string.IsNullOrEmpty(manager.GetStateSnapshot().MatchId));
+
+        manager.InitializeGame(GameType.EightBall, RaceToMode.Single);
+        Assert.NotEqual(first, manager.GetStateSnapshot().MatchId);
+    }
+
+    [Fact]
     public void Restore_RecomputesTheWinner_AndIgnoresImpossibleBalls()
     {
         var manager = new GameManager();

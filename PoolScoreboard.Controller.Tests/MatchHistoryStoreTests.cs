@@ -150,6 +150,21 @@ public sealed class MatchHistoryStoreTests : IDisposable
         Assert.True(File.Exists(HistoryPath));
     }
 
+    [Fact]
+    public void TryArchive_DoesNotRecordTheSameMatchTwice()
+    {
+        var state = FinishedState();
+
+        Assert.NotNull(Store.TryArchive(state, CompletedAt));
+
+        // The winner stays in state, so a later change (or a relaunch that restores the match) arrives with it.
+        Assert.Null(Store.TryArchive(state, CompletedAt.AddMinutes(2)));
+        Assert.Single(Store.Load().Matches);
+
+        // The rule is on the file, not in the caller's memory: a fresh store sees the same one record.
+        Assert.Single(new MatchHistoryStore(_root).Load().Matches);
+    }
+
     /// <summary>A real 8-ball match played to its target, so the state carries a winner the way the app's does.</summary>
     private static GameState FinishedState(bool homeWins = true)
     {

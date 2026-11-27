@@ -22,6 +22,12 @@ public class MatchRecord
     /// <summary>When the winning point landed, from the caller's clock — Core has no clock of its own.</summary>
     public DateTimeOffset CompletedAt { get; set; }
 
+    /// <summary>
+    /// The match this record is: what an archive checks to tell a repeated event for one match from a rematch
+    /// that happens to end with the same names and score.
+    /// </summary>
+    public string MatchId { get; set; } = string.Empty;
+
     public GameType GameType { get; set; }
 
     public RaceToMode RaceToMode { get; set; }
@@ -60,6 +66,7 @@ public class MatchRecord
         return new MatchRecord
         {
             CompletedAt = completedAt,
+            MatchId = state.MatchId,
             GameType = state.GameType,
             RaceToMode = state.RaceToMode,
             HomeName = state.Player1.Name,
