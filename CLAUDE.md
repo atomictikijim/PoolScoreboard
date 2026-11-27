@@ -297,6 +297,16 @@ live.
 - `.githooks/pre-push` mirrors CI (Release build, then every test project) and is enabled per clone
   with `git config core.hooksPath .githooks`. `master` also has a required `build-and-test` check,
   which GitHub only enforces on merges — the hook is what covers direct pushes.
+- `tools/verify-live.ps1` is what used to be hand-run in `%TEMP%` and vanished with it, so the three things a unit
+  test cannot reach are now repeatable: `crash-resume` (score 2–1, kill the process with no `OnExit`, relaunch and
+  check the overlay serves 2–1 and the file was not deleted at startup, then RESET deletes it), `banner-retry` (a
+  foreign process holds 51234, the window names it and offers Retry, and freeing the port then pressing Retry brings
+  the overlay up and clears the banner) and `leftover` (a Controller built from the pre-guard commit `1acddbd` keeps
+  the port with a window — it must be left alone and named with the advice; hiding its window and pressing Retry
+  then closes it and takes the port). Run `dotnet build` first, then
+  `powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify-live.ps1 [-Scenario <name>]`. It backs up and
+  restores `%APPDATA%\PoolScoreboard`, stops only the processes it started, needs the port free to begin, removes
+  its git worktree, and exits non-zero naming the assertion that failed.
 
 ## Versioning & Commit Policy
 

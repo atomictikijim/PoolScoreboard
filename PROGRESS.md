@@ -194,6 +194,41 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The live checks become a script instead of temp-folder history
+
+- The three things no unit test reaches — a mid-match crash resuming, the overlay banner and its Retry, and the
+  leftover-Controller port rule — had only ever been proven with throwaway scripts in `%TEMP%` (`uia-click.ps1`,
+  `hide-window.ps1`, `win-mode-retry.ps1`, `pool-block.ps1` ...), which nobody else could run and which died with the
+  folder. They are now one script, `tools/verify-live.ps1`, with a scenario per check and a `-Scenario` switch.
+- `crash-resume`: starts a match, scores 2–1 over the control API, waits out the debounce, asserts the snapshot holds
+  those scores, kills the process with no `OnExit` (that is the crash), relaunches and asserts the overlay serves 2–1
+  again *and* that the resume did not delete the file it read, then asserts RESET deletes it.
+- `banner-retry`: holds 51234 with a `TcpListener` in another process, launches the Controller, asserts the window says
+  the overlay is off, names the port, offers Retry and does *not* give the close-that-window advice meant for this
+  app; frees the port, presses Retry and asserts the overlay serves and the banner is gone.
+- `leftover`: builds a Controller from `1acddbd` (before the single-instance guard) in a temp git worktree and runs it.
+  The current build must refuse to close it while it has a window — asserting the process is still alive and the
+  banner carries "Close that Controller window, then choose Retry" — then hiding its window (handle 0) and pressing
+  Retry must close it and take the port. Both halves of the rule in one run.
+- Safety, because this drives the real app over the operator's own `%APPDATA%`: the profile folder is copied first and
+  restored afterwards, only processes the script started are stopped (never by name), the port must be free to start
+  rather than some holder being killed, and the worktree is removed. Each assertion prints an `ok` line; a failure
+  names the scenario and assertion and the script exits 1.
+- Two bugs the repeatable version exposed: git writes progress to stderr, which becomes a terminating error under
+  `$ErrorActionPreference = 'Stop'` (one helper runs native commands and reports the exit code instead), and an
+  interrupted `git worktree add` leaves a locked registration `git worktree remove` refuses — cleanup now unlocks,
+  deletes the folder and prunes.
+- Verified by running it three times: the first full run found the git/worktree bugs (both fixed); after that all
+  three scenarios passed in one run, then again after the review pass below. `%AppData%\PoolScoreboard` comes back as
+  it was, no worktree is left registered and no Controller is left running.
+- Review pass, once it was working: the exe existence check now runs before `Resolve-Path`, so a missing build prints
+  "run dotnet build first" instead of a raw resolver error; three copies of "stop the Controller and wait for the port"
+  are gone, since the per-scenario teardown already does exactly that; the duplicated teardown in the outer `finally`
+  is gone for the same reason; and the foreign-listener script is deleted in the outer `finally` rather than at the end
+  of a scenario that could fail before reaching it. The leftover scenario also asserts the hidden window's handle is
+  zero, since "windowless now" is the precondition the rest of it depends on.
+- No version bump: developer tooling, nothing the shipped app changes.
+
 ### 2026-11-27 — End-cap icons are written the way the files that name them are
 
 - The icons under `icons\` were the last in-place write: `File.WriteAllBytes` straight onto the final name, so a
