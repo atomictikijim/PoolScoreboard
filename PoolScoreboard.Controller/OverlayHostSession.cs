@@ -20,7 +20,7 @@ namespace PoolScoreboard.Controller;
 /// restart.
 /// </para>
 /// </summary>
-public sealed class OverlayHostSession
+public sealed class OverlayHostSession : IOverlaySession
 {
     private static readonly TimeSpan DefaultCheckInterval = TimeSpan.FromSeconds(3);
 
@@ -96,6 +96,12 @@ public sealed class OverlayHostSession
                 return true;
 
             var host = OverlayHostRunner.Start(gameManager, _port);
+            if (host == null && TryCloseLeftoverController())
+            {
+                // The socket only just came free; one retry is what turns a leftover into a working overlay.
+                host = OverlayHostRunner.Start(gameManager, _port);
+            }
+
             if (host == null)
             {
                 var owner = PortOwner.Describe(_port);
@@ -130,6 +136,33 @@ public sealed class OverlayHostSession
             OverlayHostRunner.StopAndDispose(_host, timeout);
             _host = null;
         }
+    }
+
+    /// <summary>
+    /// Closes a windowless leftover copy of this app holding the port — the one case where Retry could never
+    /// succeed, because the holder has nothing on screen for the operator to close. A copy that still shows a window,
+    /// and anything that is not this app, are left alone, so the banner goes on naming the holder and the operator
+    /// decides.
+    /// </summary>
+    private bool TryCloseLeftoverController()
+    {
+        if (PortOwner.FindOwner(_port) is not { } owner || !StaleController.IsThisApp(owner.Name, owner.Pid))
+            return false;
+
+        if (StaleController.HasWindow(owner.Pid))
+        {
+            // A copy that is still on screen is somebody's session: taking the port from it would close their window
+            // mid-match. The banner keeps naming it, and the operator closes it when they are ready.
+            Trace.TraceInformation(
+                $"127.0.0.1:{_port} is held by {owner.Describe()}, which still has a window; leaving it alone.");
+            return false;
+        }
+
+        Trace.TraceWarning(
+            $"127.0.0.1:{_port} is held by a leftover {StaleController.ProcessName} (PID {owner.Pid}); closing it " +
+            "so the overlay can start.");
+
+        return StaleController.TryClose(owner.Pid, TimeSpan.FromSeconds(5));
     }
 
     private void Check()

@@ -39,7 +39,21 @@ internal static class PortOwner
     /// "PoolScoreboard.Controller (PID 21940)" for a listening port, or null when nothing listens on it or the
     /// table cannot be read. Never throws: it exists to make a diagnostic message better.
     /// </summary>
-    public static string? Describe(int port) => FindOwningProcessId(port) is { } pid ? NameOf(pid) : null;
+    public static string? Describe(int port) => FindOwner(port)?.Describe();
+
+    /// <summary>
+    /// The process listening on <paramref name="port"/>, with its name when the process can still be opened. The
+    /// name is what tells a leftover copy of this app apart from anything else holding the port.
+    /// </summary>
+    public static Owner? FindOwner(int port) =>
+        FindOwningProcessId(port) is { } pid ? new Owner(pid, ProcessNameOf(pid)) : null;
+
+    /// <summary>A listening port's owner; <see cref="Name"/> is null once the process has gone.</summary>
+    public sealed record Owner(int Pid, string? Name)
+    {
+        /// <summary>"PoolScoreboard.Controller (PID 21940)", or "PID 21940" when the name is gone.</summary>
+        public string Describe() => Name == null ? $"PID {Pid}" : $"{Name} (PID {Pid})";
+    }
 
     /// <summary>
     /// The process id listening on <paramref name="port"/>, or null. IPv4 only, which is where the overlay
@@ -91,19 +105,19 @@ internal static class PortOwner
     private static int PortOf(uint localPort) =>
         (int)(((localPort & 0xFF) << 8) | ((localPort >> 8) & 0xFF));
 
-    private static string NameOf(int pid)
+    private static string? ProcessNameOf(int pid)
     {
         try
         {
             using var process = Process.GetProcessById(pid);
-            return $"{process.ProcessName} (PID {pid})";
+            return process.ProcessName;
         }
         catch (Exception exception) when (exception is ArgumentException
                                              or InvalidOperationException
                                              or Win32Exception)
         {
             // The owner exited between the lookup and opening it; the id is still worth printing.
-            return $"PID {pid}";
+            return null;
         }
     }
 }

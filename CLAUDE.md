@@ -125,7 +125,14 @@ dotnet clean
   session also probes `/overlay/api/scoreboard/state` every 3 s (2 s timeout, one confirming retry), because the
   host is started rather than run and its stopping token is never observed: a host that stops answering reports
   the port, releases itself, raises `Stopped`, and the view model shows the same banner and Retry again
-  mid-match. A stop the app asked for is not reported.
+  mid-match. A stop the app asked for is not reported. If the port turns out to be held by another
+  `PoolScoreboard.Controller` that shows **no window** — a leftover that outlived its window, or one from a build
+  older than the guard — the session closes it and retries the bind once, so the banner cannot become permanent over
+  a port only a dead copy of this app is holding (`Diagnostics/StaleController`). A copy that still has a window is
+  deliberately left running: that is somebody's session (an older build in use, an instance never shut down), and
+  closing it would end their window mid-match — the banner names it and the operator closes it when ready. Never
+  this process, and never a program that is not this app. `IOverlaySession` is what the window depends on, so the
+  banner and Retry can be tested without a socket.
 - Only one Controller runs per desktop session (`SingleInstanceGuard`): a named mutex elects the first process,
   and a second launch sets a named event so the running window comes to the front, logs that it is exiting and
   shuts down before restoring or saving the profile — a duplicate must never write defaults over the running
@@ -252,7 +259,13 @@ alignment, not a pixel match).
   the window shows at startup is assertable: a fresh launch stays on the screen's 9-ball default (a state at setup
   carries the 8-ball enum default, which is not a choice anyone made), and a resumed 8-ball match shows its groups,
   its 8-ball layout and the live view with the restored scores. Window layout, dialogs and live interaction are
-  still checked by hand against a real `GameManager`.
+  still checked by hand against a real `GameManager`. `OverlayBannerTests` drives the top bar through a fake
+  `IOverlaySession`, so no port is bound: the reason the session reports is the banner text, Retry asks the session
+  again and clears the banner when it agrees, and a `Stopped` raised on the test thread updates the banner on a real
+  dispatcher thread — the hop is asserted by the thread that raised `PropertyChanged`, not assumed.
+`StaleControllerTests` covers the leftover rule both ways — a windowless copy of this app is closed, one that still
+shows a window is not, and neither is this process or any other program — plus the window check itself (a real
+window shown on an STA thread, a spawned process with none) and the close.
 - Overlay/control-API endpoints should be tested against a `GameManager` test instance, not
   a live one.
 - `.githooks/pre-push` mirrors CI (Release build, then every test project) and is enabled per clone

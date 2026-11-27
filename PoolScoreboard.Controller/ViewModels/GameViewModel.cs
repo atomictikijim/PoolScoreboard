@@ -31,7 +31,7 @@ public partial class GameViewModel : ObservableObject
 
     private readonly GameManager _gameManager;
     private readonly Action? _persist;
-    private readonly OverlayHostSession? _overlaySession;
+    private readonly IOverlaySession? _overlaySession;
     private readonly PlayerRosterStore _rosterStore;
 
     /// <summary>
@@ -178,7 +178,7 @@ public partial class GameViewModel : ObservableObject
     internal GameViewModel(
         GameManager gameManager,
         Action? persist,
-        OverlayHostSession? overlaySession,
+        IOverlaySession? overlaySession,
         PlayerRosterStore rosterStore,
         Dispatcher? dispatcher,
         Window? owner)

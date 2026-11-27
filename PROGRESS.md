@@ -194,6 +194,29 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — The overlay banner is tested, and a leftover Controller no longer keeps the port
+
+- `GameViewModel` now depends on `IOverlaySession` instead of the concrete `OverlayHostSession`, so the top bar's
+  banner and Retry can be driven with no socket. `OverlayBannerTests` uses a fake session: the reason the session
+  reports is exactly what the window shows (the view model does not re-word it), Retry goes back to the session and
+  clears the banner when the start succeeds, and a retry that fails again keeps the session's new reason.
+- The dispatcher hop is asserted, not just observed: a real `Dispatcher` runs on its own STA thread, `Stopped` is
+  raised from the test thread, and the test checks the banner's `PropertyChanged` arrived on the dispatcher's thread
+  and not the reporting one. Before this, only a hand-run outage proved that.
+- A leftover Controller on `127.0.0.1:51234` used to make the banner permanent — its Retry could never win, because
+  the holder has no window for the operator to close. `OverlayHostSession` now closes such a holder and retries the
+  bind once (`Diagnostics/StaleController`, using `PortOwner.FindOwner`), but only when it runs this app's own
+  executable **and shows no window**. A copy that still shows a window is somebody's session — an older build in
+  use, or an instance that was never shut down — so it is left running and only named; closing it would end their
+  window mid-match. Anything that is not this app, and this process itself, are never targets either.
+- Verified live, both ways, against a pre-guard build (`1acddbd`, no single-instance mutex) holding the port as PID
+  18476. With its window up, this build logged `… which still has a window; leaving it alone.`, kept 18476 running
+  and showed `The overlay is off: 127.0.0.1:51234 is held by PoolScoreboard.Controller (PID 18476).` with its Retry
+  button. Hiding that window and pressing Retry logged `… is held by a leftover PoolScoreboard.Controller (PID
+  18476); closing it so the overlay can start.`, closed 18476, bound the port as the new PID, served
+  `/overlay/api/scoreboard/state` with 200 and cleared the banner.
+- Build 0 warnings; 188/188 tests (97 Core + 91 Controller).
+
 ### 2026-11-26 — The window's startup state is testable, and tested
 
 - `GameViewModel` built its own `PlayerRosterStore` (reading `%AppData%`) and read `Application.Current` for its
