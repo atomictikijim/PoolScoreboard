@@ -105,7 +105,10 @@ dotnet clean
   (saved-player identity — a name, ignoring case — ordering and the 100-entry cap),
   `Persistence/EndCapIconData` (data-URI ↔ icon bytes) and `Persistence/ResumableMatch` (the part of a match in
   progress worth surviving a crash: scores, game type and Race-To mode, ball groups, pocketed balls, shooter,
-  with a file version) live here too, deliberately I/O-free so all four are unit-tested.
+  with a file version) live here too, deliberately I/O-free so all of them are unit-tested. `Persistence/MatchRecord`
+  and `Persistence/MatchArchive` join them for the match history: one finished match as it was played, and the list
+  of them newest first under a 200-record cap — what counts as finished and what is kept are both unit-tested
+  there.
   `GameManager.RestoreMatch` puts one back atomically — floors scores at zero, drops ball numbers off the
   table, clears the undo history (the points it would undo are no longer on screen) and recomputes the winner
   from the scores rather than trusting the file.
@@ -265,7 +268,8 @@ alignment, not a pixel match).
 
 - Persistence covers the operator profile (`settings.json`: colour theme, scoreboard style, element visibility,
   both players' setup fields) and the match in progress (`match.json`: scores, game type and Race-To mode, ball
-  groups, pocketed balls, shooter), which is restored automatically on the next launch — there is no prompt, so
+  groups, pocketed balls, shooter), which is restored automatically on the next launch — and there is a history
+  file (`history.json`) with its record model and archive call, but nothing writes it yet — there is no prompt, so
   RESET MATCH is how an operator discards a resumed match. There is no match history: a finished match is not
   kept anywhere.
 - `controller.log` is capped by size only, never by age: at startup a log over 1 MiB becomes
@@ -361,7 +365,14 @@ window at (-20000, -20000) rather than merely constructing it. `MatchStateStoreT
 published file opens with no sharing, is exactly the serialized length, parses back with every ball, and leaves no
 `.tmp` behind — the state a power cut has to find. The `Flush(flushToDisk: true)` call itself is not observable from
 a test, so losing power is still an argument rather than a measurement, unlike a killed process, which was checked
-live.
+live. `MatchArchiveTests` pins the archive call: a finished match is
+  recorded with both sides' names, teams, own targets, scores and winner; a match still in progress or back at
+  setup records nothing; the newest is first; and the list drops its oldest at the cap instead of growing.
+  `MatchHistoryStoreTests` pins the file the way `MatchStateStoreTests` pins `match.json` — a fresh read gets every
+  byte, no `.tmp` is left, earlier matches survive, a match in progress writes nothing, an unreadable file is kept
+  aside as `history.corrupt.json`, a file from another version is left in place and ignored, and the cap survives
+  the round trip. Nothing calls `TryArchive` yet, so the tests are its only caller until a later slice wires it to
+  the winning point.
 - Overlay/control-API endpoints should be tested against a `GameManager` test instance, not
   a live one.
 - `.githooks/pre-push` mirrors CI (a parse of `tools/verify-live.ps1`, the Release build, then every test project)

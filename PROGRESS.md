@@ -68,6 +68,43 @@ live:
 
 ## Next Steps
 
+### Ranked follow-ups (2026-11-27) — new ground, most valuable first
+
+Recorded when the overlay-guard note below ran out of items. Each was chosen for what it saves a streamed match,
+not for symmetry with work already done.
+
+1. **Match history and a per-player record.** The Known Gaps entry says a finished match is kept nowhere, which is
+   the difference between a live display and an app that accumulates value: who won last time, a session's win
+   count, a season record. Core already has the pieces (`ResumableMatch` for the snapshot shape, `DurableFile` for
+   the write, the roster for identity). *Started 2026-11-27: the record model, the Core archive call and the
+   crash-safe `history.json` are on `master`; nothing writes them yet.*
+2. **Undo that covers everything, not just points.** `GameManager` keeps one stack — who scored each point — so
+   `UndoPoint` reverses a point and nothing else. A wrong shooter toggle, ball or group assignment has to be
+   corrected by hand mid-stream, which is the most frequent real failure. Bounded command history, not new UI.
+3. **Global hotkeys.** Shortcuts are live-view-only, so they need the Controller focused; a real stream has OBS
+   focused while the operator scores. `RegisterHotKey` for the same five actions, enabled only during a match.
+4. **A shot clock / match timer on the overlay.** The WNT reference the developer chose has a clock and
+   `GameState` has no time in it at all. Additive (one field, one overlay element, one control route, one key) and
+   it feeds #1 with match duration. Needs a decision: per shot with a reset, or continuous.
+5. **Tag-triggered release workflow.** Phase 6 packaging is a `dotnet publish` typed by hand, and CLAUDE.md asks
+   versions to keep in step with the `v0.<major>.<ui>-beta` tags — a rule nothing checks. A `push: tags: v*` job
+   that publishes the single-file win-x64 build and asserts `VersionPrefix` matches the tag. Zero runtime risk.
+6. **A test for the startup wiring.** Every extracted piece is tested, but the *order* — profile before window,
+   autosave after profile, port before anything binds — is proven only by `verify-live.ps1`, which CI cannot run.
+   That ordering has already produced one bug (the profile event deleting the match being restored).
+7. **True striped ball rendering.** Ball colors are the documented placeholder; solids and stripes are solid fills,
+   so a viewer cannot tell a 3 from an 11. Pure CSS/SVG in `Assets/Scoreboard`, which the asset guard keeps honest.
+8. **An opt-in "overlay is stale" cue.** Both pages deliberately keep their last frame when the host dies, which is
+   right for a blip and wrong for a dead host: the scene shows confident, frozen numbers and says nothing. After a
+   few seconds of a closed stream, mark the page. The one overlay behaviour with no test at all today.
+9. **Named setup presets.** Settings are one flat profile in `%AppData%`; an operator with two venues or two overlay
+   styles retypes colours and the port each time. A named profile file plus a picker, composing with #1.
+
+Considered and deliberately not queued: a phone/tablet control page (the loopback-only rule forbids it — a real
+scope change, not a follow-up); an exported `.streamDeckProfile` (absent by design); re-deriving the pages' JS keys
+as a text guard (superseded by the HTTP payload tests); a headless CI end-to-end run (the live check needs a real
+window and real sockets).
+
 ### Parked 2026-11-27 — the overlay CI guards: where to pick this up
 
 Done and on `master` (CI green at 109 Core + 29 Overlay + 141 Controller, 0 warnings):
@@ -219,7 +256,8 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
   end-cap icon — is saved to `%AppData%\PoolScoreboard\settings.json` and restored on launch.
 - The roster only remembers players who were on screen for a started match (or still there when the
   window closed). "Delete" beside a picker drops an entry and its icon; renaming means reusing the name,
-  and the list is capped at 100. No match history: no scores are stored against a player.
+  and the list is capped at 100. Match history is recorded nowhere yet: the record model, the Core archive call and `history.json` exist
+  (2026-11-27) but nothing writes them, so no scores are stored against a player.
 - Ball colors in the Controller's live view are placeholder standard billiard-ball colors,
   not yet informed by the WNT visual reference.
 - Flag end-caps are artwork ("Choose Flag..." bundles country and US-state SVGs) stored as the
@@ -230,6 +268,27 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-27 — A finished match becomes a record, in Core and in a crash-safe file
+
+- First slice of the first ranked follow-up, and the gap the Known Gaps section has carried the longest.
+  `MatchRecord` (Core) is one finished match as it was played — both sides' names, teams and own Race-To targets,
+  the final scores, game type, mode, when the winning point landed and who won — and `MatchArchive` (Core) files it
+  newest first under a 200-record cap. Both are I/O-free and unit-tested, the way `ResumableMatch` and
+  `PlayerRoster` are.
+- What counts as finished is the state's own winner, not a second comparison against the Race-To targets:
+  `GameManager` recomputes the winner after every score change, so a corrected score takes it away again and a match
+  in progress has none. That is also why the archive call returns null instead of writing a blank entry.
+- `MatchHistoryStore` (Controller) keeps it as `history.json` beside `settings.json`, written through `DurableFile`
+  and read-modified-written under one lock, so a crash or a power cut leaves the previous history rather than a
+  truncated one. An unreadable file is moved to `history.corrupt.json`; one written by another version is left in
+  place and ignored, the rule `match.json` already follows.
+- Mutation-proved, then reverted: dropping the winner condition recorded an unfinished match ("Value is not null");
+  loosening the cap kept 201 ("Values differ"); appending instead of inserting lost the newest-first order (two
+  facts failed); deleting an unreadable file instead of keeping it failed the recovery test; and reading a file
+  with an unknown version failed with "Collection was not empty".
+- Not wired yet, as asked: nothing calls `TryArchive`, so the app does not record matches and no UI or `App` code
+  changed. New functionality rather than tests only, so 0.27.0 -> 0.28.0.
 
 ### 2026-11-27 — The live check's ports and scenario names are held to the app
 
