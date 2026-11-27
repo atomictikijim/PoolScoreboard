@@ -91,12 +91,15 @@ Re-verified since: on 2026-11-27 `tools/verify-live.ps1` with no `-Scenario` pas
 assertions, exit 0 — against the build from `073668b`, so the outstanding full live-check run is closed (see the
 Change Log entry of the same date). What follows is what is still open.
 
-Not done, most useful first:
+Not open from this batch:
 
-1. **Script parameter parity** (`-Port 51234` / `-SecondPort` +7 vs `OperatorProfile.DefaultOverlayPort`, scenario
-   names vs these docs). Ranked lowest: brittle, and it catches doc drift rather than behaviour.
-2. The old "JS keys vs DTO without a server" idea is now redundant — the HTTP payload tests do it against the real
-   serializer, so don't rebuild it as a text comparison.
+- The old "JS keys vs DTO without a server" idea is redundant — the HTTP payload tests do it against the real
+  serializer, so don't rebuild it as a text comparison.
+- **Script parameter parity** was the last item and is done (2026-11-27): `LiveCheckParametersTests` holds the
+  script's `-Port` default to `OperatorProfile.DefaultOverlayPort`, its port-change offset to the offset its own help
+  states and to `IsUsablePort`, and the scenario names the script runs to the ones it accepts and the ones CLAUDE.md
+  names. It stays catalogued rather than re-adding doc drift: what it catches is a number or a name that moved in one
+  place only.
 
 Two things worth remembering from this batch: a mutation script must match the source's real indentation (a failed
 anchor silently tests unmutated code), and a presence-only text guard passes on a `ToolTip` or a
@@ -227,6 +230,24 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-27 — The live check's ports and scenario names are held to the app
+
+- The parked note's last open item. `tools/verify-live.ps1` is the second place the ports are written down — it
+  launches the Controller on a port of its own and moves the overlay to a second one — and CI only proves it parses,
+  so a default that drifted from `OperatorProfile.DefaultOverlayPort` would be found at the next manual run, if at
+  all. `LiveCheckParametersTests` reads the script instead of repeating it: the `-Port` default has to be
+  `DefaultOverlayPort` (otherwise every scenario launches on a port the app never binds), the port-change step's
+  `$Port + 7` has to agree with the offset its own help states and land on a port `IsUsablePort` accepts, and the
+  scenarios it runs have to be the ones `-Scenario` accepts and the ones CLAUDE.md names.
+- Every value is extracted, and every extraction asserts it matched exactly once: a guard that quietly read an empty
+  set would pass for the wrong reason, which is how the first draft of `LiveCheckUiTextTests` was fooled.
+- Mutation-proved, then reverted: `-Port = 51235` failed naming both ports; `$Port + 8` failed with "moves 8 above
+  -Port, but its help says 7"; renaming `leftover` to `leftovers` in the run list only failed with "never run:
+  leftover; not accepted: leftovers"; removing one scenario's backticks from CLAUDE.md failed with "CLAUDE.md never
+  names them: banner-retry"; and a duplicated `[int]$Port` line failed the extraction with "no longer states its
+  -Port default once, but 2 time(s)".
+- Tests and docs only: no version bump.
 
 ### 2026-11-27 — Ten green re-runs of the window test's job, on the commit that fixed it
 

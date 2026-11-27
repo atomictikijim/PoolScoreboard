@@ -389,7 +389,10 @@ live.
   Opening the modal Help window from a script needs two things worth knowing: UIA's `Invoke` on the button that opens
   it does not run the command reliably, so the script raises the window the way the operator does — minimize and
   restore to take the foreground, focus the button, press space — and the dialog is a child of the Controller in the
-  UIA tree as often as a sibling of it, so it is looked for in both places.
+  UIA tree as often as a sibling of it, so it is looked for in both places. `LiveCheckParametersTests` covers what the
+  parse check cannot: the script's `-Port` default is `OperatorProfile.DefaultOverlayPort`, the port-change step moves
+  by the offset its own help states and lands on a port `IsUsablePort` accepts, and the scenarios it runs are the ones
+  `-Scenario` accepts and the ones this file names.
 
 ## Versioning & Commit Policy
 
