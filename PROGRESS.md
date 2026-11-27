@@ -239,8 +239,8 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - The wait is now on what the test asserts. `TestWindow.Start` only starts the thread — starting it is not the
   subject — and the window is shown with `ShowActivated = false`, the way `HelpWindowTests` already shows its own;
   the test polls `StaleController.Observe(ProcessId)` until Windows reports the window. A `Show()` that throws is
-  carried back through a `TaskCompletionSource` and rethrown with its own stack; a thread that ends, or a `Show()`
-  that has not returned by the deadline, fails naming the stage (`Show() returned: yes|no`, thread state). The 15 s
+  carried back through a `TaskCompletionSource` and rethrown with its own stack; a `Show()` that has not returned
+  by the deadline fails naming the stage (`Show() returned: yes|no`, thread state). The 15 s
   budget is the old 10 s + 5 s, not a longer one.
 - The handshake signal is no longer a `ManualResetEventSlim` in a `using`: a wait that timed out used to dispose it
   while the UI thread might still `Set()` it, turning a failed test into an `ObjectDisposedException` on that thread.
