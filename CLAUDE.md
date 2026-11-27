@@ -26,7 +26,8 @@ see that in the existing code, it is legacy and slated for removal (PROGRESS.md 
 - `PoolScoreboard.Overlay/` — ASP.NET Core module: OBS browser-source pages + local HTTP
   control API for the Stream Deck (hosted inside the Controller process, not a separate exe)
 - `streamdeck/` — Stream Deck profile documentation (button → local endpoint mapping)
-- `README.md` / `CLAUDE.md` / `NOTES.md` / `PROGRESS.md` — project docs
+- `README.md` / `CLAUDE.md` / `NOTES.md` / `PROGRESS.md` / `UAT.md` — project docs, with `UAT.md` holding the
+  manual checks (what a window looks like, what survives a relaunch) that the unit tests cannot reach
 
 ## Build & Run Commands
 
@@ -424,6 +425,13 @@ live. `MatchArchiveTests` pins the archive call: a finished match is
   parse check cannot: the script's `-Port` default is `OperatorProfile.DefaultOverlayPort`, the port-change step moves
   by the offset its own help states and lands on a port `IsUsablePort` accepts, and the scenarios it runs are the ones
   `-Scenario` accepts and the ones this file names.
+
+## Manual Checks
+
+`UAT.md` lists the scenarios that need a person at the screen — window layout, what is filed and what is not,
+what survives closing the app — with preconditions, steps and expected results. The match-history scenarios are
+MH-1 to MH-12. Add a scenario there when a behaviour worth checking by hand is added, and record the outcome
+when one is run.
 
 ## Versioning & Commit Policy
 

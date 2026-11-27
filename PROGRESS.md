@@ -252,14 +252,16 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Known Gaps & Simplifications
 
-- No match persistence: scores, ball groups and pocketed balls are in-memory only. The operator
-  profile — colour theme, scoreboard style, element visibility and both players' name/team/Race-To/
-  end-cap icon — is saved to `%AppData%\PoolScoreboard\settings.json` and restored on launch.
+- Persistence: the operator profile — colour theme, scoreboard style, element visibility and both players'
+  name/team/Race-To/end-cap icon — is saved to `%AppData%\PoolScoreboard\settings.json`, and the match in
+  progress (scores, game type and Race-To mode, ball groups, pocketed balls, shooter) is saved to `match.json`
+  after each change and restored on the next launch, so a crash or a forced restart costs nothing. Neither is a
+  record of play: that is `history.json`, described below.
 - The roster only remembers players who were on screen for a started match (or still there when the
   window closed). "Delete" beside a picker drops an entry and its icon; renaming means reusing the name,
-  and the list is capped at 100. A finished match is filed to `history.json` once (record model, archive call and recorder, wired 2026-11-27) and
-  the History window lists them newest first with each name's wins, but there is no export, no filter, and no
-  per-player detail beyond the win count.
+  and the list is capped at 100. A finished match is filed to `history.json` once (record model, archive call
+  and recorder) and the History window lists them newest first with each name's wins, but there is no export,
+  no filter, no way to delete one, and no per-player detail beyond the win count.
 - Ball colors in the Controller's live view are placeholder standard billiard-ball colors,
   not yet informed by the WNT visual reference.
 - Flag end-caps are artwork ("Choose Flag..." bundles country and US-state SVGs) stored as the
@@ -270,6 +272,19 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-27 — The match-history checks are written down, and a stale gap is corrected
+
+- `UAT.md` now holds the match-history scenarios (MH-1 to MH-12) with preconditions, steps and expected results,
+  written the way they were run by hand when the window landed: the empty state, a first record, newest-first
+  order, one record per match after later changes and across a relaunch, a rematch, a corrected winning point, one
+  player across spellings, a split race with an unnamed side, read-only and modal behaviour, a damaged file, and
+  that the setup and live-view screens did not move. It also says how to reset the history between runs.
+- Corrected the Known Gaps bullet that still said scores, ball groups and pocketed balls were in-memory only: they
+  have been in `match.json` since the crash-resume work, and the bullet now says so, keeping `history.json` as the
+  separate record of play. The stale wording survived several passes because nothing reads Known Gaps; it is the
+  sort of claim worth checking whenever it is touched.
+- Docs only; no code changed. No version bump.
 
 ### 2026-11-27 — A read-only window for the recorded matches
 
