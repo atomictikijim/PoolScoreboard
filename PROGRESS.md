@@ -68,6 +68,46 @@ live:
 
 ## Next Steps
 
+### Parked 2026-11-27 — the overlay CI guards: where to pick this up
+
+Done and on `master` (tip `2f7817a`, CI green, 109 Core + 29 Overlay + 137 Controller, 0 warnings):
+
+- Source guards in `Controller.Tests`, all sharing `RepositorySources`: `NoHardCodedOverlayAddressTests` (no literal
+  `51234`, no `127.0.0.1:` + digit in the Controller's markup or C# literals), `OverlayRouteTests` (every
+  `/overlay`/`/api` path named in Help, either page script or the health probe is a mapped route, and those four
+  sources still name one), `OverlayLoopbackBindTests` (no wildcard bind, and a *literal* loopback address),
+  `NoExternalOverlayAssetTests` (no absolute or protocol-relative URL under `Overlay/Assets`), `LiveCheckUiTextTests`
+  (the AutomationId, control names and banner text `verify-live.ps1` drives still exist — matched by equality against
+  the attributes that become control names, never a tooltip or a comment).
+- `PoolScoreboard.Overlay.Tests` (net8.0, `Microsoft.AspNetCore.TestHost`) — the HTTP level: every page and asset with
+  its content type, payloads checked against the `state.…` paths the embedded pages read, each stream's first `data:`
+  frame, a control call pushing a second frame, the icon's 200 bytes and its 404, and all 13 `/api/control` routes'
+  effects read back through the state payload.
+- `OverlayHost.Build` (host mapped, not started) exists so those tests can use `TestServer`; `Start` is the same list
+  plus the loopback address. CI parses `tools/verify-live.ps1` (syntax only) before building.
+
+Not done, most useful first:
+
+1. **Re-run the full live check.** `powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify-live.ps1` with no
+   `-Scenario` (all four scenarios). The last full run predates the `OverlayHost.Build` split and the whole HTTP-test
+   batch. Nothing in this batch changed startup, save or the window, but that script is the only thing that drives the
+   real window and sockets — worth one run before calling the overlay re-verified.
+2. **`streamdeck/` routes are unchecked.** A route renamed in `Endpoints/*.cs` is now caught in Help, both pages and
+   the probe, but the Stream Deck mapping doc is not one of the sources `OverlayRouteTests` reads. Cheap to add: point
+   it at the markdown and assert every `/api/control/…` token there is a mapped route.
+3. **`OverlayBaseUrl` has no change notification.** `GameViewModel.OverlayBaseUrl` is computed and
+   `OnOverlayPortChanged` raises nothing for it. Harmless today because only `ShowHelp()` reads it, fresh, at click
+   time; the first XAML binding to it would show a stale port. The fix is one
+   `OnPropertyChanged(nameof(OverlayBaseUrl))` plus the test that would currently fail.
+4. **Script parameter parity** (`-Port 51234` / `-SecondPort` +7 vs `OperatorProfile.DefaultOverlayPort`, scenario names
+   vs these docs). Ranked lowest: brittle, and it catches doc drift rather than behaviour.
+5. The old "JS keys vs DTO without a server" idea is now redundant — the HTTP payload tests do it against the real
+   serializer, so don't rebuild it as a text comparison.
+
+Two things worth remembering from this batch: a mutation script must match the source's real indentation (a failed
+anchor silently tests unmutated code), and a presence-only text guard passes on a `ToolTip` or a
+`Command="{Binding …}"` name — both were caught only by running the mutation and reading the failure.
+
 ### Phase 0: Scope reset — remove the league system, fix the broken Overlay project (DONE)
 
 - [x] Delete `Enums/League.cs` and `Rules/RaceRules.cs` from Core.
