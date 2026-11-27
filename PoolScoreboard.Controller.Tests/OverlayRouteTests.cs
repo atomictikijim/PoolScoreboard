@@ -8,7 +8,8 @@ namespace PoolScoreboard.Controller.Tests;
 /// under <c>streamdeck/</c> each spell them again. A renamed route therefore left CI green while the app's own probe
 /// reported "overlay stopped serving" every three seconds, the Help page advertised 404s, the OBS pages retried
 /// forever and the Stream Deck buttons 404'd. This reads the mapped routes and fails on any path used elsewhere that
-/// is not one.
+/// is not one, and — for the mapping the operator actually follows — the other way too: a control route the two
+/// <c>streamdeck/</c> docs between them no longer name is a button nobody can build.
 /// <para>
 /// The comparison is segment-wise, so a route's <c>{...}</c> and a placeholder the Help page tells the operator to
 /// replace (one capital, <c>N</c> for a ball number) match any single segment — while everything around them still has
@@ -114,6 +115,30 @@ public sealed class OverlayRouteTests
             silent.Length == 0,
             "these docs no longer name any /api/control path, so the Stream Deck route guard stopped covering them: " +
             string.Join(", ", silent));
+    }
+
+    [Fact]
+    public void EveryMappedControlRouteIsNamedInTheStreamDeckDocs()
+    {
+        var routes = MappedRoutes()
+            .Where(route => route.StartsWith("/api/control/", StringComparison.Ordinal))
+            .ToArray();
+        Assert.NotEmpty(routes);
+
+        var named = StreamDeckDocs.SelectMany(ControlPathsIn).ToArray();
+        Assert.NotEmpty(named);
+
+        // The other direction from the fact above: a route that no doc names is a button the operator cannot build,
+        // and deleting its table row used to leave the guard with one less thing to check rather than failing. The
+        // docs split the list — README carries all thirteen, SETUP the eleven it walks through — so the union counts.
+        var undocumented = routes
+            .Where(route => !named.Any(namedPath => Covers(route, namedPath.Path)))
+            .ToArray();
+
+        Assert.True(
+            undocumented.Length == 0,
+            "these mapped control routes are in neither Stream Deck doc, so no button could be built for them: " +
+            string.Join(", ", undocumented));
     }
 
     private static IReadOnlyCollection<string> MappedRoutes() =>

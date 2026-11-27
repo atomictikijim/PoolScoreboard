@@ -317,7 +317,8 @@ second fact that fails if any of those sources stops naming a path, so the guard
 mapping is the sixth: `streamdeck/README.md` and `SETUP.md` spell the control endpoints again as full URLs, so
 every `/api/control/…` path they name has to be a mapped route — `<N>` and `N` count as the ball-number
 placeholder, and `/api/control/*` names the family rather than an endpoint and is skipped — with its own fact
-that fails, naming the file, if either doc stops naming one. Novel:
+that fails, naming the file, if either doc stops naming one — and the reverse, so a deleted table row cannot
+slip through: every mapped `/api/control` route has to be named by one of the two files. Novel:
 `OverlayLoopbackBindTests` holds the bind address still: no wildcard (`0.0.0.0`, `AnyIP`, `http://+`, `http://*`,
 `[::]`) anywhere in the Overlay, and a string literal handing Kestrel a loopback address — literals rather than raw
 text, because the class comment already says "127.0.0.1 only" and a comment must not count. All three guards read

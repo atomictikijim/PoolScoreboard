@@ -232,6 +232,18 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
+### 2026-11-27 — Every mapped control route has to stay in the Stream Deck docs
+
+- The guard only went one way: a path named in `streamdeck/README.md` or `SETUP.md` had to be a mapped route. Deleting
+  a table row — or a whole table — therefore passed, because the check had one less path to look at. The reverse fact
+  now holds every mapped `/api/control` route to the two docs between them: README carries all thirteen, SETUP the
+  eleven it walks through, and a route neither names fails naming its own path.
+- Mutation-proved, then reverted: deleting README's `Home -1` row (`/api/control/score/home/subtract`, which SETUP
+  does not list) failed with `these mapped control routes are in neither Stream Deck doc, so no button could be built
+  for them: /api/control/score/home/subtract`, while the path→route fact and the coverage fact both stayed green.
+  Restoring the row returned 5/5.
+- Full suite 109 Core + 29 Overlay + 140 Controller, 0 warnings. Tests only: no version bump.
+
 ### 2026-11-27 — The Stream Deck mapping is held to the mapped routes
 
 - The two files the operator follows — `streamdeck/README.md`'s endpoint table and `SETUP.md`'s walkthrough — spell
