@@ -131,8 +131,14 @@ dotnet clean
   a port only a dead copy of this app is holding (`Diagnostics/StaleController`). A copy that still has a window is
   deliberately left running: that is somebody's session (an older build in use, an instance never shut down), and
   closing it would end their window mid-match — the banner names it and the operator closes it when ready. Never
-  this process, and never a program that is not this app. `IOverlaySession` is what the window depends on, so the
-  banner and Retry can be tested without a socket.
+  this process, never a program that is not this app, and never a holder whose process cannot be read at all — "no
+  window" and "cannot tell" are different answers, and only the first is acted on. The name and the window state
+  come from one look at the process (`Diagnostics/StaleController.Observe`), so a holder exiting between them cannot
+  have the decision describe one process and act on another; the name is checked once more immediately before the
+  close, so a PID the OS has recycled cannot be hit. Window state is `Process.MainWindowHandle`, which enumerates
+  the process's visible top-level windows and sends it no message: a minimized Controller (still visible, so still
+  windowed) and a hung one both count as having a window, and only a hidden or gone window counts as none.
+  `IOverlaySession` is what the window depends on, so the banner and Retry can be tested without a socket.
 - Only one Controller runs per desktop session (`SingleInstanceGuard`): a named mutex elects the first process,
   and a second launch sets a named event so the running window comes to the front, logs that it is exiting and
   shuts down before restoring or saving the profile — a duplicate must never write defaults over the running
@@ -264,8 +270,9 @@ alignment, not a pixel match).
   again and clears the banner when it agrees, and a `Stopped` raised on the test thread updates the banner on a real
   dispatcher thread — the hop is asserted by the thread that raised `PropertyChanged`, not assumed.
 `StaleControllerTests` covers the leftover rule both ways — a windowless copy of this app is closed, one that still
-shows a window is not, and neither is this process or any other program — plus the window check itself (a real
-window shown on an STA thread, a spawned process with none) and the close.
+shows a window is not, and neither is this process or any other program — plus the one-snapshot look itself (a real
+window shown on an STA thread, a spawned process with none, and `null` for a PID that cannot be read) and the close,
+including the recycled-PID guard.
 - Overlay/control-API endpoints should be tested against a `GameManager` test instance, not
   a live one.
 - `.githooks/pre-push` mirrors CI (Release build, then every test project) and is enabled per clone

@@ -194,6 +194,31 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — The leftover signal, checked rather than assumed
+
+- Review of the window-aware leftover close. `Process.MainWindowHandle` is the right signal: it enumerates the
+  process's visible top-level windows without sending it a message, so a minimized Controller (proved live:
+  `iconic=True` with its handle intact) and a hung one both still count as windowed and are left alone, while a
+  hidden window counts as none — which is the only case the port is taken back from. A packaged build would report
+  its exe name the same way, since this app is unpackaged.
+- Two things were wrong. An unreadable process — gone, or protected by a higher integrity level — used to fall
+  through as "no window", so the app would try to close something it could not see and log that it was doing so;
+  "cannot tell" is now its own answer, nothing is closed on it, and the banner goes on naming the holder. And the
+  name came from one `Process` open and the window from another, so the holder exiting in between could have the
+  second look describe a recycled PID; both now come from one `Observe(pid)` snapshot, and `TryClose` re-checks the
+  name on its own handle before killing.
+- The log only states what happened now: "closed it" is written after the close and after the exit was waited for, a
+  holder that refused to close says so, and the old "closing it …" line that ran before the attempt is gone.
+- Trimmed: `PortOwner.FindOwner`/`Owner` went away again — nothing needed the name and the PID from two places — so
+  `Describe` is back to its single lookup and the session asks `PortOwner` only for the PID.
+- Tests: `Observe_*` covers one snapshot, a real window, no window and an unreadable PID; `TryClose_*` covers the
+  real kill and the recycled-PID guard (a mismatched name leaves the process running). Build 0 warnings; 190/190
+  (97 Core + 93 Controller).
+- Verified live against the pre-guard build on the port as PID 14544: minimized (handle 4 327 624, `iconic=True`) →
+  Retry logged "still has a window; leaving it alone." and 14544 kept serving; hidden (handle 0) → Retry logged "was
+  held by a leftover … closed it so the overlay can start.", closed it, and the new PID served 200 with the banner
+  cleared. Version stays 0.23.0: this is a correction to the same unreleased feature.
+
 ### 2026-11-26 — The overlay banner is tested, and a leftover Controller no longer keeps the port
 
 - `GameViewModel` now depends on `IOverlaySession` instead of the concrete `OverlayHostSession`, so the top bar's

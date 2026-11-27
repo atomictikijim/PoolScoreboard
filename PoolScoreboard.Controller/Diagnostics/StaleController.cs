@@ -21,6 +21,40 @@ internal static class StaleController
     public const string ProcessName = "PoolScoreboard.Controller";
 
     /// <summary>
+    /// One look at a process: its name, and whether it shows a window — <c>null</c> when the process could not be
+    /// read at all (gone, or protected by another integrity level), which is not the same answer as "no window" and
+    /// must never be acted on as if it were.
+    /// </summary>
+    public sealed record Observation(string? Name, bool? HasWindow);
+
+    /// <summary>
+    /// Reads a process's name and window state through one handle, so both answers describe the same process at the
+    /// same moment; two separate lookups could otherwise straddle the holder exiting and the id being reused.
+    /// <para>
+    /// Window state is <see cref="Process.MainWindowHandle"/>, which enumerates the process's visible top-level
+    /// windows and never sends it a message. That is the right signal here: a minimized Controller keeps its window
+    /// visible and still counts as having one, a hung Controller's window still enumerates, and a hidden one (this
+    /// app has no tray mode) counts as none. A packaged build would report its exe name here just the same, because
+    /// this app is unpackaged and there is no alias to unmask.
+    /// </para>
+    /// </summary>
+    public static Observation Observe(int pid)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            return new Observation(process.ProcessName, process.MainWindowHandle != IntPtr.Zero);
+        }
+        catch (Exception exception) when (exception is ArgumentException
+                                             or InvalidOperationException
+                                             or Win32Exception
+                                             or NotSupportedException)
+        {
+            return new Observation(null, null);
+        }
+    }
+
+    /// <summary>
     /// Whether the process holding the port is another copy of this app. This process never counts, so a test (or a
     /// listener in the same process) can hold the port without risking being closed.
     /// </summary>
@@ -29,44 +63,28 @@ internal static class StaleController
         && string.Equals(processName, ProcessName, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Whether the port holder is a leftover: another copy of this app that no longer shows a window. A copy that still
-    /// has a window is somebody's session — an older build the operator is using, or a second instance that has not
-    /// been shut down — and closing it would throw away work in progress, so its port is only reported, never taken.
+    /// Whether the port holder is a leftover: another copy of this app that no longer shows a window. A copy that
+    /// still has a window is somebody's session — an older build the operator is using, or a second instance that has
+    /// not been shut down — and closing it would throw away work in progress, so its port is only reported, never
+    /// taken.
     /// </summary>
     public static bool IsLeftover(string? processName, int pid, bool hasWindow) =>
         !hasWindow && IsThisApp(processName, pid);
 
     /// <summary>
-    /// Whether the process still shows a top-level window. A hidden or long-gone window counts as none: nothing is on
-    /// screen to close, which is exactly the case the port can be taken back from. Never throws — a process that
-    /// cannot be read is about to exit anyway, and the attempt to close it reports the truth.
+    /// Closes it and waits for it to be gone, so its socket is released before the start is retried. The name is
+    /// checked again first, so an id the OS has recycled in the meantime cannot make some other process take the
+    /// blame. Never throws: a process that cannot be closed (already gone, or protected) simply leaves the port held,
+    /// and the caller falls back to the banner.
     /// </summary>
-    public static bool HasWindow(int pid)
+    public static bool TryClose(int pid, string expectedName, TimeSpan wait)
     {
         try
         {
             using var process = Process.GetProcessById(pid);
-            return process.MainWindowHandle != IntPtr.Zero;
-        }
-        catch (Exception exception) when (exception is ArgumentException
-                                             or InvalidOperationException
-                                             or Win32Exception
-                                             or NotSupportedException)
-        {
-            return false;
-        }
-    }
+            if (!string.Equals(process.ProcessName, expectedName, StringComparison.OrdinalIgnoreCase))
+                return false;
 
-    /// <summary>
-    /// Closes it and waits for it to be gone, so its socket is released before the start is retried. Never throws: a
-    /// process that cannot be closed (already gone, or protected) simply leaves the port held, and the caller falls
-    /// back to the banner.
-    /// </summary>
-    public static bool TryClose(int pid, TimeSpan wait)
-    {
-        try
-        {
-            using var process = Process.GetProcessById(pid);
             process.Kill();
             return process.WaitForExit(wait);
         }

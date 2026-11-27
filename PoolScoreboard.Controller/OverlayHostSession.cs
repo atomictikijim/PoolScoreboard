@@ -141,28 +141,48 @@ public sealed class OverlayHostSession : IOverlaySession
     /// <summary>
     /// Closes a windowless leftover copy of this app holding the port — the one case where Retry could never
     /// succeed, because the holder has nothing on screen for the operator to close. A copy that still shows a window,
-    /// and anything that is not this app, are left alone, so the banner goes on naming the holder and the operator
-    /// decides.
+    /// one that cannot be read, and anything that is not this app are left alone, so the banner goes on naming the
+    /// holder and the operator decides. Returns whether the port is now free to try again.
     /// </summary>
     private bool TryCloseLeftoverController()
     {
-        if (PortOwner.FindOwner(_port) is not { } owner || !StaleController.IsThisApp(owner.Name, owner.Pid))
+        if (PortOwner.FindOwningProcessId(_port) is not { } pid)
             return false;
 
-        if (StaleController.HasWindow(owner.Pid))
+        var observed = StaleController.Observe(pid);
+        if (observed.Name == null)
         {
-            // A copy that is still on screen is somebody's session: taking the port from it would close their window
-            // mid-match. The banner keeps naming it, and the operator closes it when they are ready.
-            Trace.TraceInformation(
-                $"127.0.0.1:{_port} is held by {owner.Describe()}, which still has a window; leaving it alone.");
+            // The holder left between the lookup and the look: the port is free, so the retry is worth making even
+            // though there was nothing to close.
+            return PortOwner.FindOwningProcessId(_port) is not { };
+        }
+
+        if (!StaleController.IsThisApp(observed.Name, pid))
+            return false;
+
+        if (observed.HasWindow != false)
+        {
+            // A copy still on screen is somebody's session — closing it would end their window mid-match — and one
+            // that cannot be read at all is not evidence of anything, so neither is touched. The banner keeps naming
+            // it, and the operator closes it when they are ready.
+            Trace.TraceInformation(observed.HasWindow == true
+                ? $"127.0.0.1:{_port} is held by {observed.Name} (PID {pid}), which still has a window; leaving it alone."
+                : $"127.0.0.1:{_port} is held by {observed.Name} (PID {pid}), which could not be inspected; leaving it alone.");
+            return false;
+        }
+
+        if (!StaleController.TryClose(pid, StaleController.ProcessName, TimeSpan.FromSeconds(5)))
+        {
+            Trace.TraceWarning(
+                $"127.0.0.1:{_port} is held by a windowless {StaleController.ProcessName} (PID {pid}) that would not " +
+                "close; the port stays with it.");
             return false;
         }
 
         Trace.TraceWarning(
-            $"127.0.0.1:{_port} is held by a leftover {StaleController.ProcessName} (PID {owner.Pid}); closing it " +
-            "so the overlay can start.");
-
-        return StaleController.TryClose(owner.Pid, TimeSpan.FromSeconds(5));
+            $"127.0.0.1:{_port} was held by a leftover {StaleController.ProcessName} (PID {pid}); closed it so the " +
+            "overlay can start.");
+        return true;
     }
 
     private void Check()

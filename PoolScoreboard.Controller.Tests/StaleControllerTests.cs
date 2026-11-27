@@ -39,41 +39,37 @@ public sealed class StaleControllerTests
         Assert.False(StaleController.IsLeftover(processName, 4242, hasWindow: false));
 
     [Fact]
-    public void HasWindow_FalseForAProcessShowingNothing()
+    public void Observe_NamesAProcessAndSeesNoWindowInIt()
     {
-        using var process = Process.Start(new ProcessStartInfo(
-            "powershell",
-            "-NoProfile -NonInteractive -Command Start-Sleep -Seconds 60")
-        {
-            UseShellExecute = false,
-            CreateNoWindow = true
-        })!;
-
+        using var process = StartWindowlessProcess();
         try
         {
-            // A process with no window is exactly what the port may be taken back from.
-            Assert.False(StaleController.HasWindow(process.Id));
+            var observed = StaleController.Observe(process.Id);
+
+            Assert.Equal("powershell", observed.Name, ignoreCase: true);
+            Assert.False(observed.HasWindow);
         }
         finally
         {
-            if (!process.HasExited)
-                process.Kill();
+            Kill(process);
         }
     }
 
     [Fact]
-    public void HasWindow_TrueWhileTheProcessShowsAWindow()
+    public void Observe_SeesTheWindowAProcessShows()
     {
-        // A real window, on a real UI thread, so the answer is the one Windows gives — the check that keeps an older
-        // build's window safe from being closed.
+        // A real window, on a real UI thread: this is the answer that keeps an older build's window safe from being
+        // closed, so it is worth reading from Windows rather than reasoning about.
         var (window, dispatcher, thread) = StartWindowThread();
         try
         {
             var deadline = DateTime.UtcNow.AddSeconds(5);
-            while (!StaleController.HasWindow(Environment.ProcessId) && DateTime.UtcNow < deadline)
+            while (StaleController.Observe(Environment.ProcessId).HasWindow != true && DateTime.UtcNow < deadline)
                 Thread.Sleep(50);
 
-            Assert.True(StaleController.HasWindow(Environment.ProcessId));
+            var observed = StaleController.Observe(Environment.ProcessId);
+            Assert.NotNull(observed.Name);
+            Assert.True(observed.HasWindow);
         }
         finally
         {
@@ -84,9 +80,52 @@ public sealed class StaleControllerTests
     }
 
     [Fact]
-    public void TryClose_EndsTheProcessAndWaitsForIt()
+    public void Observe_ReportsNothingForAProcessThatIsGone()
     {
-        using var process = Process.Start(new ProcessStartInfo(
+        // "Could not be read" has to stay distinct from "has no window": the first is never acted on.
+        var observed = StaleController.Observe(int.MaxValue);
+
+        Assert.Null(observed.Name);
+        Assert.Null(observed.HasWindow);
+    }
+
+    [Fact]
+    public void TryClose_EndsTheProcessItWasPointedAt()
+    {
+        using var process = StartWindowlessProcess();
+        try
+        {
+            Assert.True(StaleController.TryClose(process.Id, "powershell", TimeSpan.FromSeconds(10)));
+            Assert.True(process.WaitForExit(5000));
+        }
+        finally
+        {
+            Kill(process);
+        }
+    }
+
+    [Fact]
+    public void TryClose_LeavesAProcessThatIsNotTheExpectedOne()
+    {
+        // An id the OS recycled between deciding and closing must not take the blame for another process.
+        using var process = StartWindowlessProcess();
+        try
+        {
+            Assert.False(StaleController.TryClose(process.Id, StaleController.ProcessName, TimeSpan.FromSeconds(5)));
+            Assert.False(process.HasExited);
+        }
+        finally
+        {
+            Kill(process);
+        }
+    }
+
+    [Fact]
+    public void TryClose_ReportsFalseForAProcessThatIsNotThere() =>
+        Assert.False(StaleController.TryClose(int.MaxValue, StaleController.ProcessName, TimeSpan.FromSeconds(1)));
+
+    private static Process StartWindowlessProcess() =>
+        Process.Start(new ProcessStartInfo(
             "powershell",
             "-NoProfile -NonInteractive -Command Start-Sleep -Seconds 60")
         {
@@ -94,21 +133,11 @@ public sealed class StaleControllerTests
             CreateNoWindow = true
         })!;
 
-        try
-        {
-            Assert.True(StaleController.TryClose(process.Id, TimeSpan.FromSeconds(10)));
-            Assert.True(process.WaitForExit(5000));
-        }
-        finally
-        {
-            if (!process.HasExited)
-                process.Kill();
-        }
+    private static void Kill(Process process)
+    {
+        if (!process.HasExited)
+            process.Kill();
     }
-
-    [Fact]
-    public void TryClose_ReportsFalseForAProcessThatIsNotThere() =>
-        Assert.False(StaleController.TryClose(int.MaxValue, TimeSpan.FromSeconds(1)));
 
     /// <summary>Shows a window from a dedicated STA thread and keeps its dispatcher running until shutdown.</summary>
     private static (Window Window, Dispatcher Dispatcher, Thread Thread) StartWindowThread()
