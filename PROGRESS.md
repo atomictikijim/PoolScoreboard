@@ -194,6 +194,28 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The five copies of an overlay path are now checked against each other
+
+- `OverlayRouteTests` (2 facts). `Endpoints/*.cs` chooses the 26 routes; `HelpWindow.xaml` (13 URLs),
+  `scoreboard.js`, `cueball.js` and `OverlayHostSession`'s health probe each spell paths again, and nothing connected
+  them — a rename left CI green while the probe reported "overlay stopped serving" every 3 s, Help advertised 404s
+  and the OBS pages retried forever. The guard reads the mapped routes and fails on any used path that is not one,
+  comparing segment-wise: a route's `{number:int}`/`{id}` and the Help page's `N` placeholder match a single segment,
+  everything around them must still line up. A second fact fails if one of those four sources stops naming a path at
+  all, so the check cannot pass for the wrong reason.
+- `OverlayLoopbackBindTests` (2 facts). The Overlay's `UseUrls("http://127.0.0.1:…")` is the only thing keeping this
+  app off the network, and no live check could catch a change — they all connect from this machine. So: no wildcard
+  (`0.0.0.0`, `AnyIP`, `http://+`, `http://*`, `https://*`, `[::]`) anywhere in the Overlay's sources, and a *string
+  literal* handing Kestrel a loopback address. Literals rather than raw text matters: the class comment already says
+  "127.0.0.1 only", and a comment must not be able to stand in for the address actually asked for.
+- Both scan through a new shared `RepositorySources` (repository root walk, `bin`/`obj` filter, string-literal
+  regex); `NoHardCodedOverlayAddressTests` was moved onto it with no change in what it checks.
+- Mutation-proved, each reverted: renaming `/overlay/api/scoreboard/state` to `…/snapshot` failed the route guard
+  with `OverlayHostSession.cs uses /overlay/api/scoreboard/state`; widening the bind to `0.0.0.0` failed both bind
+  facts; a `/overlay/cue-ball` typo in `HelpWindow.xaml` failed the route guard naming the markup. Reverting restored
+  6/6.
+- Full suite 109 Core + 133 Controller, 0 warnings. Tests only, no behaviour change: no version bump.
+
 ### 2026-11-27 — Two guards: the overlay address can't be hard-coded, and the live check can't rot unnoticed
 
 - `NoHardCodedOverlayAddressTests` (2 tests) fails if the Controller's own sources hard-code the overlay address or

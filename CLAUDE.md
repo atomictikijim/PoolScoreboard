@@ -306,7 +306,16 @@ steps with a session that records what it was asked for: the saved port reaches 
 becomes the default), and a save records the port the session is on, not the one the profile still held. `NoHardCodedOverlayAddressTests`
 guards the rule behind all of it: it scans the Controller's own sources — markup as raw text, C# only inside string
 literals — and fails on a literal `51234` or on `127.0.0.1:` followed by a digit, so `$"http://127.0.0.1:{Port}/…"`
-passes while an address with its port baked in cannot come back. Comments stay out of scope; several name both. Two things that test had to work around: a full
+passes while an address with its port baked in cannot come back. Comments stay out of scope; several name both. `OverlayRouteTests` connects the five places a path is written
+down — it reads the routes mapped in `PoolScoreboard.Overlay` and fails on any `/overlay` or `/api` path named in
+`HelpWindow.xaml`, either page script or `OverlayHostSession`'s health probe that is not one of them, segment-wise,
+so a route's `{...}` and the Help page's `N` match any one segment while everything around it must line up — plus a
+second fact that fails if any of those sources stops naming a path, so the guard cannot go quiet. Novel:
+`OverlayLoopbackBindTests` holds the bind address still: no wildcard (`0.0.0.0`, `AnyIP`, `http://+`, `http://*`,
+`[::]`) anywhere in the Overlay, and a string literal handing Kestrel a loopback address — literals rather than raw
+text, because the class comment already says "127.0.0.1 only" and a comment must not count. All three guards read
+sources through `RepositorySources` (the root walk, the `bin`/`obj` filter, the literal regex), so they scan the same
+set. Two things that test had to work around: a full
 `pack://` URI is only parsed once WPF has registered the scheme, so the theme dictionary is loaded by its relative
 `/Assembly;component/` form; and a window's bindings resolve only once its tree is loaded, so the test shows the
 window at (-20000, -20000) rather than merely constructing it. `MatchStateStoreTests` pins what a save leaves behind: the
