@@ -228,6 +228,33 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
+### 2026-11-27 — The window test waits on the window, not on Show()
+
+- `StaleControllerTests.Observe_SeesTheWindowAProcessShows` failed once on CI with "the test window never appeared"
+  after 10 s, then passed on a re-run of the same commit — 122 ms in the passing run, so the deadline was not being
+  grazed by a slow machine. The helper finished one handshake only after `Window.Show()` returned, and from the test
+  thread three different things looked identical: the thread never started, `Show()` threw, or `Show()` stalled.
+  `Show()` is the fragile half — it creates the process's first window (theme, HWND) and, with the default
+  `ShowActivated`, asks the session for the foreground, which a CI agent's input queue can withhold indefinitely.
+- The wait is now on what the test asserts. `TestWindow.Start` returns once the thread is up (milliseconds, and not
+  the subject); the window is shown with `ShowActivated = false`, the way `HelpWindowTests` already shows its own, and
+  the test polls `StaleController.Observe(ProcessId)` until Windows reports the window. A `Show()` that throws is
+  carried back through a `TaskCompletionSource` and rethrown with its own stack; a thread that ends, or a `Show()`
+  that has not returned by the deadline, fails naming the stage (`Show() returned: yes|no`, thread state). The 15 s
+  budget is the old 10 s + 5 s, not a longer one.
+- The handshake signal is no longer a `ManualResetEventSlim` in a `using`: a wait that timed out used to dispose it
+  while the UI thread might still `Set()` it, turning a failed test into an `ObjectDisposedException` on that thread.
+  Cleanup queues the close at `Send` with a bounded wait and joins the background thread with a bound, so a stuck
+  `Show()` cannot hang the run after the assertion has already failed.
+- Mutation-proved, then reverted: a `Show()` that throws failed at once with
+  `System.InvalidOperationException : mutation: Show() failed`; a `Show()` that sleeps past the deadline failed with
+  `Windows reported no window 15s after the window thread started (Show() returned: no, thread state: Background,
+  WaitSleepJoin)`. Both restored, then 8 consecutive runs of the test and the full suite passed.
+- Found while proving it: `ShowInTaskbar = false`, which `HelpWindowTests` uses, gives the window an owner, and
+  `Process.MainWindowHandle` only considers a process's unowned visible windows — the first version of this test could
+  never have passed with it, so the test window stays in the task bar.
+- Full suite 109 Core + 29 Overlay + 141 Controller, 0 warnings. Tests only: no version bump.
+
 ### 2026-11-27 — The overlay's base address announces the port it follows
 
 - `GameViewModel.OverlayBaseUrl` is computed from `OverlayPort`, and the `[ObservableProperty]` generator raises only

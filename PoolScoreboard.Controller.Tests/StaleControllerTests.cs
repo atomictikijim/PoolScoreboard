@@ -61,23 +61,12 @@ public sealed class StaleControllerTests
     {
         // A real window, on a real UI thread: this is the answer that keeps an older build's window safe from being
         // closed, so it is worth reading from Windows rather than reasoning about.
-        var (window, dispatcher, thread) = StartWindowThread();
-        try
-        {
-            var deadline = DateTime.UtcNow.AddSeconds(5);
-            while (StaleController.Observe(Environment.ProcessId).HasWindow != true && DateTime.UtcNow < deadline)
-                Thread.Sleep(50);
+        using var shown = TestWindow.Start();
 
-            var observed = StaleController.Observe(Environment.ProcessId);
-            Assert.NotNull(observed.Name);
-            Assert.True(observed.HasWindow);
-        }
-        finally
-        {
-            dispatcher.Invoke(window.Close);
-            dispatcher.InvokeShutdown();
-            thread.Join(TimeSpan.FromSeconds(5));
-        }
+        var observed = shown.WaitUntilVisible(TimeSpan.FromSeconds(15));
+
+        Assert.NotNull(observed.Name);
+        Assert.True(observed.HasWindow);
     }
 
     [Fact]
@@ -140,29 +129,144 @@ public sealed class StaleControllerTests
             process.Kill();
     }
 
-    /// <summary>Shows a window from a dedicated STA thread and keeps its dispatcher running until shutdown.</summary>
-    private static (Window Window, Dispatcher Dispatcher, Thread Thread) StartWindowThread()
+    /// <summary>
+    /// A window shown from its own STA thread, keeping apart the two things the test needs: that the thread is up,
+    /// and that Windows reports the window. They used to be one handshake, and the handshake completed only once
+    /// <see cref="Window.Show"/> had returned — but showing the process's first window is the slow and fragile part
+    /// (it loads the theme, creates an HWND and, with the default <c>ShowActivated</c>, asks the session for the
+    /// foreground). On a CI agent that request can stall, and a stall or a throw both looked the same from the test
+    /// thread: "the test window never appeared", ten seconds later, with no clue which one it was.
+    /// </summary>
+    private sealed class TestWindow : IDisposable
     {
-        Dispatcher? dispatcher = null;
-        Window? window = null;
-        using var ready = new ManualResetEventSlim();
+        private readonly Thread _thread;
+        private readonly Dispatcher _dispatcher;
+        private readonly Task _shown;
+        private Window? _window;
 
-        var thread = new Thread(() =>
+        private TestWindow(Thread thread, Dispatcher dispatcher, Task shown, Window? window)
         {
-            dispatcher = Dispatcher.CurrentDispatcher;
-            window = new Window { Width = 200, Height = 120, Title = "PoolScoreboard leftover test" };
-            window.Show();
-            ready.Set();
-            Dispatcher.Run();
-        })
-        {
-            IsBackground = true,
-            Name = "Leftover window test UI thread"
-        };
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
+            _thread = thread;
+            _dispatcher = dispatcher;
+            _shown = shown;
+            _window = window;
+        }
 
-        Assert.True(ready.Wait(TimeSpan.FromSeconds(10)), "the test window never appeared");
-        return (window!, dispatcher!, thread);
+        /// <summary>
+        /// Starts the thread and returns once it is running — milliseconds, and not what this test asserts. The
+        /// window itself is created and shown afterwards, so a test that fails is told which of the two waited.
+        /// </summary>
+        internal static TestWindow Start()
+        {
+            Window? window = null;
+            Dispatcher? dispatcher = null;
+            var up = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var shown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var thread = new Thread(() =>
+            {
+                dispatcher = Dispatcher.CurrentDispatcher;
+                up.TrySetResult();
+
+                try
+                {
+                    // No activation: the foreground request ShowActivated makes goes through the session's input
+                    // queue, which a test agent does not own — the Help window test shows its window the same way.
+                    // Stay in the task bar on purpose: ShowInTaskbar = false gives the window an owner, and
+                    // Process.MainWindowHandle only considers a process's unowned visible windows.
+                    window = new Window
+                    {
+                        Width = 200,
+                        Height = 120,
+                        Title = "PoolScoreboard leftover test",
+                        ShowActivated = false,
+                    };
+                    window.Show();
+                    shown.TrySetResult();
+                }
+                catch (Exception exception)
+                {
+                    // Carried back with its own stack: a window that could not be shown must not read as one that
+                    // never appeared.
+                    shown.TrySetException(exception);
+                    return;
+                }
+
+                Dispatcher.Run();
+            })
+            {
+                IsBackground = true,
+                Name = "Leftover window test UI thread",
+            };
+
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+
+            if (!up.Task.Wait(TimeSpan.FromSeconds(10)))
+                throw new InvalidOperationException(
+                    $"the window thread did not start within 10s (thread state: {thread.ThreadState})");
+
+            return new TestWindow(thread, dispatcher!, shown.Task, window);
+        }
+
+        /// <summary>
+        /// Waits for Windows to report the window this thread showed — the question the test actually asks. A
+        /// <c>Show()</c> that threw surfaces as itself; one that has not returned is named in the timeout, so a
+        /// second flake says which stage stalled instead of only that nothing appeared.
+        /// </summary>
+        internal StaleController.Observation WaitUntilVisible(TimeSpan timeout)
+        {
+            var deadline = DateTime.UtcNow + timeout;
+            while (true)
+            {
+                if (_shown.IsCompleted)
+                {
+                    _shown.GetAwaiter().GetResult();
+
+                    var visible = StaleController.Observe(Environment.ProcessId);
+                    if (visible.HasWindow == true)
+                        return visible;
+                }
+
+                // A thread that ended without the window becoming visible is a different failure from a window
+                // that is merely slow, and neither is worth the rest of the deadline.
+                if (!_thread.IsAlive)
+                    throw new InvalidOperationException(
+                        "the window thread ended before Windows reported a window " +
+                        $"(thread state: {_thread.ThreadState})");
+
+                if (DateTime.UtcNow >= deadline)
+                    throw new InvalidOperationException(
+                        $"Windows reported no window {timeout.TotalSeconds:0}s after the window thread started " +
+                        $"(Show() returned: {(_shown.IsCompleted ? "yes" : "no")}, thread state: {_thread.ThreadState})");
+
+                Thread.Sleep(50);
+            }
+        }
+
+        /// <summary>
+        /// Closes the window on its own thread and ends the dispatcher. Never waits behind a <c>Show()</c> that has
+        /// not returned: a test that already failed must not also hang in cleanup. The thread is background, so a
+        /// stuck one cannot keep the run alive either.
+        /// </summary>
+        public void Dispose()
+        {
+            if (_thread.IsAlive && !_dispatcher.HasShutdownStarted)
+            {
+                try
+                {
+                    _dispatcher.InvokeAsync(() => _window?.Close(), DispatcherPriority.Send)
+                        .Task.Wait(TimeSpan.FromSeconds(5));
+                }
+                catch (AggregateException)
+                {
+                    // Already closed; joining the thread below is all that is left to do.
+                }
+
+                _dispatcher.InvokeShutdown();
+            }
+
+            _thread.Join(TimeSpan.FromSeconds(5));
+        }
     }
 }

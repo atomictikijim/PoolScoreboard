@@ -293,7 +293,9 @@ alignment, not a pixel match).
 `StaleControllerTests` covers the leftover rule both ways — a windowless copy of this app is closed, one that still
 shows a window is not, and neither is this process or any other program — plus the one-snapshot look itself (a real
 window shown on an STA thread, a spawned process with none, and `null` for a PID that cannot be read) and the close,
-including the recycled-PID guard. `MatchAutosaveTests` covers the autosave that used to live in `App`: a burst of
+including the recycled-PID guard. The window is shown without activation, and the test waits on the window Windows
+reports rather than on `Show()` returning — a `Show()` that throws or stalls names which one happened instead of
+timing out as "never appeared". `MatchAutosaveTests` covers the autosave that used to live in `App`: a burst of
 points becomes one snapshot, a reset deletes it instead of writing a blank one, the exit snapshot does not wait for
 the debounce, changes after dispose are ignored, changes before `Restore()` are not watched (so applying the profile
 cannot delete the match about to be resumed), a saved match is restored, a fresh install stays at setup, and an
