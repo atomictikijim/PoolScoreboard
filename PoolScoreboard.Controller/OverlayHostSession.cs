@@ -96,7 +96,8 @@ public sealed class OverlayHostSession : IOverlaySession
                 return true;
 
             var host = OverlayHostRunner.Start(gameManager, _port);
-            if (host == null && TryCloseLeftoverController())
+            StaleController.Observation? holder = null;
+            if (host == null && TryCloseLeftoverController(out holder))
             {
                 // The socket only just came free; one retry is what turns a leftover into a working overlay.
                 host = OverlayHostRunner.Start(gameManager, _port);
@@ -104,10 +105,7 @@ public sealed class OverlayHostSession : IOverlaySession
 
             if (host == null)
             {
-                var owner = PortOwner.Describe(_port);
-                FailureReason = owner == null
-                    ? $"The overlay could not start on 127.0.0.1:{_port}."
-                    : $"The overlay is off: 127.0.0.1:{_port} is held by {owner}.";
+                FailureReason = DescribeFailure(_port, PortOwner.Describe(_port), holder);
                 return false;
             }
 
@@ -144,12 +142,13 @@ public sealed class OverlayHostSession : IOverlaySession
     /// one that cannot be read, and anything that is not this app are left alone, so the banner goes on naming the
     /// holder and the operator decides. Returns whether the port is now free to try again.
     /// </summary>
-    private bool TryCloseLeftoverController()
+    private bool TryCloseLeftoverController(out StaleController.Observation? holder)
     {
+        holder = null;
         if (PortOwner.FindOwningProcessId(_port) is not { } pid)
             return false;
 
-        var observed = StaleController.Observe(pid);
+        var observed = holder = StaleController.Observe(pid);
         if (observed.Name == null)
         {
             // The holder left between the lookup and the look: the port is free, so the retry is worth making even
@@ -183,6 +182,26 @@ public sealed class OverlayHostSession : IOverlaySession
             $"127.0.0.1:{_port} was held by a leftover {StaleController.ProcessName} (PID {pid}); closed it so the " +
             "overlay can start.");
         return true;
+    }
+
+    /// <summary>
+    /// The banner text for a start that failed: what holds the port, and — when the holder is another copy of this
+    /// app that still has a window — the one thing the operator can do about it. Separated from the session so the
+    /// wording can be asserted without a socket.
+    /// </summary>
+    internal static string DescribeFailure(int port, string? ownerDescription, StaleController.Observation? holder)
+    {
+        if (ownerDescription == null)
+            return $"The overlay could not start on 127.0.0.1:{port}.";
+
+        var reason = $"The overlay is off: 127.0.0.1:{port} is held by {ownerDescription}.";
+
+        // A Controller window is the operator's to close, and the only case where closing something hands the port
+        // back; a windowless leftover was already dealt with above, and another program is not ours to instruct on.
+        if (holder is not { HasWindow: true } windowed || !StaleController.IsThisApp(windowed.Name, windowed.Pid))
+            return reason;
+
+        return $"{reason} Close that Controller window, then choose Retry to take the port back.";
     }
 
     private void Check()

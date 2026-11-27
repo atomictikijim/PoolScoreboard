@@ -46,6 +46,7 @@ public sealed class StaleControllerTests
         {
             var observed = StaleController.Observe(process.Id);
 
+            Assert.Equal(process.Id, observed.Pid);
             Assert.Equal("powershell", observed.Name, ignoreCase: true);
             Assert.False(observed.HasWindow);
         }

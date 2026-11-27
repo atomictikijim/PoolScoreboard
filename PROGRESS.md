@@ -194,6 +194,21 @@ live:
 
 ## Change Log
 
+### 2026-11-26 — The banner says what to do about the window it cannot close
+
+- A Controller that still has a window is left running by design, but the banner only named it — the operator had to
+  work out that closing that window is what frees the port. It now ends with "Close that Controller window, then
+  choose Retry to take the port back." The sentence is built from the same `StaleController.Observation` the close
+  attempt made, so the banner and the decision cannot disagree about who holds the port; it appears only for another
+  copy of this app with a window — a windowless leftover has already been dealt with, and another program's window is
+  not ours to instruct on.
+- `DescribeFailure` is separated from the session (static, taking the port, the owner description and the
+  observation) so the wording is asserted without a socket: a windowed Controller gets the advice, a windowless
+  leftover and another program do not, and nothing listening still says the port could not be taken.
+- The banner's text block now wraps instead of trimming with "…", because two sentences do not fit the one line the
+  old message needed; `Observation` carries the PID so the message and the decision name the same process.
+- Build 0 warnings; 193/193 tests (97 Core + 96 Controller). Version 0.23.1 (UI copy).
+
 ### 2026-11-26 — The leftover signal, checked rather than assumed
 
 - Review of the window-aware leftover close. `Process.MainWindowHandle` is the right signal: it enumerates the

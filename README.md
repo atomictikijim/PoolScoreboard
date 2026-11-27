@@ -74,8 +74,9 @@ same banner returns if the host stops serving mid-session — the state endpoint
 while it runs — so a dead overlay is noticed during a match rather than after it.
 If the port is held by a copy of this app that shows **no window** — a Controller that outlived its window, or one
 from an older build — the Controller closes it and starts the overlay itself, which is the one case where **Retry**
-could never have won on its own. A copy that still shows a window is somebody's session: the banner names it but it
-is never closed, so its window and its match survive. Another program holding the port is only named, never touched.
+could never have won on its own. A copy that still shows a window is somebody's session: the banner names it, asks for that window to be closed,
+and never closes it for them — closing it by hand hands the port back, and Retry takes it from there. Another
+program holding the port is only named, never touched.
 
 An OBS browser source that was already connected rides out that outage by itself: the page holds its last
 frame while the server is down, and within a few seconds of **Retry** it is live again with no refresh in OBS

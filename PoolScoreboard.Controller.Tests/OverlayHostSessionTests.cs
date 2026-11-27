@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using PoolScoreboard.Controller;
+using PoolScoreboard.Controller.Diagnostics;
 using PoolScoreboard.Core;
 
 namespace PoolScoreboard.Controller.Tests;
@@ -12,6 +13,44 @@ namespace PoolScoreboard.Controller.Tests;
 /// </summary>
 public sealed class OverlayHostSessionTests
 {
+    [Fact]
+    public void DescribeFailure_AsksForTheWindowToBeClosed_WhenAControllerStillShowsOne()
+    {
+        var otherPid = Environment.ProcessId + 1;
+
+        // The one case the operator can resolve themselves: another Controller's window is holding the port.
+        Assert.Equal(
+            $"The overlay is off: 127.0.0.1:51234 is held by {StaleController.ProcessName} (PID {otherPid}). " +
+            "Close that Controller window, then choose Retry to take the port back.",
+            OverlayHostSession.DescribeFailure(
+                51234,
+                $"{StaleController.ProcessName} (PID {otherPid})",
+                new StaleController.Observation(otherPid, StaleController.ProcessName, HasWindow: true)));
+    }
+
+    [Fact]
+    public void DescribeFailure_OnlyNamesTheHolder_WhenThereIsNoWindowOfOursToClose()
+    {
+        var otherPid = Environment.ProcessId + 1;
+        var owner = $"{StaleController.ProcessName} (PID {otherPid})";
+
+        // A windowless leftover that would not close: nothing on screen to close, so no advice to give.
+        Assert.Equal(
+            $"The overlay is off: 127.0.0.1:51234 is held by {owner}.",
+            OverlayHostSession.DescribeFailure(
+                51234, owner, new StaleController.Observation(otherPid, StaleController.ProcessName, HasWindow: false)));
+
+        // Another program's window is not ours to instruct on — it is named, and that is all.
+        Assert.Equal(
+            $"The overlay is off: 127.0.0.1:51234 is held by powershell (PID {otherPid}).",
+            OverlayHostSession.DescribeFailure(
+                51234, $"powershell (PID {otherPid})", new StaleController.Observation(otherPid, "powershell", HasWindow: true)));
+    }
+
+    [Fact]
+    public void DescribeFailure_SaysThePortCouldNotBeHad_WhenNothingOwnsIt() =>
+        Assert.Equal("The overlay could not start on 127.0.0.1:51234.", OverlayHostSession.DescribeFailure(51234, null, null));
+
     [Fact]
     public void Start_WhenThePortIsTaken_ReportsTheOwner_AndRetrySucceedsOnceItIsFree()
     {

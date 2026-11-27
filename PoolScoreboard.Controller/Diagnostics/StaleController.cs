@@ -25,7 +25,7 @@ internal static class StaleController
     /// read at all (gone, or protected by another integrity level), which is not the same answer as "no window" and
     /// must never be acted on as if it were.
     /// </summary>
-    public sealed record Observation(string? Name, bool? HasWindow);
+    public sealed record Observation(int Pid, string? Name, bool? HasWindow);
 
     /// <summary>
     /// Reads a process's name and window state through one handle, so both answers describe the same process at the
@@ -43,14 +43,14 @@ internal static class StaleController
         try
         {
             using var process = Process.GetProcessById(pid);
-            return new Observation(process.ProcessName, process.MainWindowHandle != IntPtr.Zero);
+            return new Observation(pid, process.ProcessName, process.MainWindowHandle != IntPtr.Zero);
         }
         catch (Exception exception) when (exception is ArgumentException
                                              or InvalidOperationException
                                              or Win32Exception
                                              or NotSupportedException)
         {
-            return new Observation(null, null);
+            return new Observation(pid, null, null);
         }
     }
 

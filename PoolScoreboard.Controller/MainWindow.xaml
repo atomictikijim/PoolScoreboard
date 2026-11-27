@@ -55,11 +55,12 @@
 
                 <!-- Only present when the overlay host is not serving — a failed start or a host that
                      stopped mid-session: the reason names the process on port 51234 when that is what took the
-                     port, and Retry tries again without a restart. -->
+                     port, says to close another Controller's window when that is the way out, and Retry tries
+                     again without a restart. -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0"
                             Visibility="{Binding OverlayIsOffline, Converter={StaticResource BoolToVisibilityConverter}}">
                     <TextBlock Text="{Binding OverlayStatus}" Foreground="{StaticResource WarningBrush}"
-                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="520" />
+                               VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="560" />
                     <Button Content="Retry" Style="{StaticResource InactiveButtonStyle}"
                             Command="{Binding RetryOverlayCommand}" Padding="14,6" Margin="12,0,0,0" />
                 </StackPanel>

@@ -130,7 +130,8 @@ dotnet clean
   older than the guard — the session closes it and retries the bind once, so the banner cannot become permanent over
   a port only a dead copy of this app is holding (`Diagnostics/StaleController`). A copy that still has a window is
   deliberately left running: that is somebody's session (an older build in use, an instance never shut down), and
-  closing it would end their window mid-match — the banner names it and the operator closes it when ready. Never
+  closing it would end their window mid-match — so the banner names it and asks for that window to be closed, and
+  Retry takes the port back as soon as it is. Never
   this process, never a program that is not this app, and never a holder whose process cannot be read at all — "no
   window" and "cannot tell" are different answers, and only the first is acted on. The name and the window state
   come from one look at the process (`Diagnostics/StaleController.Observe`), so a holder exiting between them cannot
