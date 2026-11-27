@@ -333,7 +333,12 @@ the word "Retry" passed a mutation that renamed the button, because a `ToolTip` 
 source guards cannot reach: 12 tests over the real endpoints, no socket. Every page and asset has to answer 200 with
 its content type, the scoreboard and cue-ball payloads are checked against the pages themselves — every `state.…`
 path `scoreboard.js`/`cueball.js` reads has to resolve in the JSON, so renaming `PlayerDto.Score` fails with
-`home.score, away.score` — `home/add` moves the score the page renders, the cue-ball contact round-trips through the
+`home.score, away.score` — every `/api/control` route is checked against the payload the pages render — each score control moves only the side
+it names (both sides arranged at one, so a no-op, a wrong side and a flipped sign all differ), undo removes the point
+the scoreboard shows last, the shooter control flips `homeIsCurrentShooter` and back, each ball-group control assigns
+its group and the complement (after switching to 8-ball, where groups exist), the per-ball toggle pockets and
+unpockets, a ball number outside 1–15 is a 400, a new rack clears the tracker but keeps the score, and a reset clears
+scores, groups and balls while keeping the chosen game type — the cue-ball contact round-trips through the
 property names the page sends and reads, a player's icon comes back as its own bytes under the mime it was stored
 with while an unknown player 404s, and each stream's first `data:` frame — the only picture an `EventSource` page ever
 gets — carries the same paths that page reads (a payload that resolves on `/state` and not in the frame is still a

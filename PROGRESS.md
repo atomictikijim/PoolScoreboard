@@ -194,6 +194,22 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — Every Stream Deck route's effect is read back through the payload
+
+- The HTTP tests checked `score/home/add` and nothing else, so eleven control routes could have been no-ops (or moved
+  the wrong side) with CI green and only a Stream Deck button to notice. All thirteen are now covered, each asserted
+  through `/overlay/api/scoreboard/state` — the payload the pages render, not the manager's internals.
+- Score controls are one theory over home/away × add/subtract with *both* sides arranged at one, so a no-op, the
+  wrong side and a flipped sign are each distinguishable. Undo is arranged H, H, A so it has to remove the away point
+  (the last), not just any point. The shooter control is asserted to flip and flip back. Ball groups are a theory over
+  the four routes, after switching to 8-ball, asserting the named group *and* the complement on the other side. The
+  ball toggle, the 400 for a ball number outside 1–15, new rack (clears the tracker, keeps the score) and reset
+  (scores, groups and balls cleared, chosen game type kept) each have their own fact.
+- Mutation-proved, then reverted: swapping the two subtract routes' sides failed both subtract cases
+  (`Expected: 1 / Actual: 0` and the reverse), and making `shooter/toggle` a no-op failed with
+  `Expected: False, Actual: True`. Reverting restored 29/29.
+- Full suite 109 Core + 29 Overlay + 137 Controller, 0 warnings. Tests only: no version bump.
+
 ### 2026-11-27 — The new stream and icon assertions are mutation-proved
 
 - Broke the scoreboard stream's first frame (`Serialize` returning `"{}"`): the frame test failed naming all 23 paths

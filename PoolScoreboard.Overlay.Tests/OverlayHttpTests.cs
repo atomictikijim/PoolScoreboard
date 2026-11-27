@@ -27,6 +27,8 @@ namespace PoolScoreboard.Overlay.Tests;
 public sealed class OverlayHttpTests : IAsyncLifetime
 {
     /// <summary>A page reading <c>state.home.score</c> needs a <c>home</c> object with a <c>score</c>.</summary>
+    private const string ScoreboardState = "/overlay/api/scoreboard/state";
+
     private static readonly Regex StatePath = new(@"\bstate\.([A-Za-z0-9_][A-Za-z0-9_.]*)", RegexOptions.Compiled);
 
     private GameManager _gameManager = null!;
@@ -71,7 +73,7 @@ public sealed class OverlayHttpTests : IAsyncLifetime
     [Fact]
     public async Task TheStatePayloadCarriesEveryPathTheScoreboardPageReads()
     {
-        var payload = await GetJson("/overlay/api/scoreboard/state");
+        var payload = await GetJson(ScoreboardState);
         var read = PathsReadBy("scoreboard.js");
 
         Assert.NotEmpty(read);
@@ -154,11 +156,11 @@ public sealed class OverlayHttpTests : IAsyncLifetime
     [Fact]
     public async Task TheControlApiMovesTheStateThePagesRender()
     {
-        var before = HomeScore(await GetJson("/overlay/api/scoreboard/state"));
+        var before = HomeScore(await GetJson(ScoreboardState));
 
         (await _client.GetAsync("/api/control/score/home/add")).EnsureSuccessStatusCode();
 
-        Assert.Equal(before + 1, HomeScore(await GetJson("/overlay/api/scoreboard/state")));
+        Assert.Equal(before + 1, HomeScore(await GetJson(ScoreboardState)));
     }
 
     [Fact]
@@ -172,6 +174,135 @@ public sealed class OverlayHttpTests : IAsyncLifetime
         // The property names in this request and this payload are what cueball.js sends and reads.
         Assert.Equal(0.25, payload.GetProperty("x").GetDouble(), 3);
         Assert.Equal(0.75, payload.GetProperty("y").GetDouble(), 3);
+    }
+
+    // Every /api/control route, read back through the payload the pages render. A Stream Deck button has no screen
+    // to check itself against, so an effect that is absent, on the wrong side or the wrong sign has to fail here.
+
+    [Theory]
+    [InlineData("/api/control/score/home/add", true, 1)]
+    [InlineData("/api/control/score/away/add", false, 1)]
+    [InlineData("/api/control/score/home/subtract", true, -1)]
+    [InlineData("/api/control/score/away/subtract", false, -1)]
+    public async Task EachScoreControlMovesOnlyTheSideItNames(string path, bool home, int delta)
+    {
+        // Both sides start on one, so a no-op, a flipped sign and the wrong side are all distinguishable.
+        _gameManager.AddPoint(isPlayer1: true);
+        _gameManager.AddPoint(isPlayer1: false);
+
+        (await _client.GetAsync(path)).EnsureSuccessStatusCode();
+
+        var state = await GetJson(ScoreboardState);
+        Assert.Equal(1 + (home ? delta : 0), PlayerScore(state, isHome: true));
+        Assert.Equal(1 + (home ? 0 : delta), PlayerScore(state, isHome: false));
+    }
+
+    [Fact]
+    public async Task UndoRemovesThePointTheScoreboardShowsLast()
+    {
+        _gameManager.AddPoint(isPlayer1: true);
+        _gameManager.AddPoint(isPlayer1: true);
+        _gameManager.AddPoint(isPlayer1: false);
+
+        (await _client.GetAsync("/api/control/score/undo")).EnsureSuccessStatusCode();
+
+        var afterOne = await GetJson(ScoreboardState);
+        Assert.Equal(2, PlayerScore(afterOne, isHome: true));
+        Assert.Equal(0, PlayerScore(afterOne, isHome: false)); // the away point was last, not a home one
+
+        (await _client.GetAsync("/api/control/score/undo")).EnsureSuccessStatusCode();
+
+        Assert.Equal(1, PlayerScore(await GetJson(ScoreboardState), isHome: true));
+    }
+
+    [Fact]
+    public async Task TheShooterControlFlipsTheSideThePageHighlights()
+    {
+        var before = (await GetJson(ScoreboardState)).GetProperty("homeIsCurrentShooter").GetBoolean();
+
+        (await _client.GetAsync("/api/control/shooter/toggle")).EnsureSuccessStatusCode();
+        Assert.Equal(!before, (await GetJson(ScoreboardState)).GetProperty("homeIsCurrentShooter").GetBoolean());
+
+        (await _client.GetAsync("/api/control/shooter/toggle")).EnsureSuccessStatusCode();
+        Assert.Equal(before, (await GetJson(ScoreboardState)).GetProperty("homeIsCurrentShooter").GetBoolean());
+    }
+
+    [Theory]
+    [InlineData("/api/control/balls/home/solids", true, "Solids")]
+    [InlineData("/api/control/balls/home/stripes", true, "Stripes")]
+    [InlineData("/api/control/balls/away/solids", false, "Solids")]
+    [InlineData("/api/control/balls/away/stripes", false, "Stripes")]
+    public async Task EachBallGroupControlAssignsTheGroupAndItsComplement(string path, bool home, string group)
+    {
+        // Groups exist only in 8-ball, and the app opens on 9-ball.
+        _gameManager.InitializeGame(GameType.EightBall, RaceToMode.Single);
+
+        (await _client.GetAsync(path)).EnsureSuccessStatusCode();
+
+        var state = await GetJson(ScoreboardState);
+
+        Assert.Equal(group, PlayerGroup(state, isHome: home));
+        Assert.Equal(group == "Solids" ? "Stripes" : "Solids", PlayerGroup(state, isHome: !home));
+    }
+
+    [Fact]
+    public async Task TheBallTogglePocketsTheBallAndUnpocketsItAgain()
+    {
+        (await _client.GetAsync("/api/control/balls/5/toggle")).EnsureSuccessStatusCode();
+
+        Assert.Equal(new[] { 5 }, PocketedBalls(await GetJson(ScoreboardState)));
+
+        (await _client.GetAsync("/api/control/balls/5/toggle")).EnsureSuccessStatusCode();
+
+        Assert.Empty(PocketedBalls(await GetJson(ScoreboardState)));
+    }
+
+    [Fact]
+    public async Task ABallNumberOutsideTheRackIsRejected()
+    {
+        var response = await _client.GetAsync("/api/control/balls/16/toggle");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(PocketedBalls(await GetJson(ScoreboardState)));
+    }
+
+    [Fact]
+    public async Task ANewRackClearsTheBallTrackerButKeepsTheScore()
+    {
+        _gameManager.AddPoint(isPlayer1: true);
+        (await _client.GetAsync("/api/control/balls/3/toggle")).EnsureSuccessStatusCode();
+        (await _client.GetAsync("/api/control/balls/7/toggle")).EnsureSuccessStatusCode();
+
+        (await _client.GetAsync("/api/control/rack/new")).EnsureSuccessStatusCode();
+
+        var state = await GetJson(ScoreboardState);
+        Assert.Empty(PocketedBalls(state));
+        Assert.Equal(1, PlayerScore(state, isHome: true)); // a new rack is not a new match
+    }
+
+    [Fact]
+    public async Task ResetMatchClearsTheScoreboardThePageShows()
+    {
+        _gameManager.InitializeGame(GameType.EightBall, RaceToMode.Single);
+        _gameManager.AddPoint(isPlayer1: true);
+        _gameManager.AddPoint(isPlayer1: false);
+        _gameManager.AssignBallGroup(isHome: true, BallGroup.Solids);
+        _gameManager.PocketBall(9);
+
+        (await _client.GetAsync("/api/control/match/reset")).EnsureSuccessStatusCode();
+
+        var state = await GetJson(ScoreboardState);
+
+        Assert.Equal(0, PlayerScore(state, isHome: true));
+        Assert.Equal(0, PlayerScore(state, isHome: false));
+        Assert.Equal("Unassigned", PlayerGroup(state, isHome: true));
+        Assert.Equal("Unassigned", PlayerGroup(state, isHome: false));
+        Assert.Empty(PocketedBalls(state));
+        Assert.False(state.GetProperty("isGameActive").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, state.GetProperty("winnerName").ValueKind);
+
+        // A reset ends the match, it does not restyle the show: the overlay keeps previewing what was chosen.
+        Assert.Equal("EightBall", state.GetProperty("gameType").GetString());
     }
 
     [Fact]
@@ -210,8 +341,16 @@ public sealed class OverlayHttpTests : IAsyncLifetime
         return document.RootElement.Clone();
     }
 
-    private static int HomeScore(JsonElement payload) =>
-        payload.GetProperty("home").GetProperty("score").GetInt32();
+    private static int HomeScore(JsonElement payload) => PlayerScore(payload, isHome: true);
+
+    private static int PlayerScore(JsonElement state, bool isHome) =>
+        state.GetProperty(isHome ? "home" : "away").GetProperty("score").GetInt32();
+
+    private static string PlayerGroup(JsonElement state, bool isHome) =>
+        state.GetProperty(isHome ? "home" : "away").GetProperty("ballGroup").GetString()!;
+
+    private static int[] PocketedBalls(JsonElement state) =>
+        state.GetProperty("pocketedBalls").EnumerateArray().Select(ball => ball.GetInt32()).ToArray();
 
     private static async Task<string> ReadFirstFrame(HttpResponseMessage response, CancellationToken ct)
     {
