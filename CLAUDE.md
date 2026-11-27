@@ -294,8 +294,14 @@ cannot delete the match about to be resumed), a saved match is restored, a fresh
 unreadable file is kept aside without blocking startup. `OverlayHostSessionTests` also covers moving the port: a
 failed start is reported on the old port, `SetPort` forgets that reason and the next start serves the new one, and a
 serving host is stopped because a listening socket cannot be moved. `GameViewModelTests` covers the field itself: a
-usable port rebinds and saves, one below 1024 snaps back to the port in use, and the Help window is built from the
-same port. `MatchStateStoreTests` pins what a save leaves behind: the
+usable port rebinds and saves, and one below 1024 snaps back to the port in use. `OperatorSettingsStoreTests` pins the
+other half of persistence — a chosen port survives the round trip through `settings.json`, and a file written before
+the port was a setting (no `overlayPort` key) gives `OperatorProfile.DefaultOverlayPort`. `HelpWindowTests` builds
+the real Help window at 51241 and reads its 13 URL lines back, asserting every one carries that port and none carries
+51234, which is the CI-side twin of the live check's Help step. Two things that test had to work around: a full
+`pack://` URI is only parsed once WPF has registered the scheme, so the theme dictionary is loaded by its relative
+`/Assembly;component/` form; and a window's bindings resolve only once its tree is loaded, so the test shows the
+window at (-20000, -20000) rather than merely constructing it. `MatchStateStoreTests` pins what a save leaves behind: the
 published file opens with no sharing, is exactly the serialized length, parses back with every ball, and leaves no
 `.tmp` behind — the state a power cut has to find. The `Flush(flushToDisk: true)` call itself is not observable from
 a test, so losing power is still an argument rather than a measurement, unlike a killed process, which was checked
@@ -308,7 +314,8 @@ live.
 - `tools/verify-live.ps1` is what used to be hand-run in `%TEMP%` and vanished with it, so the four things a unit
   test cannot reach are now repeatable: `port-change` (the OVERLAY PORT field moves the overlay to 51241, the choice
   is saved and a relaunch comes back on it, the modal Help window opens and lists the overlay on 51241 and no longer
-  on 51234, and a foreign listener on the *configured* port is named in the banner with Retry recovering), `crash-resume` (score 2–1, kill the process with no `OnExit`, relaunch and
+  on 51234 — `HelpWindowTests` pins the same text in CI without the dialog — and a foreign listener on the
+  *configured* port is named in the banner with Retry recovering), `crash-resume` (score 2–1, kill the process with no `OnExit`, relaunch and
   check the overlay serves 2–1 and the file was not deleted at startup, then RESET deletes it), `banner-retry` (a
   foreign process holds 51234, the window names it and offers Retry, and freeing the port then pressing Retry brings
   the overlay up and clears the banner) and `leftover` (a Controller built from the pre-guard commit `1acddbd` keeps

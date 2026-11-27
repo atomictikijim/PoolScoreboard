@@ -194,6 +194,24 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — The Help page and the saved port get CI tests
+
+- Two things the live checks had been covering by hand are now asserted on every push. `HelpWindowTests` builds the
+  real `HelpWindow` at 51241, reads its 13 URL lines back through the logical tree, and asserts every one carries
+  that port and none carries 51234 — so a re-hard-coded address fails in CI, not only when someone remembers to run
+  `verify-live.ps1 -Scenario port-change` on a non-default port. `OperatorSettingsStoreTests` round-trips 51241
+  through `settings.json` and pins that a file written before the port was a setting (no `overlayPort` key) gives
+  `OperatorProfile.DefaultOverlayPort`; the round-trip test it already had never set the port, so the contract was
+  asserted nowhere.
+- The window test needed two things that are easy to get wrong. A full `pack://` URI in a static initializer throws
+  `UriFormatException` because the scheme is only registered once WPF has been touched, so the app's theme is loaded
+  by its relative `/Assembly;component/` form. And a window's bindings do not resolve off a constructed-but-unshown
+  window — the tree has to be loaded — so the test shows it at (-20000, -20000) with `ShowActivated` off, which gives
+  it a handle without taking the desktop.
+- Checked that the new test has teeth rather than trusting a green run: hard-coding 51234 back into one Help URL
+  line makes it fail (12 URL lines instead of 13), then the line was restored.
+- Tests, not product behaviour: no version bump.
+
 ### 2026-11-27 — The full live run catches one scenario leaking into the next
 
 - Running `tools/verify-live.ps1` with no `-Scenario` failed three of the four: `port-change` leaves

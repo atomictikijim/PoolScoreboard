@@ -125,6 +125,34 @@ public sealed class OperatorSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void SaveThenLoad_KeepsTheOverlayPortTheOperatorChose()
+    {
+        var profile = Profile();
+        profile.OverlayPort = 51241;
+
+        Store.Save(profile, homeIconDataUri: null, awayIconDataUri: null);
+
+        var loaded = Store.Load();
+
+        Assert.NotNull(loaded);
+        Assert.Equal(51241, loaded!.Profile.OverlayPort);
+        Assert.Equal(51241, Json().GetProperty("profile").GetProperty("overlayPort").GetInt32());
+    }
+
+    [Fact]
+    public void Load_WithoutASavedPort_GivesThePortTheAppHasAlwaysUsed()
+    {
+        // A settings file written before the port was a setting holds no overlayPort at all.
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(SettingsPath, "{\"version\":1,\"profile\":{\"homePlayer\":{\"name\":\"Alice\"}}}");
+
+        var loaded = Store.Load();
+
+        Assert.NotNull(loaded);
+        Assert.Equal(OperatorProfile.DefaultOverlayPort, loaded!.Profile.OverlayPort);
+    }
+
+    [Fact]
     public void Save_WritesIconsAsFilesAndKeepsTheirBytesOutOfTheJson()
     {
         Store.Save(Profile(), DataUri("image/png", PngBytes), awayIconDataUri: null);
