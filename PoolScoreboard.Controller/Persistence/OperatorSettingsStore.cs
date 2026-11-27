@@ -145,8 +145,10 @@ internal sealed class OperatorSettingsStore
         var fileName = side + EndCapIconData.ExtensionFor(mime);
         var path = Path.Combine(_iconsFolder, fileName);
 
+        // Through DurableFile like the JSON beside it: an icon the settings file names is either the previous
+        // image or the new one, never a half-written file after a power cut.
         if (!HasSameBytes(path, bytes))
-            File.WriteAllBytes(path, bytes);
+            DurableFile.WriteAllBytes(path, bytes);
 
         DeleteIcons(side, keep: fileName);
         return new PersistedIcon { File = fileName, Mime = mime };

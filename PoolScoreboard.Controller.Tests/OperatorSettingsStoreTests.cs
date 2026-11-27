@@ -200,12 +200,17 @@ public sealed class OperatorSettingsStoreTests : IDisposable
     }
 
     [Fact]
-    public void Save_LeavesNoTemporaryFileBehind()
+    public void Save_LeavesNoTemporaryFileBehind_ForTheSettingsOrTheIconItNames()
     {
         Store.Save(Profile(), DataUri("image/png", PngBytes), awayIconDataUri: null);
 
         Assert.False(File.Exists(SettingsPath + ".tmp"));
         Assert.True(File.Exists(SettingsPath));
+
+        // The icon is written through the same helper, so it cannot be published half written either.
+        var icon = System.IO.Path.Combine(IconsFolder, Assert.Single(IconFiles("home")));
+        Assert.False(File.Exists(icon + ".tmp"));
+        Assert.Equal(PngBytes, File.ReadAllBytes(icon));
     }
 
     [Fact]

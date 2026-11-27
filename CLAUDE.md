@@ -149,8 +149,8 @@ dotnet clean
   750 ms debounce and on exit. `settings.json`, `roster.json` and `match.json` all go through
   `Persistence/DurableFile`, which writes the text under a `.tmp` name, flushes it to the disk and only then moves
   it into place — so a crash mid-save keeps the previous file, and a power cut cannot publish a half-written one.
-  Icon bytes are a separate path: they are written in place with `File.WriteAllBytes`, so an interrupted icon write
-  is not atomic (only the JSON files are).
+  End-cap icon bytes go through the same helper (`WriteAllBytes`), so an icon a saved file names is either the
+  previous image or the new one, never a truncated file left by a power cut.
 - `Persistence/MatchStateStore` is the file; `Persistence/MatchAutosave` is the wiring around it, kept out of
   `App` so its rules are testable. From `Restore()` on it watches `GameStateChanged` and only re-arms a pool timer,
   so a burst of points costs one small write 500 ms later (the event arrives inside `GameManager`'s lock, often from

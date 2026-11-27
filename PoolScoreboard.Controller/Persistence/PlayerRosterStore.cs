@@ -272,9 +272,11 @@ public sealed class PlayerRosterStore
         }
 
         var fileName = IconFilePrefix + safeId + EndCapIconData.ExtensionFor(mime);
+        // Through DurableFile like the roster beside it: the entry points at either the previous artwork or the new
+        // one, never at a truncated file left by a power cut.
         var path = Path.Combine(_iconsFolder, fileName);
         if (!HasSameBytes(path, bytes))
-            File.WriteAllBytes(path, bytes);
+            DurableFile.WriteAllBytes(path, bytes);
 
         if (_icons.TryGetValue(entryId, out var previous)
             && !string.Equals(previous.File, fileName, StringComparison.OrdinalIgnoreCase))

@@ -194,6 +194,19 @@ live:
 
 ## Change Log
 
+### 2026-11-27 — End-cap icons are written the way the files that name them are
+
+- The icons under `icons\` were the last in-place write: `File.WriteAllBytes` straight onto the final name, so a
+  power cut mid-write left a truncated image that `settings.json` or `roster.json` still pointed at — a broken end
+  cap the overlay would serve and nothing would detect.
+- `DurableFile` now has `WriteAllBytes`, sharing one private write with `WriteAllText`; `OperatorSettingsStore`'s
+  icon write and `PlayerRosterStore.SetIcon` both use it. Every saved file in the app now goes: write the temporary
+  name, flush it to the disk, move it into place.
+- Tests: `WriteAllBytes` puts exact binary bytes on the disk (including `0x00`/`0xFF`) with no `.tmp` left, replaces
+  a 4 KB icon with a 3-byte one without leaving a tail, and the two stores' "leaves no temporary file behind" tests
+  now cover the icon they save as well as the JSON.
+- Version 0.25.0 → 0.26.0.
+
 ### 2026-11-27 — The profile files get the same flushed write as the match
 
 - `settings.json` and `roster.json` had exactly the gap `match.json` just lost: `File.WriteAllText` to a temporary

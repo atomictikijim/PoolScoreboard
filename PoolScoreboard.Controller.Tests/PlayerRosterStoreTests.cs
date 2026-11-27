@@ -374,12 +374,19 @@ public sealed class PlayerRosterStoreTests : IDisposable
     }
 
     [Fact]
-    public void Save_LeavesNoTemporaryFileBehind()
+    public void Save_LeavesNoTemporaryFileBehind_ForTheRosterOrItsIcons()
     {
-        Store.Save(Roster(("a", "Alice", "", 7)));
+        var store = Store;
+        store.SetIcon("a", Png());
+        store.Save(Roster(("a", "Alice", "", 7)));
 
         Assert.False(File.Exists(RosterPath + ".tmp"));
         Assert.True(File.Exists(RosterPath));
+
+        // The entry's artwork goes through the same helper, so it cannot be published half written either.
+        var icon = Assert.Single(Directory.GetFiles(IconsFolder, "roster-*"));
+        Assert.False(File.Exists(icon + ".tmp"));
+        Assert.NotEmpty(File.ReadAllBytes(icon));
     }
 
     [Fact]

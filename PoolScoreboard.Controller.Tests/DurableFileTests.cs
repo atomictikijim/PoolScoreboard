@@ -5,10 +5,10 @@ using PoolScoreboard.Controller.Persistence;
 namespace PoolScoreboard.Controller.Tests;
 
 /// <summary>
-/// The shared write behind <c>settings.json</c>, <c>roster.json</c> and <c>match.json</c>: what lands under the real
-/// name is exactly the text that was handed in, the temporary file is gone, and a failure throws rather than leaving
-/// a store believing it saved. The flush itself cannot be observed from a test — losing power is not something a
-/// test can stage — so these pin the file a completed write leaves behind.
+/// The shared write behind <c>settings.json</c>, <c>roster.json</c>, <c>match.json</c> and the end-cap icons: what
+/// lands under the real name is exactly the text or bytes that were handed in, the temporary file is gone, and a
+/// failure throws rather than leaving a store believing it saved. The flush itself cannot be observed from a test —
+/// losing power is not something a test can stage — so these pin the file a completed write leaves behind.
 /// </summary>
 public sealed class DurableFileTests : IDisposable
 {
@@ -16,6 +16,8 @@ public sealed class DurableFileTests : IDisposable
         Path.Combine(Path.GetTempPath(), "poolscoreboard-durable-tests", Guid.NewGuid().ToString("n"));
 
     private string SavedPath => Path.Combine(_root, "saved.json");
+
+    private string IconPath => Path.Combine(_root, "home.png");
 
     [Fact]
     public void WriteAllText_PutsTheExactTextOnDisk_WithoutABomOrATemporaryFile()
@@ -47,6 +49,30 @@ public sealed class DurableFileTests : IDisposable
         DurableFile.WriteAllText(SavedPath, "{\"players\":[]}");
 
         Assert.Equal("{\"players\":[]}", File.ReadAllText(SavedPath));
+    }
+
+    [Fact]
+    public void WriteAllBytes_PutsTheExactIconBytesOnDisk_AndLeavesNoTemporaryFile()
+    {
+        Directory.CreateDirectory(_root);
+        var icon = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0xFF, 0x7F, 0x80 };
+
+        DurableFile.WriteAllBytes(IconPath, icon);
+
+        Assert.Equal(icon, File.ReadAllBytes(IconPath));
+        Assert.False(File.Exists(IconPath + ".tmp"));
+    }
+
+    [Fact]
+    public void WriteAllBytes_ReplacesALargerIcon_WithoutLeavingItsTailBehind()
+    {
+        Directory.CreateDirectory(_root);
+        DurableFile.WriteAllBytes(IconPath, new byte[4096]);
+        var smaller = new byte[] { 1, 2, 3 };
+
+        DurableFile.WriteAllBytes(IconPath, smaller);
+
+        Assert.Equal(smaller, File.ReadAllBytes(IconPath));
     }
 
     [Fact]

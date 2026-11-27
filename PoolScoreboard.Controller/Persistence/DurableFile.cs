@@ -4,9 +4,10 @@ using System.Text;
 namespace PoolScoreboard.Controller.Persistence;
 
 /// <summary>
-/// The one write every saved file here goes through: the text is encoded and put on the disk under a temporary
-/// name, and only then moved onto the real one. A crash mid-write leaves the previous file intact, and a power cut
-/// cannot leave the name pointing at content that was still sitting in the OS cache.
+/// The one write every saved file here goes through — <c>settings.json</c>, <c>roster.json</c>, <c>match.json</c> and
+/// the end-cap icons beside them: the bytes go to the disk under a temporary name and are only then moved onto the
+/// real one. A crash mid-write leaves the previous file intact, and a power cut cannot leave the name pointing at
+/// content that was still sitting in the OS cache.
 /// </summary>
 internal static class DurableFile
 {
@@ -18,9 +19,18 @@ internal static class DurableFile
     /// on the disk. Throws whatever the file system throws — each store decides whether that becomes a logged
     /// warning and a failed save.
     /// </summary>
-    public static void WriteAllText(string path, string contents)
+    public static void WriteAllText(string path, string contents) =>
+        Write(path, Utf8NoBom.GetBytes(contents));
+
+    /// <summary>
+    /// Writes an icon's bytes over <paramref name="path"/> the same way, so a saved icon is either the previous
+    /// image or the new one, never half of either.
+    /// </summary>
+    public static void WriteAllBytes(string path, byte[] bytes) =>
+        Write(path, bytes);
+
+    private static void Write(string path, byte[] bytes)
     {
-        var bytes = Utf8NoBom.GetBytes(contents);
         var temporaryPath = path + ".tmp";
 
         // Flush(true) is what makes this survive a power cut and not just a process kill: it pushes the bytes,
