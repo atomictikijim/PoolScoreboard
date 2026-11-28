@@ -452,8 +452,8 @@ view is still the only way a match enters the history, and the History window is
 1. Click **Records**.
 
 *Expected:* the window opens at once with no rows, the sentence "No matches recorded yet — finish a match and its
-players appear here.", both pickers empty and "Pick two different players." in the panel. Close returns to whichever
-screen was behind it.
+players appear here.", both pickers empty and "No two players to compare yet." in the panel — an empty list is not a
+choice it can ask for. Close returns to whichever screen was behind it.
 
 ### PR-2 — Every name that played, not just the winners
 

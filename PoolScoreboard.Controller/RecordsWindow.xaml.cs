@@ -21,6 +21,7 @@ public partial class RecordsWindow : Window, INotifyPropertyChanged
 {
     private readonly MatchHistoryStore _store;
     private MatchArchive _archive = new();
+    private MatchHeadToHead? _headToHead;
     private string? _firstPlayer;
     private string? _secondPlayer;
 
@@ -70,18 +71,22 @@ public partial class RecordsWindow : Window, INotifyPropertyChanged
         }
     }
 
-    /// <summary>The scoreline — "Alice 3 – 2 Bob" — or why there is not one yet.</summary>
+    /// <summary>The scoreline — "Alice 3 – 2 Bob" — or why there is not one to show.</summary>
     public string HeadToHeadTitle
     {
         get
         {
-            var headToHead = CurrentHeadToHead;
-            if (headToHead is null)
+            // An empty history has not gone wrong: there is nothing to compare, and asking someone to pick two
+            // names from an empty list would be advice they cannot follow.
+            if (PlayerNames.Count < 2)
+                return "No two players to compare yet.";
+
+            if (_headToHead is null)
                 return "Pick two different players.";
 
-            return headToHead.Matches == 0
-                ? $"{headToHead.FirstName} and {headToHead.SecondName} have not played."
-                : $"{headToHead.FirstName} {headToHead.FirstWins} – {headToHead.SecondWins} {headToHead.SecondName}";
+            return _headToHead.Matches == 0
+                ? $"{_headToHead.FirstName} and {_headToHead.SecondName} have not played."
+                : $"{_headToHead.FirstName} {_headToHead.FirstWins} – {_headToHead.SecondWins} {_headToHead.SecondName}";
         }
     }
 
@@ -90,33 +95,24 @@ public partial class RecordsWindow : Window, INotifyPropertyChanged
     {
         get
         {
-            var headToHead = CurrentHeadToHead;
-            if (headToHead is null)
+            if (Rows.Count == 0)
+                return "Nothing recorded yet.";
+
+            if (PlayerNames.Count < 2)
+                return "One more player and there is something to compare.";
+
+            if (_headToHead is null)
                 return "Two names, and how they have fared against each other.";
 
-            if (headToHead.LastMeeting is not { } last)
+            if (_headToHead.LastMeeting is not { } last)
                 return "No recorded match between them.";
 
-            return $"{Matches(headToHead.Matches)} · last played {last.CompletedAt.ToLocalTime():yyyy-MM-dd HH:mm}, " +
+            return $"{Matches(_headToHead.Matches)} · last played {last.CompletedAt.ToLocalTime():yyyy-MM-dd HH:mm}, " +
                 $"{Display(last.HomeName)} {last.HomeScore} – {last.AwayScore} {Display(last.AwayName)}";
         }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
-
-    private MatchHeadToHead? CurrentHeadToHead
-    {
-        get
-        {
-            var headToHead = _archive.HeadToHead(FirstPlayer, SecondPlayer);
-            if (headToHead is null)
-                return null;
-
-            // The pickers hold the names the archive spells them with, so the record's own strings are only used
-            // when a caller set a name by hand.
-            return headToHead;
-        }
-    }
 
     private void Reload()
     {
@@ -143,6 +139,10 @@ public partial class RecordsWindow : Window, INotifyPropertyChanged
 
     private void RefreshHeadToHead()
     {
+        // Looked up once per change rather than once per property the panel reads: the title and the detail are
+        // two reads of one answer, and the answer walks the whole archive.
+        _headToHead = _archive.HeadToHead(FirstPlayer, SecondPlayer);
+
         OnPropertyChanged(nameof(HeadToHeadTitle));
         OnPropertyChanged(nameof(HeadToHeadDetail));
     }

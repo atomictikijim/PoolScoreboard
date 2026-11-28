@@ -317,8 +317,8 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
   home side rather than to the name, allowing a name against itself, reading the oldest spelling instead of the newest,
   and naming the wrong side's wins in the scoreline. Each failed the fact that covers it.
 - Checked in the window with UI Automation: the button sits beside History with the bar still fitting, the window opens
-  and closes with the Controller still running, an empty history shows its placeholder and "Pick two different
-  players.", and over a seeded three-match history the rows read Alice 3/2/1 67%, Bob 2/1/1 50%, Carol 1/0/1 0% with
+  and closes with the Controller still running, an empty history shows its placeholder and "No two players to compare
+  yet." rather than asking for picks it cannot offer, and over a seeded three-match history the rows read Alice 3/2/1 67%, Bob 2/1/1 50%, Carol 1/0/1 0% with
   Alice and Bob picked and "Alice 1 – 1 Bob" under them. The seeded file was put back afterwards.
 - 0.44.1 -> 0.45.0. 179 Core + 36 Overlay + 209 Controller, 0 warnings.
 
