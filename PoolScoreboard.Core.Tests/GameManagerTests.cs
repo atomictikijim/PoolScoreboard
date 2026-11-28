@@ -116,6 +116,197 @@ public class GameManagerTests
     }
 
     [Fact]
+    public void AShotClockLengthSetAtSetup_IsWhatTheMatchCountsDownFrom()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 2, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 2, endCapIcon: null);
+
+        manager.SetShotClockLengths(shotClockSeconds: 25, extensionSeconds: 10);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+        manager.StartShotClock();
+
+        // A setup choice, so it has to survive the START MATCH that begins the match it was chosen for — a fresh
+        // state would quietly count down from the default forty instead.
+        Assert.Equal(now.AddSeconds(25), manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void TheSetupLengths_AreClampedToWhatTheClockCanUse()
+    {
+        var manager = new GameManager();
+
+        manager.SetShotClockLengths(shotClockSeconds: 0, extensionSeconds: 10_000);
+
+        // Clamped rather than refused: a slipped digit leaves a clock that can be read, not a match without one.
+        var state = manager.GetStateSnapshot();
+        Assert.Equal(GameState.MinShotClockSeconds, state.ShotClockSeconds);
+        Assert.Equal(GameState.MaxShotClockSeconds, state.ShotClockExtensionSeconds);
+    }
+
+    [Fact]
+    public void ALengthChangedMidMatch_IsIgnored()
+    {
+        var manager = NewMatch();
+
+        manager.SetShotClockLengths(shotClockSeconds: 10, extensionSeconds: 5);
+
+        // The clock on screen is counting down for a player; moving the length under them would be a different
+        // shot than the one they started.
+        var state = manager.GetStateSnapshot();
+        Assert.Equal(GameState.DefaultShotClockSeconds, state.ShotClockSeconds);
+        Assert.Equal(GameState.DefaultShotClockExtensionSeconds, state.ShotClockExtensionSeconds);
+    }
+
+    [Fact]
+    public void AnExtension_AddsItsTimeToTheRunningClock_OncePerPlayerPerRack()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        manager.SetShotClockLengths(shotClockSeconds: 30, extensionSeconds: 15);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        manager.StartShotClock();
+        now = now.AddSeconds(10);
+        manager.ExtendShotClock();
+
+        // More time on the shot in progress, not a fresh shot: the ten seconds already spent stay spent.
+        Assert.Equal(now.AddSeconds(20 + 15), manager.GetStateSnapshot().ShotClockEndsAt);
+
+        manager.ExtendShotClock();
+
+        // The same player's second call changes nothing: the rule is one each per rack.
+        Assert.Equal(now.AddSeconds(35), manager.GetStateSnapshot().ShotClockEndsAt);
+
+        manager.ToggleCurrentShooter();
+        manager.ExtendShotClock();
+
+        // The other player still had theirs — the shooter change restarts the clock at thirty, and this adds
+        // fifteen to it.
+        Assert.Equal(now.AddSeconds(45), manager.GetStateSnapshot().ShotClockEndsAt);
+
+        manager.ResetBalls();
+        manager.StartShotClock();
+        manager.ExtendShotClock();
+
+        // A new rack hands both of them one back.
+        Assert.Equal(now.AddSeconds(45), manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void AnExtension_WithoutAClockRunning_IsNotSpent()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        manager.ExtendShotClock();
+
+        // Nothing to add time to, so nothing happens and nothing is given up.
+        var idle = manager.GetStateSnapshot();
+        Assert.Null(idle.ShotClockEndsAt);
+        Assert.False(idle.HomeShotClockExtensionUsed);
+
+        manager.StartShotClock();
+        manager.ExtendShotClock();
+
+        Assert.Equal(
+            now.AddSeconds(GameState.DefaultShotClockSeconds + GameState.DefaultShotClockExtensionSeconds),
+            manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void APointThatWinsTheMatch_HidesTheClockInsteadOfRestartingIt()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 1, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 1, endCapIcon: null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+        manager.StartShotClock();
+
+        manager.AddPoint(isPlayer1: true);
+
+        // The winning point ends the match, not just the shot: the clock goes with the winner banner rather than
+        // counting down behind it.
+        var won = manager.GetStateSnapshot();
+        Assert.NotNull(won.Winner);
+        Assert.Null(won.ShotClockEndsAt);
+
+        // And it cannot be put back up behind the banner, by either route.
+        manager.StartShotClock();
+        manager.ExtendShotClock();
+        Assert.Null(manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void PocketingABall_RestartsARunningClock_AndBringingItBackDoesNot()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+        manager.StartShotClock();
+
+        now = now.AddSeconds(5);
+        manager.PocketBall(3);
+
+        // A ball leaving the table ends the shot it was potted in, the same way a point does.
+        Assert.Equal(now.AddSeconds(GameState.DefaultShotClockSeconds), manager.GetStateSnapshot().ShotClockEndsAt);
+
+        now = now.AddSeconds(5);
+        manager.UnpocketBall(3);
+
+        // Putting a ball back is the operator correcting a mistake, not a shot: five seconds of this one are gone.
+        Assert.Equal(
+            now.AddSeconds(GameState.DefaultShotClockSeconds - 5), manager.GetStateSnapshot().ShotClockEndsAt);
+
+        now = now.AddSeconds(5);
+        manager.ToggleBall(3);
+
+        // The Stream Deck's per-ball button is that same shot when it pockets a ball...
+        Assert.Equal(now.AddSeconds(GameState.DefaultShotClockSeconds), manager.GetStateSnapshot().ShotClockEndsAt);
+
+        now = now.AddSeconds(5);
+        manager.ToggleBall(3);
+
+        // ...and a correction when it brings one back.
+        Assert.Equal(
+            now.AddSeconds(GameState.DefaultShotClockSeconds - 5), manager.GetStateSnapshot().ShotClockEndsAt);
+
+        manager.PocketBall(4);
+        now = now.AddSeconds(5);
+        var beforeRepeat = manager.GetStateSnapshot().ShotClockEndsAt;
+        manager.PocketBall(4);
+
+        // Marking an already-pocketed ball again is not a shot either.
+        Assert.Equal(beforeRepeat, manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void TogglingTheShooter_RestartsARunningClock()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+        manager.StartShotClock();
+
+        now = now.AddSeconds(12);
+        manager.ToggleCurrentShooter();
+
+        // The other player is at the table, so the clock restarts for the shot they are about to play.
+        Assert.Equal(now.AddSeconds(GameState.DefaultShotClockSeconds), manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
     public void InitializeGame_SetsUpActiveGameWithPlayer1AsCurrentShooter()
     {
         var manager = NewMatch();

@@ -90,7 +90,9 @@ not for symmetry with work already done.
    it feeds #1 with match duration. Needs a decision: per shot with a reset, or continuous. *Done 2026-11-27, as a
    per-shot countdown: `GameState.ShotClockEndsAt` is a deadline, the overlay ticks it down itself, `T` and
    `/api/control/shotclock/*` start/restart or hide it, a point restarts a running clock, and a new rack or a
-   reset hides it.*
+   reset hides it. Extended 2026-11-28: both lengths are Match Setup fields, each player can call one extension per
+   rack, a ball leaving the table or a shooter toggle restarts the clock like a point does, and a won match hides
+   it instead of restarting it behind the banner.*
 5. **Tag-triggered release workflow.** Phase 6 packaging is a `dotnet publish` typed by hand, and CLAUDE.md asks
    versions to keep in step with the `v0.<major>.<ui>-beta` tags — a rule nothing checks. A `push: tags: v*` job
    that publishes the single-file win-x64 build and asserts `VersionPrefix` matches the tag. Zero runtime risk.
@@ -267,6 +269,10 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
   SAVE TO HISTORY (record model, archive call and save path), and the History window lists them newest first with
   each name's wins and deletes one behind a confirmation, but there is no export, no filter, no bulk clear, and no
   per-player detail beyond the win count.
+- The shot clock's two lengths are Match Setup choices that are not saved with the profile, so a relaunch returns
+  to 40/30 (the game type and Race-To mode behave the same way); the clock itself is never written to
+  `match.json`, so a resumed match starts with no clock, and each side's extension is a per-rack flag with nothing
+  on screen showing who has used theirs.
 - Ball colors in the Controller's live view are placeholder standard billiard-ball colors,
   not yet informed by the WNT visual reference.
 - Flag end-caps are artwork ("Choose Flag..." bundles country and US-state SVGs) stored as the
@@ -277,6 +283,34 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-28 — The clock's length is the operator's, and each player gets an extension
+
+- Both lengths moved to Match Setup. `ShotClockSeconds` (40) and the new `ShotClockExtensionSeconds` (30) are still
+  defaults on `GameState`; `SetShotClockLengths` takes them from the screen, clamps rather than refuses (5-300 s, so a
+  slipped digit still leaves a usable clock), and a started match, a reset and a resumed match all carry them, so
+  START MATCH cannot quietly fall back to forty. The fields are lost-focus bindings that show back what Core
+  accepted, so the screen never claims a length the clock is not using.
+- The extension is the player's, called by the operator: `ExtendShotClock` adds the extension time to the clock that
+  is already running for the current shooter — more time on the shot in progress, not a fresh shot. One per player
+  per rack, held by two flags on the state, and a new rack hands both of them one back. A call with no clock running
+  is ignored rather than spent. Reached by `/api/control/shotclock/extension`, `E` on the live view, and a CALL
+  EXTENSION button beside the shooter toggle.
+- The restart rules widened to what the developer asked for: a ball leaving the table (either ball route) and a
+  Home/Away shooter toggle now restart a running clock the way a point does. Putting a ball back does not — that is
+  the operator correcting a mistake, not a shot — and marking a ball already marked pocketed is not one either.
+- A point that wins the match now clears the clock instead of restarting it, and both `StartShotClock` and
+  `ExtendShotClock` are ignored while a winner is up: a countdown behind the winner banner was timing nothing.
+- The route guard failed first, naming `/api/control/shotclock/extension` as a route no button could be built for,
+  until both Stream Deck docs gained their row — the guard doing exactly its job. The Help page gained the endpoint
+  and the `E` shortcut, so its pinned URL count moved 15 -> 16.
+- Mutation-proved, then reverted, eight ways: the winning point restarting instead of clearing, the per-rack
+  used-flag not consulted, the shooter toggle leaving the clock counting, pocketing leaving it counting, putting a
+  ball back restarting it, the match not carrying the setup lengths, the win guard dropped from `StartShotClock`, and
+  the extension computed from now instead of added to the deadline. Each failed the fact that covers it.
+- 0.32.0 -> 0.33.0. Full suite 139 Core + 31 Overlay + 169 Controller, 0 warnings, and the extension route is read
+  back through the payload the page renders. Not checked by hand: neither length, nor the button, has been used in
+  the running window or seen in OBS.
 
 ### 2026-11-27 — A per-shot countdown on the overlay
 

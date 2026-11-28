@@ -196,6 +196,7 @@
                         <TextBlock Style="{StaticResource HelpCodeStyle}">Space — toggle current shooter</TextBlock>
                         <TextBlock Style="{StaticResource HelpCodeStyle}">N — start a new rack</TextBlock>
                         <TextBlock Style="{StaticResource HelpCodeStyle}">T — start or restart the shot clock</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">E — call the current shooter's extension (one per player per rack)</TextBlock>
                         <TextBlock Style="{StaticResource HelpBodyStyle}" Margin="0,8,0,0">
                             These are disabled while typing in a text field, so they won't interfere with
                             entering names or race-to values.
@@ -288,6 +289,7 @@
                         <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Reset Match — {0}/api/control/match/reset'}" />
                         <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Start / restart Shot Clock — {0}/api/control/shotclock/start'}" />
                         <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Hide Shot Clock — {0}/api/control/shotclock/clear'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Call Extension — {0}/api/control/shotclock/extension'}" />
 
                         <TextBlock Text="Notes" Style="{StaticResource HelpSubHeadingStyle}" />
                         <TextBlock Style="{StaticResource HelpBulletStyle}">

@@ -54,6 +54,11 @@ public class GameManager
                 GameType = gameType,
                 RaceToMode = raceToMode,
                 CurrentShooter = _currentGame.Player1,
+
+                // Setup choices too, like the styling carried below: the lengths were chosen on this screen
+                // moments ago, and a fresh state would quietly fall back to 40/30 on the first START MATCH.
+                ShotClockSeconds = _currentGame.ShotClockSeconds,
+                ShotClockExtensionSeconds = _currentGame.ShotClockExtensionSeconds,
                 MatchId = Guid.NewGuid().ToString("n"),
                 IsGameActive = true
             };
@@ -97,12 +102,16 @@ public class GameManager
                 _pointHistory.Add(false);
             }
 
-            // A point ends a shot and the next one begins, so a clock that is running restarts for it. Only when
-            // one is running: a match nobody started a clock on must not sprout one on the first point.
-            if (_currentGame.ShotClockEndsAt is not null)
-                _currentGame.ShotClockEndsAt = _clock().AddSeconds(_currentGame.ShotClockSeconds);
-
             UpdateWinner();
+
+            // A point ends a shot and the next one begins, so a clock that is running restarts for it — unless the
+            // point won the match, because a won match has no next shot: the clock goes with the winner banner
+            // rather than counting down behind it.
+            if (_currentGame.Winner is not null)
+                _currentGame.ShotClockEndsAt = null;
+            else
+                RestartRunningShotClock();
+
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }
@@ -155,6 +164,28 @@ public class GameManager
     }
 
     /// <summary>
+    /// The two shot-clock lengths Match Setup offers: how long a shot gets, and what calling an extension adds.
+    /// Setup-only, like <see cref="SetMatchPreview" /> — a length that changed mid-rack would move the deadline
+    /// under the player already counting down. Both are clamped rather than rejected, so a slipped digit still
+    /// leaves a clock that can be used.
+    /// </summary>
+    public void SetShotClockLengths(int shotClockSeconds, int extensionSeconds)
+    {
+        lock (_sync)
+        {
+            if (_currentGame.IsGameActive)
+                return;
+
+            _currentGame.ShotClockSeconds = Math.Clamp(
+                shotClockSeconds, GameState.MinShotClockSeconds, GameState.MaxShotClockSeconds);
+            _currentGame.ShotClockExtensionSeconds = Math.Clamp(
+                extensionSeconds, GameState.MinShotClockSeconds, GameState.MaxShotClockSeconds);
+
+            RaiseGameStateChanged(_currentGame.Clone());
+        }
+    }
+
+    /// <summary>
     /// Writes one side's Match Setup fields — name, team, Race-To target and end-cap icon — into the
     /// state the overlay previews. The setup screen goes through here instead of holding a
     /// <see cref="Player" /> of its own, so these writes take the same lock as every other mutation
@@ -198,6 +229,10 @@ public class GameManager
             _currentGame.CurrentShooter = ReferenceEquals(_currentGame.CurrentShooter, _currentGame.Player1)
                 ? _currentGame.Player2
                 : _currentGame.Player1;
+
+            // The other player is at the table, so the clock on screen belongs to nobody: it restarts for the shot
+            // they are about to play, the same way a point does.
+            RestartRunningShotClock();
 
             RaiseGameStateChanged(_currentGame.Clone());
         }
@@ -262,15 +297,26 @@ public class GameManager
         }
     }
 
+    /// <summary>
+    /// Marks a ball as off the table. A ball leaving the table ends the shot it was potted in, so a running clock
+    /// restarts for the next one — the same rule a point follows. Marking a ball that is already pocketed is not a
+    /// shot and leaves the clock alone.
+    /// </summary>
     public void PocketBall(int ballNumber)
     {
         lock (_sync)
         {
-            _currentGame.PocketedBalls.Add(ballNumber);
+            if (_currentGame.PocketedBalls.Add(ballNumber))
+                RestartRunningShotClock();
+
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }
 
+    /// <summary>
+    /// Puts a ball back on the table. Deliberately leaves the clock alone: that is the operator correcting a
+    /// mistake, not a shot, and the player still has the time they had.
+    /// </summary>
     public void UnpocketBall(int ballNumber)
     {
         lock (_sync)
@@ -288,15 +334,21 @@ public class GameManager
     {
         lock (_sync)
         {
-            if (!_currentGame.PocketedBalls.Remove(ballNumber))
-                _currentGame.PocketedBalls.Add(ballNumber);
+            // Only the pocketing half is a shot: it takes a ball off the table, so a running clock restarts for the
+            // next one. Bringing a ball back is a correction and leaves the clock running.
+            if (!_currentGame.PocketedBalls.Remove(ballNumber) &&
+                _currentGame.PocketedBalls.Add(ballNumber))
+            {
+                RestartRunningShotClock();
+            }
 
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }
 
     /// <summary>
-    /// A new rack is a new game, so the previous shot's countdown has nothing left to time and is cleared.
+    /// A new rack is a new game, so the previous shot's countdown has nothing left to time and is cleared — and
+    /// both players get their extension back, because the rule is one each per rack.
     /// </summary>
     public void ResetBalls()
     {
@@ -304,6 +356,8 @@ public class GameManager
         {
             _currentGame.PocketedBalls.Clear();
             _currentGame.ShotClockEndsAt = null;
+            _currentGame.HomeShotClockExtensionUsed = false;
+            _currentGame.AwayShotClockExtensionUsed = false;
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }
@@ -312,18 +366,64 @@ public class GameManager
     /// Starts, or restarts, the shot clock: the overlay counts down from <see cref="GameState.ShotClockSeconds"/> as
     /// of now, and keeps counting on its own — no frame per second is sent for it. Restarting is the point: each
     /// shot of a match gets its own countdown, started by the operator (the Controller's key or a Stream Deck
-    /// button) as the player addresses the ball. Ignored at setup, where there is no shot to time.
+    /// button) as the player addresses the ball. Ignored at setup, where there is no shot to time, and once the
+    /// match has been won: the banner is up, and a clock behind it would be timing nothing.
     /// </summary>
     public void StartShotClock()
     {
         lock (_sync)
         {
-            if (!_currentGame.IsGameActive)
+            if (!_currentGame.IsGameActive || _currentGame.Winner is not null)
                 return;
 
             _currentGame.ShotClockEndsAt = _clock().AddSeconds(_currentGame.ShotClockSeconds);
             RaiseGameStateChanged(_currentGame.Clone());
         }
+    }
+
+    /// <summary>
+    /// Grants the current shooter their extension: the clock already running gains
+    /// <see cref="GameState.ShotClockExtensionSeconds" /> rather than starting over, because an extension is more
+    /// time on the shot in progress.
+    /// <para>
+    /// One per player per rack, enforced by the state's two used-flags: a second call from the same player changes
+    /// nothing and raises nothing, while the other player still has theirs, and a new rack gives both of them one
+    /// again. Ignored when there is no clock to add to, so an extension called at the wrong moment is not spent on
+    /// nothing — the player can still call it once the clock is running.
+    /// </para>
+    /// </summary>
+    public void ExtendShotClock()
+    {
+        lock (_sync)
+        {
+            if (!_currentGame.IsGameActive || _currentGame.Winner is not null)
+                return;
+
+            if (_currentGame.ShotClockEndsAt is not { } deadline || _currentGame.CurrentShooter is null)
+                return;
+
+            var isHome = ReferenceEquals(_currentGame.CurrentShooter, _currentGame.Player1);
+            if (isHome ? _currentGame.HomeShotClockExtensionUsed : _currentGame.AwayShotClockExtensionUsed)
+                return;
+
+            if (isHome)
+                _currentGame.HomeShotClockExtensionUsed = true;
+            else
+                _currentGame.AwayShotClockExtensionUsed = true;
+
+            _currentGame.ShotClockEndsAt = deadline.AddSeconds(_currentGame.ShotClockExtensionSeconds);
+            RaiseGameStateChanged(_currentGame.Clone());
+        }
+    }
+
+    /// <summary>
+    /// Restarts a clock that is showing, from the full shot length. Does nothing when none is showing: a match the
+    /// operator runs without a clock must not sprout one from a point, a ball or a shooter change.
+    /// </summary>
+    private void RestartRunningShotClock()
+    {
+        if (_currentGame.ShotClockEndsAt is not null)
+            _currentGame.ShotClockEndsAt = _clock().AddSeconds(_currentGame.ShotClockSeconds);
     }
 
     /// <summary>
@@ -374,7 +474,9 @@ public class GameManager
                 // a reset over HTTP (which has no screen to re-push anything) left the overlay
                 // previewing 8-ball until the operator started a new match.
                 GameType = _currentGame.GameType,
-                RaceToMode = _currentGame.RaceToMode
+                RaceToMode = _currentGame.RaceToMode,
+                ShotClockSeconds = _currentGame.ShotClockSeconds,
+                ShotClockExtensionSeconds = _currentGame.ShotClockExtensionSeconds
             };
             CarryOperatorStyling(_currentGame, next);
 
@@ -402,6 +504,12 @@ public class GameManager
                 Player2 = _currentGame.Player2,
                 GameType = match.GameType,
                 RaceToMode = match.RaceToMode,
+
+                // The lengths are Match Setup choices this match started with, so a resumed one keeps them even
+                // though the clock itself — a countdown from another session — is deliberately not saved.
+                ShotClockSeconds = _currentGame.ShotClockSeconds,
+                ShotClockExtensionSeconds = _currentGame.ShotClockExtensionSeconds,
+
                 Player1Score = Math.Max(0, match.HomeScore),
                 Player2Score = Math.Max(0, match.AwayScore),
                 CurrentShooter = match.HomeIsCurrentShooter ? _currentGame.Player1 : _currentGame.Player2,

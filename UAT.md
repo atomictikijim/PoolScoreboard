@@ -172,7 +172,9 @@ example with another program holding the overlay port).
 ## Shot clock
 
 The overlay draws a countdown only while a shot's clock is running. It is started by `T` on the live view or by the
-Stream Deck start button, and it is not the same thing as a match timer: a new rack or a reset hides it.
+Stream Deck start button, at the length chosen in Match Setup, and it is not the same thing as a match timer: a new
+rack, a reset or a won match hides it. Each player can call one extension per rack with `E`, the CALL EXTENSION
+button, or the Stream Deck button.
 
 ### SC-1 — Nothing before a match
 
@@ -219,5 +221,51 @@ did to the score and balls; nothing else on the overlay changes.
 
 1. Open **Help** and read the Stream Deck endpoint list, then the shortcut list.
 
-*Expected:* both shot-clock endpoints appear with the current port, and `T — start or restart the shot clock` is
-listed with the other shortcuts.
+*Expected:* all three shot-clock endpoints appear with the current port, and both `T — start or restart the shot
+clock` and `E — call the current shooter's extension` are listed with the other shortcuts.
+
+### SC-7 — The lengths come from Match Setup
+
+*Precondition:* the Controller on Match Setup.
+
+1. Set **Shot length** to `20` and **Extension** to `10`, then START MATCH and press `T`.
+2. Watch a full countdown, letting the field lose focus before starting.
+3. Set **Shot length** to `2`, tab away, and start a match.
+
+*Expected:* the pill counts down from 0:20 rather than 0:40. The `2` snaps back to `5` as soon as the field loses
+focus, because that is the shortest length the clock will use — the field never claims a length the clock is not on.
+
+### SC-8 — An extension, once each
+
+*Precondition:* a match running with a clock started, extension set to 10.
+
+1. Press `E` (or CALL EXTENSION).
+2. Press it again straight away.
+3. Toggle the shooter, then press `E`.
+4. Press NEW RACK, start the clock, and press `E`.
+
+*Expected:* step 1 adds 10 seconds to the countdown that is already running — it does not jump back to the full shot.
+Step 2 changes nothing, because that player has had theirs. Step 3 adds 10 seconds for the other player, whose
+extension was still there. Step 4 adds another 10, because a new rack gives both of them one back.
+
+### SC-9 — A ball or a shooter change starts the next shot
+
+*Precondition:* a clock running with a few seconds spent.
+
+1. Click a ball in the live view to mark it pocketed.
+2. Click the same ball again to bring it back.
+3. Press Space to toggle the shooter.
+
+*Expected:* step 1 restarts the countdown at the full length; step 2 changes nothing, because putting a ball back is
+a correction rather than a shot; step 3 restarts it again. Nothing happens to the clock in any of the three if it was
+never started.
+
+### SC-10 — A won match has no clock
+
+*Precondition:* a clock running, and a match one point from its target.
+
+1. Score the winning point.
+2. Press `T`, then `E`.
+
+*Expected:* the clock disappears as the winner banner appears, rather than restarting behind it, and neither key
+brings it back while the banner is up. RESET MATCH returns to setup with no clock.

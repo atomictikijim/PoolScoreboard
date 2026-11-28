@@ -177,6 +177,28 @@ public sealed class GameViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheSetupScreensLengths_AreWhatTheMatchUses_AndTheExtensionAddsTheirs()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        var viewModel = BuildViewModel(manager);
+
+        viewModel.ShotClockSeconds = 20;
+        viewModel.ShotClockExtensionSeconds = 10;
+
+        StartMatch(manager, homeTarget: 3, awayTarget: 3);
+        manager.StartShotClock();
+
+        Assert.Equal(now.AddSeconds(20), manager.GetStateSnapshot().ShotClockEndsAt);
+
+        viewModel.ExtendShotClockCommand.Execute(null);
+
+        // The screen's two numbers reach Core through the same setup write, so the button and the key only have to
+        // call the command — the arithmetic is Core's and its own tests pin it.
+        Assert.Equal(now.AddSeconds(30), manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
     public void AWinnerAloneWritesNothing_AndSavingFilesTheMatchOnce()
     {
         var manager = new GameManager();

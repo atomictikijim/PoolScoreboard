@@ -124,6 +124,37 @@
                             <x:Static Member="enums:RaceToMode.Split" />
                         </ComboBox>
 
+                        <TextBlock Text="SHOT CLOCK" Style="{StaticResource LabelTextBlockStyle}" Margin="0,20,0,8" />
+
+                        <!-- The two lengths the clock on the overlay uses. Carried into the match START MATCH
+                             begins, like the game type and Race-To mode beside them, so they are changed here
+                             between matches rather than mid-rack. -->
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="70" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Shot length (sec)" VerticalAlignment="Center" Style="{StaticResource ValueTextBlockStyle}" />
+                            <TextBox Grid.Column="2" Text="{Binding ShotClockSeconds, UpdateSourceTrigger=LostFocus}"
+                                     AutomationProperties.AutomationId="ShotClockSecondsBox"
+                                     Style="{StaticResource StandardTextBoxStyle}" Margin="0"
+                                     ToolTip="How long each shot gets, 5-300 seconds." />
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="70" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Extension (sec)" VerticalAlignment="Center" Style="{StaticResource ValueTextBlockStyle}" />
+                            <TextBox Grid.Column="2" Text="{Binding ShotClockExtensionSeconds, UpdateSourceTrigger=LostFocus}"
+                                     AutomationProperties.AutomationId="ShotClockExtensionSecondsBox"
+                                     Style="{StaticResource StandardTextBoxStyle}" Margin="0"
+                                     ToolTip="Time a called extension adds. Each player gets one per rack." />
+                        </Grid>
+
                         <TextBlock Text="COLOR THEME" Style="{StaticResource LabelTextBlockStyle}" Margin="0,20,0,8" />
 
                         <Grid Margin="0,0,0,8">
@@ -381,14 +412,20 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <!-- Header: winner banner + shooter toggle -->
+                <!-- Header: winner banner + extension call + shooter toggle -->
                 <Grid Grid.Row="0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="{Binding WinnerAnnouncement}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
-                    <Button Grid.Column="1" Content="{Binding CurrentShooterButtonText}" Style="{StaticResource ActiveButtonStyle}" Command="{Binding ToggleCurrentShooterCommand}" Height="36" />
+                    <!-- Beside the shooter toggle because it is the same kind of thing: a mid-shot button the
+                         operator presses for the player at the table. -->
+                    <Button Grid.Column="1" Content="CALL EXTENSION" Style="{StaticResource InactiveButtonStyle}"
+                            Command="{Binding ExtendShotClockCommand}" Height="36" Margin="0,0,8,0"
+                            ToolTip="Adds the extension time to the running clock for the current shooter. One per player per rack." />
+                    <Button Grid.Column="2" Content="{Binding CurrentShooterButtonText}" Style="{StaticResource ActiveButtonStyle}" Command="{Binding ToggleCurrentShooterCommand}" Height="36" />
                 </Grid>
 
                 <!-- Player panels -->

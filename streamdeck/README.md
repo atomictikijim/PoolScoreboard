@@ -34,8 +34,9 @@ using the mapping below, then export/share it from there if needed.
 | Ball N Pocketed   | `/api/control/balls/N/toggle` (N = 1-15)   | Toggles ball N's pocketed state — greys it out in the ball display if it was live, or brings it back if it was already marked pocketed. Same toggle behavior as clicking the ball in the Controller's live view. Returns `400` for N outside 1-15. |
 | New Rack          | `/api/control/rack/new`                    | Clears all pocketed-ball markers for a fresh rack. Does not touch scores. |
 | Reset Match       | `/api/control/match/reset`                 | Ends the current match entirely and returns the Controller to the Match Setup screen — same as clicking "Reset Match" in the app. Use between matches, not mid-rack. |
-| Start Shot Clock  | `/api/control/shotclock/start`             | Starts the 40-second shot clock on the overlay, or restarts it from the full time for the next shot. A point restarts a running clock too; a new rack or a reset hides it. |
+| Start Shot Clock  | `/api/control/shotclock/start`             | Starts the shot clock on the overlay at the length set in Match Setup (40 seconds by default), or restarts it from the full time for the next shot. A running clock restarts by itself when a point is scored, a ball leaves the table or the shooter is toggled; a new rack, a reset or a won match hides it. |
 | Hide Shot Clock   | `/api/control/shotclock/clear`             | Hides the shot clock. The overlay draws it only while it is running, so this is "no clock on screen", not "paused". |
+| Call Extension    | `/api/control/shotclock/extension`         | The player's extension: adds the extension time set in Match Setup (30 seconds by default) to the clock already running for the current shooter. One per player per rack — a second call in the same rack does nothing, and a new rack gives both players theirs back. Does nothing while no clock is running, and does not use the extension up. |
 
 ## Notes
 
@@ -45,7 +46,8 @@ using the mapping below, then export/share it from there if needed.
 - Score/undo/shooter-toggle/ball-assignment buttons no-op safely if no match is active yet (e.g.
   pressed while the Controller is still on the Match Setup screen) — pressing them won't crash or
   desync anything, they just have no effect until "Start Match" has been clicked.
-- A player reaching their Race-To target only sets the winner banner — it does not lock the match.
+- A player reaching their Race-To target only sets the winner banner — it does not lock the match, and the shot
+  clock goes with the banner rather than counting down behind it.
   Home +1/-1, Away +1/-1, Undo, shooter-toggle and ball buttons all keep working after a win, so a
   scoring mistake spotted afterwards can still be corrected without "Reset Match".
 - "Reset Match" ends the match and returns the Controller to Match Setup, exactly like the in-app

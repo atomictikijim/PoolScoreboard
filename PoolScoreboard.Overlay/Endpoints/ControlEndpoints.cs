@@ -111,5 +111,14 @@ internal static class ControlEndpoints
             gameManager.ClearShotClock();
             return Results.Ok();
         });
+
+        // The player's extension, called by the operator on their behalf: it adds the setup screen's extension time
+        // to the clock already running, once for each player per rack. Core decides both, so a second call in the
+        // same rack is a no-op rather than an error a Stream Deck button would show.
+        app.MapGet("/api/control/shotclock/extension", () =>
+        {
+            gameManager.ExtendShotClock();
+            return Results.Ok();
+        });
     }
 }

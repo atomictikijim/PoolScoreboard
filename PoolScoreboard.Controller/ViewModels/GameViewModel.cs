@@ -76,6 +76,17 @@ public partial class GameViewModel : ObservableObject
     [ObservableProperty]
     private RaceToMode selectedRaceToMode = RaceToMode.Single;
 
+    /// <summary>
+    /// How long a shot gets, chosen on this screen and carried into the match it starts. Clamped by
+    /// <see cref="GameManager.SetShotClockLengths" />, so a slipped digit leaves a usable clock.
+    /// </summary>
+    [ObservableProperty]
+    private int shotClockSeconds = GameState.DefaultShotClockSeconds;
+
+    /// <summary>What calling an extension adds — the whole of the bonus, since a player gets one per rack.</summary>
+    [ObservableProperty]
+    private int shotClockExtensionSeconds = GameState.DefaultShotClockExtensionSeconds;
+
     [ObservableProperty]
     private PlayerViewModel? homePlayer;
 
@@ -303,6 +314,11 @@ public partial class GameViewModel : ObservableObject
         ScoreBarVisible = restored.Visibility.ScoreBarVisible;
         BallTrackerVisible = restored.Visibility.BallTrackerVisible;
         WinnerBannerVisible = restored.Visibility.WinnerBannerVisible;
+
+        // A resumed match carries the lengths it was started with, so the fields show what the clock will really
+        // use rather than the defaults a fresh state would have offered.
+        ShotClockSeconds = restored.ShotClockSeconds;
+        ShotClockExtensionSeconds = restored.ShotClockExtensionSeconds;
     }
 
     partial void OnSelectedGameTypeChanged(GameType oldValue, GameType newValue)
@@ -325,6 +341,32 @@ public partial class GameViewModel : ObservableObject
     }
 
     private void ApplyMatchPreview() => _gameManager.SetMatchPreview(SelectedGameType, SelectedRaceToMode);
+
+    partial void OnShotClockSecondsChanged(int oldValue, int newValue) => ApplyShotClockLengths();
+
+    partial void OnShotClockExtensionSecondsChanged(int oldValue, int newValue) => ApplyShotClockLengths();
+
+    private void ApplyShotClockLengths()
+    {
+        if (_restoring)
+            return;
+
+        // Both together: either field's change is the same two-number setup write, and sending the other one
+        // along costs nothing while a missing one would leave the clock on a length the screen does not show.
+        _gameManager.SetShotClockLengths(ShotClockSeconds, ShotClockExtensionSeconds);
+
+        // GameManager clamps rather than refuses, so a typo would otherwise leave the field claiming one length
+        // while the clock counted down another. Showing back what it accepted — on leaving the field, which is
+        // when these bind — makes that visible. Writing a property from its own change handler re-enters once with
+        // an in-range value, which then agrees with state and stops.
+        var accepted = _gameManager.GetStateSnapshot();
+
+        if (accepted.ShotClockSeconds != ShotClockSeconds)
+            ShotClockSeconds = accepted.ShotClockSeconds;
+
+        if (accepted.ShotClockExtensionSeconds != ShotClockExtensionSeconds)
+            ShotClockExtensionSeconds = accepted.ShotClockExtensionSeconds;
+    }
 
     partial void OnHomeBackgroundColorChanged(string? oldValue, string newValue) => ApplyColorTheme();
 
@@ -675,6 +717,14 @@ public partial class GameViewModel : ObservableObject
     /// </summary>
     [RelayCommand]
     private void StartShotClock() => _gameManager.StartShotClock();
+
+    /// <summary>
+    /// Calls the current shooter's extension on their behalf: the clock already running gains the extension time the
+    /// setup screen chose. One per player per rack, and only while a clock is running — both rules are Core's, so
+    /// this only has to reach it.
+    /// </summary>
+    [RelayCommand]
+    private void ExtendShotClock() => _gameManager.ExtendShotClock();
 
     /// <summary>
     /// Files the finished match, by explicit request: the operator decides what belongs in the history, so a win

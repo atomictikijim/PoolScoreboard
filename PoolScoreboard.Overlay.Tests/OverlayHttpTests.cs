@@ -190,6 +190,39 @@ public sealed class OverlayHttpTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TheShotClockExtensionMovesTheDeadlineOnceForEachShooter()
+    {
+        (await _client.GetAsync("/api/control/shotclock/start")).EnsureSuccessStatusCode();
+        var started = ShotClockDeadline(await GetJson(ScoreboardState));
+
+        (await _client.GetAsync("/api/control/shotclock/extension")).EnsureSuccessStatusCode();
+        var extended = ShotClockDeadline(await GetJson(ScoreboardState));
+
+        // The page counts down from the deadline, so an extension has to move that instant forward by exactly the
+        // extension length — not start the shot over, which would hand back the time already spent.
+        Assert.Equal(GameState.DefaultShotClockExtensionSeconds, (extended - started).TotalSeconds);
+
+        (await _client.GetAsync("/api/control/shotclock/extension")).EnsureSuccessStatusCode();
+        Assert.Equal(extended, ShotClockDeadline(await GetJson(ScoreboardState)));
+
+        // The other player still has theirs: the shooter change restarts the clock, and this extension adds to the
+        // fresh deadline.
+        (await _client.GetAsync("/api/control/shooter/toggle")).EnsureSuccessStatusCode();
+        var restarted = ShotClockDeadline(await GetJson(ScoreboardState));
+
+        (await _client.GetAsync("/api/control/shotclock/extension")).EnsureSuccessStatusCode();
+        Assert.Equal(
+            GameState.DefaultShotClockExtensionSeconds,
+            (ShotClockDeadline(await GetJson(ScoreboardState)) - restarted).TotalSeconds);
+    }
+
+    private static DateTimeOffset ShotClockDeadline(JsonElement state) =>
+        DateTimeOffset.Parse(
+            state.GetProperty("shotClockEndsAt").GetString()!,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.RoundtripKind);
+
+    [Fact]
     public async Task TheCueBallPageCanPlaceTheContactPoint()
     {
         (await _client.PostAsJsonAsync("/overlay/api/cueball/contact", new { x = 0.25, y = 0.75 }))

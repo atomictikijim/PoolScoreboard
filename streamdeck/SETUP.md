@@ -82,6 +82,7 @@ same "run in background" setting, just a different **Title** and **Website** URL
 | Reset Match     | `http://127.0.0.1:51234/api/control/match/reset`                |
 | Start Shot Clock | `http://127.0.0.1:51234/api/control/shotclock/start`        |
 | Hide Shot Clock  | `http://127.0.0.1:51234/api/control/shotclock/clear`        |
+| Call Extension   | `http://127.0.0.1:51234/api/control/shotclock/extension`    |
 
 ### Ball display buttons (1-15)
 
@@ -142,6 +143,8 @@ A few layout suggestions, entirely up to you:
      player's group.
    - Each **ball toggle button** greys that ball out in the ball display, and un-greys it if you
      press the same button again.
+   - **Call Extension** adds the extension time to the running clock for whoever is shooting; a second press in
+     the same rack does nothing, because each player gets one.
    - **New Rack** clears any pocketed-ball markers without touching the score.
    - **Reset Match** ends the match and returns the Controller to the Match Setup screen.
 4. Re-run Step 5 after any change to your Controller/Overlay setup (e.g., after an app update) to

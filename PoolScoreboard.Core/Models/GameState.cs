@@ -28,11 +28,34 @@ public class GameState
     public ScoreboardVisibility Visibility { get; set; } = new();
     public CueBallSpin? CueBallSpin { get; set; }
 
-    /// <summary>How long a shot gets once the clock is started. Fixed for now: nothing offers to change it.</summary>
+    /// <summary>How long a shot gets until Match Setup says otherwise.</summary>
     public const int DefaultShotClockSeconds = 40;
+
+    /// <summary>What calling an extension adds, until Match Setup says otherwise.</summary>
+    public const int DefaultShotClockExtensionSeconds = 30;
+
+    /// <summary>
+    /// What Match Setup accepts for either length, in seconds. Clamped rather than refused there, so a slipped
+    /// digit still leaves a usable clock instead of a match nobody can time.
+    /// </summary>
+    public const int MinShotClockSeconds = 5;
+
+    public const int MaxShotClockSeconds = 300;
 
     /// <summary>How long each shot gets, which is what the overlay counts down from.</summary>
     public int ShotClockSeconds { get; set; } = DefaultShotClockSeconds;
+
+    /// <summary>How much time calling an extension adds to the shot the player is on.</summary>
+    public int ShotClockExtensionSeconds { get; set; } = DefaultShotClockExtensionSeconds;
+
+    /// <summary>
+    /// Whether each side has already called their one extension this rack. Flags on the state rather than a count
+    /// kept beside it because a rack ends in several ways and every one of them has to hand the extension back:
+    /// they live and die with the state a new rack or a new match replaces.
+    /// </summary>
+    public bool HomeShotClockExtensionUsed { get; set; }
+
+    public bool AwayShotClockExtensionUsed { get; set; }
 
     /// <summary>
     /// When the current shot's countdown runs out, or null when no clock is showing. A deadline rather than a
@@ -70,6 +93,9 @@ public class GameState
             Visibility = Visibility.Copy(),
             CueBallSpin = CueBallSpin?.Copy(),
             ShotClockSeconds = ShotClockSeconds,
+            ShotClockExtensionSeconds = ShotClockExtensionSeconds,
+            HomeShotClockExtensionUsed = HomeShotClockExtensionUsed,
+            AwayShotClockExtensionUsed = AwayShotClockExtensionUsed,
             ShotClockEndsAt = ShotClockEndsAt
         };
     }
