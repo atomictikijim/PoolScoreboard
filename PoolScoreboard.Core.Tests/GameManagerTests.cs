@@ -289,6 +289,54 @@ public class GameManagerTests
         Assert.Equal(beforeRepeat, manager.GetStateSnapshot().ShotClockEndsAt);
     }
 
+    [Theory]
+    [InlineData(GameType.EightBall, 8)]
+    [InlineData(GameType.NineBall, 9)]
+    [InlineData(GameType.TenBall, 10)]
+    public void PocketingTheMoneyBall_StopsTheClock_WhileAnyOtherBallRestartsIt(GameType gameType, int moneyBall)
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        manager.InitializeGame(gameType, RaceToMode.Single);
+
+        Assert.Equal(moneyBall, manager.GetStateSnapshot().MoneyBallNumber);
+
+        manager.StartShotClock();
+        manager.PocketBall(moneyBall);
+
+        // The rack is over: there is no next shot for a countdown to time, so it stops rather than restarting over
+        // the end of the game.
+        Assert.Null(manager.GetStateSnapshot().ShotClockEndsAt);
+
+        // A ball that is not the money ball still ends only the shot, so the clock restarts for the next one.
+        manager.StartShotClock();
+        now = now.AddSeconds(5);
+        manager.PocketBall(1);
+
+        Assert.Equal(now.AddSeconds(GameState.DefaultShotClockSeconds), manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void ThePerBallToggle_StopsTheClockWhenItPocketsTheMoneyBall()
+    {
+        var manager = NewMatch(gameType: GameType.NineBall);
+        manager.StartShotClock();
+
+        // The Stream Deck's per-ball button has to follow the same rule as the Controller's ball buttons.
+        manager.ToggleBall(9);
+
+        Assert.Null(manager.GetStateSnapshot().ShotClockEndsAt);
+
+        // Even on a match whose game type is not the one the ball row is showing, the money ball is the game's own.
+        var eightBall = NewMatch(gameType: GameType.EightBall);
+        eightBall.StartShotClock();
+        eightBall.ToggleBall(9);
+
+        Assert.NotNull(eightBall.GetStateSnapshot().ShotClockEndsAt);
+    }
+
     [Fact]
     public void TogglingTheShooter_RestartsARunningClock()
     {

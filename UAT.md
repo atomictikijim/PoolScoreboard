@@ -270,6 +270,18 @@ never started.
 *Expected:* the clock disappears as the winner banner appears, rather than restarting behind it, and neither key
 brings it back while the banner is up. RESET MATCH returns to setup with no clock.
 
+### SC-12 — The money ball stops the clock
+
+*Precondition:* a match running with a clock started, and a rack where the money ball is still on the table.
+
+1. Mark any other ball pocketed.
+2. Start the clock again, then mark the money ball pocketed (the 8 in 8-Ball, 9 in 9-Ball, 10 in 10-Ball).
+3. Start the clock, then click the money ball again to bring it back, and start it once more.
+
+*Expected:* step 1 restarts the countdown for the next shot. Step 2 removes the clock from the overlay instead of
+restarting it, because the rack is over. Step 3 shows the same "bring it back and restart" behaviour as any other
+ball — the clock only stops when the money ball leaves the table, not when it is put back.
+
 ### SC-11 — The countdown as a line, or as numbers
 
 *Precondition:* a match running with the overlay open in a browser.

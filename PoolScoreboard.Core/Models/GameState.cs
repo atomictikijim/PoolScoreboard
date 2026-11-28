@@ -24,6 +24,19 @@ public class GameState
     public Player? Winner { get; set; }
     public ColorTheme ColorTheme { get; set; } = new();
     public HashSet<int> PocketedBalls { get; set; } = new();
+
+    /// <summary>
+    /// The ball that ends the rack and that the display is really counting towards: the 8 in 8-ball, the 9 in
+    /// 9-ball, the 10 in 10-ball. Derived from <see cref="GameType"/> rather than stored, so the ball display and
+    /// the shot clock cannot disagree about which ball it is.
+    /// </summary>
+    public int MoneyBallNumber => GameType switch
+    {
+        GameType.EightBall => 8,
+        GameType.NineBall => 9,
+        GameType.TenBall => 10,
+        _ => 0
+    };
     public ScoreboardStyle ScoreboardStyle { get; set; } = new();
     public ScoreboardVisibility Visibility { get; set; } = new();
     public CueBallSpin? CueBallSpin { get; set; }

@@ -99,7 +99,9 @@ dotnet clean
   (not removed/collapsed from the layout), so the operator and viewers can see at a glance
   what's left on the table.
 - `GameManager.PocketBall(ballNumber)` / `UnpocketBall(ballNumber)` toggle membership in
-  `GameState.PocketedBalls`; `ResetBalls()` clears it for a new rack.
+  `GameState.PocketedBalls`; `ResetBalls()` clears it for a new rack. `GameState.MoneyBallNumber` names the ball the
+  rack is really counting towards — the 8 in 8-ball, the 9 in 9-ball, the 10 in 10-ball — and the shot clock reads
+  it: any other ball leaving the table restarts a running clock for the next shot, while the money ball stops it.
 - This applies independently of `BallGroup` assignment in 8-ball — a ball's group (which
   player it's displayed under) and its pocketed state are separate flags.
 
@@ -115,7 +117,10 @@ dotnet clean
   The shot clock is a deadline, not a tick: `StartShotClock` stamps `now + ShotClockSeconds` and the overlay
   counts it down locally, so no frame per second is sent for it. It restarts from the full length whenever a
   running clock's shot ends — a point, a ball leaving the table, or a shooter toggle — and it is ignored at setup
-  and once the match has been won, where there is no shot to time. A point that wins the match clears the clock
+  and once the match has been won, where there is no shot to time. The money ball is the exception to the ball
+  rule: potting it ends the rack, so `BallLeftTheTable` stops the clock (null deadline) instead of restarting it,
+  and both ball routes — the Controller's buttons and the Stream Deck's per-ball toggle — go through that one
+  method. A point that wins the match clears the clock
   rather than restarting it, so nothing counts down behind the winner banner; a new rack and a reset clear it too.
   `ExtendShotClock` adds `ShotClockExtensionSeconds` to the clock already running for the current shooter, once per
   player per rack (a new rack hands both of them one back), and is ignored when no clock is running so a call at

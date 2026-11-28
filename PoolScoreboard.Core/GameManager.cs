@@ -299,16 +299,15 @@ public class GameManager
     }
 
     /// <summary>
-    /// Marks a ball as off the table. A ball leaving the table ends the shot it was potted in, so a running clock
-    /// restarts for the next one — the same rule a point follows. Marking a ball that is already pocketed is not a
-    /// shot and leaves the clock alone.
+    /// Marks a ball as off the table, which ends the shot it was potted in: see <see cref="BallLeftTheTable"/>.
+    /// Marking a ball that is already pocketed is not a shot and leaves the clock alone.
     /// </summary>
     public void PocketBall(int ballNumber)
     {
         lock (_sync)
         {
             if (_currentGame.PocketedBalls.Add(ballNumber))
-                RestartRunningShotClock();
+                BallLeftTheTable(ballNumber);
 
             RaiseGameStateChanged(_currentGame.Clone());
         }
@@ -335,12 +334,11 @@ public class GameManager
     {
         lock (_sync)
         {
-            // Only the pocketing half is a shot: it takes a ball off the table, so a running clock restarts for the
-            // next one. Bringing a ball back is a correction and leaves the clock running.
+            // Only the pocketing half is a shot; bringing a ball back is a correction and leaves the clock running.
             if (!_currentGame.PocketedBalls.Remove(ballNumber) &&
                 _currentGame.PocketedBalls.Add(ballNumber))
             {
-                RestartRunningShotClock();
+                BallLeftTheTable(ballNumber);
             }
 
             RaiseGameStateChanged(_currentGame.Clone());
@@ -415,6 +413,21 @@ public class GameManager
             _currentGame.ShotClockEndsAt = deadline.AddSeconds(_currentGame.ShotClockExtensionSeconds);
             RaiseGameStateChanged(_currentGame.Clone());
         }
+    }
+
+    /// <summary>
+    /// What a ball leaving the table does to a running clock, whether it was the Controller's button or a Stream
+    /// Deck one. The money ball ends the rack — the 8 in 8-ball, the 9 in 9-ball, the 10 in 10-ball — so the clock
+    /// stops with it rather than restarting: there is no next shot to time, and a countdown running on over the
+    /// end of the rack would be timing a game that is already over. Every other ball ends the shot, not the rack,
+    /// and restarts the clock for the next one.
+    /// </summary>
+    private void BallLeftTheTable(int ballNumber)
+    {
+        if (ballNumber == _currentGame.MoneyBallNumber)
+            _currentGame.ShotClockEndsAt = null;
+        else
+            RestartRunningShotClock();
     }
 
     /// <summary>

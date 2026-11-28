@@ -317,6 +317,20 @@ public sealed class OverlayHttpTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TheBallRouteStopsTheClockWhenItPocketsTheMoneyBall()
+    {
+        // The fixture's match is 9-ball, where the 9 is the money ball.
+        (await _client.GetAsync("/api/control/shotclock/start")).EnsureSuccessStatusCode();
+        Assert.NotEqual(JsonValueKind.Null, (await GetJson(ScoreboardState)).GetProperty("shotClockEndsAt").ValueKind);
+
+        (await _client.GetAsync("/api/control/balls/9/toggle")).EnsureSuccessStatusCode();
+
+        // The page draws the clock only while a deadline arrives, so a stop it can see is a null deadline: a track
+        // left counting down would be timing a rack that is already over.
+        Assert.Equal(JsonValueKind.Null, (await GetJson(ScoreboardState)).GetProperty("shotClockEndsAt").ValueKind);
+    }
+
+    [Fact]
     public async Task TheBallTogglePocketsTheBallAndUnpocketsItAgain()
     {
         (await _client.GetAsync("/api/control/balls/5/toggle")).EnsureSuccessStatusCode();

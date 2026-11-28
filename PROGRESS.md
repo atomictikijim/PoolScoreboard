@@ -284,6 +284,23 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
+### 2026-11-28 — The money ball stops the clock
+
+- Potting the ball the rack is counting towards ends the game, so the shot clock now stops with it instead of
+  restarting over the end of it. `GameState.MoneyBallNumber` derives that ball from the game type — 8 in 8-ball, 9 in
+  9-ball, 10 in 10-ball — so the ball row and the clock read one rule rather than two.
+- Both ball routes go through one `GameManager.BallLeftTheTable`, so the Controller's ball buttons and the Stream
+  Deck's per-ball toggle cannot disagree: any other ball still restarts a running clock for the next shot, the money
+  ball clears it (a null deadline, which is how the overlay hides the clock), and bringing a ball back still leaves
+  the clock alone.
+- "Stop" is the clock's existing stop: the countdown disappears, exactly as it does for a new rack, a reset or a won
+  match. There is no paused state to add, and a frozen number on the overlay would claim a shot is still live.
+- Mutation-proved, then reverted: the money-ball branch removed from `BallLeftTheTable` (the clock restarted over the
+  end of the rack). Covered from both sides — the Core theory over the three game types, and the Overlay's route test
+  reading the payload the page draws from, in the fixture's 9-ball match.
+- 0.34.1 -> 0.35.0. 145 Core + 33 Overlay + 170 Controller, 0 warnings. Not checked by hand: no money ball has been
+  potted in the running window or in OBS.
+
 ### 2026-11-28 — An expired line still says the shot ran out
 
 - The line's fill shrinks to nothing at 0:00, so an expired shot left an empty grey track — indistinguishable from a
