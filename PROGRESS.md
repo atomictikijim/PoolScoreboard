@@ -73,8 +73,8 @@ live:
 Recorded when the overlay-guard note below ran out of items. Each was chosen for what it saves a streamed match,
 not for symmetry with work already done.
 
-Status 2026-11-28: #1, #4 and #8 are done; #7 is struck, because it had already shipped before this list was
-written; #2, #3, #5, #6 and #9 are open.
+Status 2026-11-28: #1, #4, #5 and #8 are done; #7 is struck, because it had already shipped before this list was
+written; #2, #3, #6 and #9 are open.
 
 1. **Match history and a per-player record.** The Known Gaps entry says a finished match is kept nowhere, which is
    the difference between a live display and an app that accumulates value: who won last time, a session's win
@@ -114,6 +114,10 @@ written; #2, #3, #5, #6 and #9 are open.
 5. **Tag-triggered release workflow.** Phase 6 packaging is a `dotnet publish` typed by hand, and CLAUDE.md asks
    versions to keep in step with the `v0.<major>.<ui>-beta` tags — a rule nothing checks. A `push: tags: v*` job
    that publishes the single-file win-x64 build and asserts `VersionPrefix` matches the tag. Zero runtime risk.
+   *Done 2026-11-28: `.github/workflows/release.yml` runs on a `v*` tag and nothing else, refuses a tag whose
+   number is not `VersionPrefix` (through `tools/check-release-tag.ps1`), publishes the single-file win-x64 build
+   and attaches the zip to a GitHub release for that tag. No tag has been pushed, so the workflow itself is
+   unrun; the script, the publish command and the zip step were run locally.*
 6. **A test for the startup wiring.** Every extracted piece is tested, but the *order* — profile before window,
    autosave after profile, port before anything binds — is proven only by `verify-live.ps1`, which CI cannot run.
    That ordering has already produced one bug (the profile event deleting the match being restored).
@@ -309,6 +313,34 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-28 — A tag publishes the build, and has to match the version
+
+- `.github/workflows/release.yml` runs on any `v*` tag and on nothing else: it checks the tag against
+  `Directory.Build.props`, publishes the Phase 6 single-file win-x64 build with the command Phase 6 documented,
+  zips the one exe that publish produces and attaches it to a GitHub release named after the tag. A re-run
+  uploads over the same release instead of failing on a second one.
+- The check is `tools/check-release-tag.ps1`, because CLAUDE.md's rule that `VersionPrefix` keeps in step with the
+  `v0.<major>.<ui>-beta` tags was written down and never enforced. It accepts `v<major>.<minor>.<patch>` with an
+  optional suffix (`-beta`, `-beta.2`), compares the number against the props file, and refuses anything else
+  rather than guessing; a failure names both numbers and says to bump before tagging. Run by hand it takes only
+  `-Tag`, defaulting to this repository's own props file.
+- The publish is the documented command and nothing more: the Controller's csproj turns on `PublishSingleFile` and
+  its two companions for a self-contained publish, so the workflow adds no `-p:` flags that could drift from a real
+  release. Before zipping, the job fails if the exe is missing or any `.dll` was left beside it, so a lost switch is
+  a red run rather than a download that needs more than the exe.
+- The suite is not repeated there: `ci.yml`'s `on: push:` covers tags as well as branches, so the tag's own push
+  builds and tests the commit being released.
+- Nothing in the app changed — build tooling only — so there is no version bump, and no shipped code path can be
+  affected by it.
+- Checked locally: the script against the real props file exits 0 for `v0.43.0-beta`, `v0.43.0`, `v0.43.0-rc.2` and
+  `v0.43.0-beta.2`, exits 1 naming both numbers for `v0.42.0-beta` (the assertion that matters), and refuses
+  `0.43.0`, `v0.43.0.1`, `v0.43-beta` and `vv0.43.0` as malformed. The publish command was run here into a temp
+  directory: one 87 MB `PoolScoreboard.Controller.exe`, no `.dll` beside it, and the zip step packed it — and threw
+  as intended when run at a directory holding a `.dll`. The workflow file parses as YAML with the eight steps it
+  should have. **Not checked:** the workflow has never run on GitHub — no tag was pushed, so the runner,
+  `gh release create` and the `contents: write` permission are unproven until the first release; and the script was
+  exercised under Windows PowerShell 5.1, while the runner uses PowerShell 7.
 
 ### 2026-11-28 — The global chords no longer eat AltGr characters
 

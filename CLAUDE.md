@@ -533,7 +533,9 @@ Version format while pre-1.0: **`0.<major>.<ui>`**
 
 The version itself lives in `Directory.Build.props` (`<VersionPrefix>`), which stamps every
 project; bump it there in the same commit as the change that earns it, and keep it in step with
-the `v0.<major>.<ui>-beta` tags.
+the `v0.<major>.<ui>-beta` tags. That is checked rather than asked for: `.github/workflows/release.yml` runs on a
+`v*` tag, fails unless `tools/check-release-tag.ps1` finds the tag's number equal to `VersionPrefix`, and only
+then publishes the single-file win-x64 build and attaches it to the GitHub release for that tag.
 
 Commits are **not** auto-pushed in this repo — confirm with the developer before pushing,
 same as any other repo, unless they explicitly grant standing authorization for this project.
