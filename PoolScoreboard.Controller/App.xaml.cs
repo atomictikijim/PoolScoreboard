@@ -1,9 +1,10 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using PoolScoreboard.Controller.Diagnostics;
 using PoolScoreboard.Controller.Persistence;
+using PoolScoreboard.Controller.Startup;
 using PoolScoreboard.Core;
 using PoolScoreboard.Core.Persistence;
 using PoolScoreboard.Overlay;
@@ -107,24 +108,22 @@ public partial class App : System.Windows.Application
         TaskScheduler.UnobservedTaskException += (_, args) =>
             UnhandledExceptionLog.RecordUnobservedTask(args.Exception);
 
-        // Restore before any window exists: GameViewModel reads GameManager's state when it is
-        // constructed, so this is what makes both the setup screen and the overlay open with the
-        // saved colours, style, visibility and last players instead of the defaults.
-        RestoreOperatorProfile();
-
-        // After the profile — it supplies the players and Race-To targets the scores are judged against — and
-        // before the window, which reads state when it is constructed.
-        _matchAutosave.Restore();
+        // The order the rest of startup depends on lives in StartupWiring, so it can be asserted without a window:
+        // the saved port before anything binds, then the profile before a window reads state, then the match in
+        // progress, then the overlay host. Its own comment says why each step has to follow the one before.
+        new StartupWiring(
+            _settingsStore.Load,
+            profile => _overlayPortSettings.ApplySavedPort(profile),
+            loaded => loaded.Profile.ApplyTo(SharedGameManager, loaded.HomeIconDataUri, loaded.AwayIconDataUri),
+            _matchAutosave.Restore,
+            () => OverlaySession.Start(SharedGameManager))
+            .Run();
 
         _saveTimer.Tick += (_, _) =>
         {
             _saveTimer.Stop();
             SaveOperatorProfile();
         };
-
-        // Restore() also started the autosave watching, so every mutation from here on — the UI, the keyboard, the
-        // Stream Deck's HTTP calls — schedules a snapshot without App doing anything.
-        OverlaySession.Start(SharedGameManager);
     }
 
     /// <summary>Asks for the profile to be saved shortly, after the current burst of edits.</summary>
@@ -185,18 +184,6 @@ public partial class App : System.Windows.Application
         {
             // Shutdown began between the check and the post; the signal is simply dropped.
         }
-    }
-
-    private void RestoreOperatorProfile()
-    {
-        var loaded = _settingsStore.Load();
-        if (loaded == null)
-            return;
-
-        // The overlay may be on another port than this app's default: settings.json is where the operator's
-        // choice lives, and the session has to know it before anything tries to bind.
-        _overlayPortSettings.ApplySavedPort(loaded.Profile);
-        loaded.Profile.ApplyTo(SharedGameManager, loaded.HomeIconDataUri, loaded.AwayIconDataUri);
     }
 
     protected override void OnExit(ExitEventArgs e)

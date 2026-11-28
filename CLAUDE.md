@@ -168,7 +168,9 @@ dotnet clean
   recomputed by a 250 ms `DispatcherTimer` (the same reason the overlay page ticks itself); `GameViewModel` takes
   the "now" for it as an injected clock, the way `GameManager` does, so a test can put it at an exact second.
 - On startup, starts the Overlay's Kestrel host in-process, passing it the same
-  `GameManager` instance the UI is bound to. `OverlayHostRunner.Start` returns null when the host cannot bind
+  `GameManager` instance the UI is bound to. That order — saved port, saved profile, resumed match, then the host
+— lives in `Startup/StartupWiring` and is pinned by `StartupWiringTests`, because it used to be provable only by
+running the app. `OverlayHostRunner.Start` returns null when the host cannot bind
   (the overlay port, 51234 by default, already taken — usually a leftover Controller) and logs the reason, so startup continues
   without the overlay instead of dying before a window exists. `OverlayHostSession` keeps that failure: the main
   window's top bar shows it (naming the process holding the port, via `Diagnostics/PortOwner`) beside a Retry
@@ -406,7 +408,12 @@ the test instead of holding the run open. `MatchAutosaveTests` covers the autosa
 points becomes one snapshot, a reset deletes it instead of writing a blank one, the exit snapshot does not wait for
 the debounce, changes after dispose are ignored, changes before `Restore()` are not watched (so applying the profile
 cannot delete the match about to be resumed), a saved match is restored, a fresh install stays at setup, and an
-unreadable file is kept aside without blocking startup. `OverlayHostSessionTests` also covers moving the port: a
+unreadable file is kept aside without blocking startup. `StartupWiringTests` takes the order those pieces run
+in at startup, which that suite could not see: the calls themselves in a recording-delegate test, and the real
+pieces with only the file and the socket faked — the saved port already on the session when the overlay starts,
+the profile's players and Race-To targets already in state when the match is resumed, the resumed 2–1 match
+already on the board when the host starts — plus one source guard for the part that cannot be run, a window: no
+window is built in `App.xaml.cs`, and `App.xaml` still declares `StartupUri`. `OverlayHostSessionTests` also covers moving the port: a
 failed start is reported on the old port, `SetPort` forgets that reason and the next start serves the new one, and a
 serving host is stopped because a listening socket cannot be moved. `GameViewModelTests` covers the field itself: a
 usable port rebinds and saves, and one below 1024 snaps back to the port in use. The base address the Help window lists
@@ -535,7 +542,8 @@ The version itself lives in `Directory.Build.props` (`<VersionPrefix>`), which s
 project; bump it there in the same commit as the change that earns it, and keep it in step with
 the `v0.<major>.<ui>-beta` tags. That is checked rather than asked for: `.github/workflows/release.yml` runs on a
 `v*` tag, fails unless `tools/check-release-tag.ps1` finds the tag's number equal to `VersionPrefix`, and only
-then publishes the single-file win-x64 build and attaches it to the GitHub release for that tag.
+then publishes the single-file win-x64 build and attaches it to the GitHub release for that tag — as a
+prerelease when the tag carries a suffix, so a `-beta` never takes the "Latest" badge from a finished version.
 
 Commits are **not** auto-pushed in this repo — confirm with the developer before pushing,
 same as any other repo, unless they explicitly grant standing authorization for this project.

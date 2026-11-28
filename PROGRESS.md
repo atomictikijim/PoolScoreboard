@@ -74,7 +74,7 @@ Recorded when the overlay-guard note below ran out of items. Each was chosen for
 not for symmetry with work already done.
 
 Status 2026-11-28: #1, #4, #5 and #8 are done; #7 is struck, because it had already shipped before this list was
-written; #2, #3, #6 and #9 are open.
+written; #2, #3 and #9 are open.
 
 1. **Match history and a per-player record.** The Known Gaps entry says a finished match is kept nowhere, which is
    the difference between a live display and an app that accumulates value: who won last time, a session's win
@@ -116,11 +116,15 @@ written; #2, #3, #6 and #9 are open.
    that publishes the single-file win-x64 build and asserts `VersionPrefix` matches the tag. Zero runtime risk.
    *Done 2026-11-28: `.github/workflows/release.yml` runs on a `v*` tag and nothing else, refuses a tag whose
    number is not `VersionPrefix` (through `tools/check-release-tag.ps1`), publishes the single-file win-x64 build
-   and attaches the zip to a GitHub release for that tag. No tag has been pushed, so the workflow itself is
-   unrun; the script, the publish command and the zip step were run locally.*
+   and attaches the zip to a GitHub release for that tag. `v0.43.0-beta` was then tagged and the workflow ran
+   end to end; the job also builds and runs the suite before it publishes, and a suffixed tag is a prerelease.*
 6. **A test for the startup wiring.** Every extracted piece is tested, but the *order* — profile before window,
    autosave after profile, port before anything binds — is proven only by `verify-live.ps1`, which CI cannot run.
    That ordering has already produced one bug (the profile event deleting the match being restored).
+   *Done 2026-11-28: the four steps `App.OnStartup` ran inline now live in `Startup/StartupWiring`, so the
+   sequence can be asserted without a window, a socket or a settings file. `StartupWiringTests` follows the
+   calls, runs the real profile apply and `MatchAutosave` against fakes for the file and the port, and pins
+   "profile before window" with one source guard on `App.xaml`'s `StartupUri`.*
 7. **True striped ball rendering.** *Struck 2026-11-28: already shipped 2026-08-15, before this list was written, so
    the entry was stale rather than pending. `scoreboard.css` draws `.ball.stripe` as a white body with a 46% colour
    band, `ballElement()` builds the `.solid`/`.stripe` pair, and `BallButtonStyle` layers the same band in WPF — a
@@ -314,12 +318,42 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
+### 2026-11-28 — The startup order is a test, not a live check
+
+- `OnStartup` ran four steps inline — the saved port, the saved profile, the match in progress, the overlay host
+  — and the only thing that could catch them in the wrong order was `verify-live.ps1`, which needs a window and a
+  socket and so never runs in CI. They now live in `Startup/StartupWiring`, which `App` builds and runs. What
+  startup does is unchanged; only where the sequence is written down.
+- The order is argued in the class rather than inferred from the call site: the port first, because setting it
+  stops a running host; then the profile, because the window reads state when `StartupUri` builds it after
+  `OnStartup` returns; then the match, because the profile supplies the players and Race-To targets its scores are
+  judged against; then the overlay, the only step that binds a socket.
+- `StartupWiringTests` (6 facts) pins it three ways. Two facts follow recording delegates and fail on any
+  reordering. Three run the real pieces with only the file and the socket faked: the session is already on 51241
+  when the overlay starts, the profile's players and targets are in state when the match is resumed, and a real
+  `MatchAutosave` has the saved 2–1 match on screen before the host starts. The sixth is the one thing that cannot
+  be run — "profile before window" — so it reads `App.xaml.cs` (no window constructed there, the work handed to
+  `StartupWiring`) and `App.xaml` (`StartupUri` still names `MainWindow.xaml`).
+- Mutation-proved, then reverted, four ways: the single resume call moved above the profile (the behavioural fact
+  failed, which is the bug this was written for), the resume duplicated before it, the port applied after the
+  profile, and `StartupUri` removed from `App.xaml`. The last two failed only the order fact and the guard
+  respectively, which is what each one is for. A first attempt at moving the call was written wrongly enough to
+  truncate the file; it was restored from the comment and the tests rebuilt, and the run above is from the fixed
+  script.
+- No version bump: test-only extraction, nothing the app does changed. 155 Core + 36 Overlay + 195 Controller (was
+  189), 0 warnings. Not checked live: the app was not restarted on this build, so the wiring is proven by the tests
+  rather than by a launch.
+
 ### 2026-11-28 — A tag publishes the build, and has to match the version
 
 - `.github/workflows/release.yml` runs on any `v*` tag and on nothing else: it checks the tag against
   `Directory.Build.props`, publishes the Phase 6 single-file win-x64 build with the command Phase 6 documented,
   zips the one exe that publish produces and attaches it to a GitHub release named after the tag. A re-run
   uploads over the same release instead of failing on a second one.
+- A suffixed tag is published as a prerelease, so `v0.43.0-beta` cannot take the "Latest" badge from a finished
+  version. The rule reads the tag rather than looking for the literal `-beta`, so a later `-rc.2` behaves the same
+  way; `v0.43.0-beta` itself was flipped to prerelease afterwards, because the first run had published it as a
+  final release.
 - The check is `tools/check-release-tag.ps1`, because CLAUDE.md's rule that `VersionPrefix` keeps in step with the
   `v0.<major>.<ui>-beta` tags was written down and never enforced. It accepts `v<major>.<minor>.<patch>` with an
   optional suffix (`-beta`, `-beta.2`), compares the number against the props file, and refuses anything else
