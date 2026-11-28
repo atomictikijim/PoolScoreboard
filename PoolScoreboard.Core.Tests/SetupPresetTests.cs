@@ -1,4 +1,4 @@
-using PoolScoreboard.Core.Enums;
+﻿using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
 using PoolScoreboard.Core.Persistence;
 
@@ -101,6 +101,55 @@ public sealed class SetupPresetTests
         Assert.Equal(OperatorProfile.DefaultOverlayPort, preset.OverlayPort);
     }
 
+    [Fact]
+    public void ApplyTo_WritesEverySettingThroughTheManager()
+    {
+        var manager = new GameManager();
+        var preset = SetupPreset.Capture("House A", StateWithADistinctSettingEverywhere(), overlayPort: 51241);
+
+        preset.ApplyTo(manager);
+
+        // One route, so every value the preset holds has to be in state afterwards — including the five that are
+        // buttons on the live view and used to need their own call.
+        var state = manager.GetStateSnapshot();
+        Assert.Equal(GameType.EightBall, state.GameType);
+        Assert.Equal(RaceToMode.Split, state.RaceToMode);
+        Assert.Equal(35, state.ShotClockSeconds);
+        Assert.Equal(25, state.ShotClockExtensionSeconds);
+        Assert.Equal("#111111", state.ColorTheme.HomeBackground);
+        Assert.Equal(42, state.ScoreboardStyle.CornerRoundness);
+        Assert.False(state.Visibility.ScoreBarVisible);
+        Assert.True(state.Visibility.BallTrackerVisible);
+        Assert.False(state.Visibility.WinnerBannerVisible);
+        Assert.Equal(ShotClockDisplay.Line, state.ShotClockDisplay);
+        Assert.True(state.StaleCueEnabled);
+        Assert.False(state.IsGameActive);
+    }
+
+    [Fact]
+    public void ApplyTo_WhileAMatchRuns_ChangesTheLookAndLeavesTheMatchAlone()
+    {
+        var manager = new GameManager();
+        manager.SetPlayerDetails(isHome: true, "Home", "", 5, null);
+        manager.SetPlayerDetails(isHome: false, "Away", "", 5, null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+        manager.AddPoint(isPlayer1: true);
+
+        SetupPreset.Capture("House A", StateWithADistinctSettingEverywhere(), 51234).ApplyTo(manager);
+
+        var state = manager.GetStateSnapshot();
+
+        // The look, the clock's drawing and the stale cue travel, because they describe the show.
+        Assert.Equal("#111111", state.ColorTheme.HomeBackground);
+        Assert.Equal(ShotClockDisplay.Line, state.ShotClockDisplay);
+        Assert.True(state.StaleCueEnabled);
+
+        // The match, its game type and its lengths do not: those are setup-only, and GameManager refuses them mid-match.
+        Assert.True(state.IsGameActive);
+        Assert.Equal(GameType.NineBall, state.GameType);
+        Assert.Equal(GameState.DefaultShotClockSeconds, state.ShotClockSeconds);
+        Assert.Equal(1, state.Player1Score);
+    }
     [Theory]
     [InlineData(null, "")]
     [InlineData("   ", "")]

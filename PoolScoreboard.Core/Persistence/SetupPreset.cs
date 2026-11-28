@@ -1,4 +1,4 @@
-using PoolScoreboard.Core.Enums;
+﻿using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
 
 namespace PoolScoreboard.Core.Persistence;
@@ -75,4 +75,28 @@ public class SetupPreset
     /// what lets the save button be disabled rather than writing an unnamed entry nobody can pick.
     /// </summary>
     public static string NormalizeName(string? name) => (name ?? string.Empty).Trim();
+
+    /// <summary>
+    /// Writes the whole preset into game state through <see cref="GameManager"/>'s own setters — the single route
+    /// <see cref="OperatorProfile.ApplyTo"/> uses — so no setting reaches state by a way the screen's own edits do not,
+    /// and what the overlay reads after a preset is exactly what the screen shows.
+    /// <para>
+    /// The three setup-only fields (game type, Race-To mode and both lengths) are ignored by <see cref="GameManager"/>
+    /// while a match is running, which is what makes applying a preset mid-match safe: the look changes, the match does
+    /// not. The overlay port is deliberately not here — it belongs to the host session, not to game state.
+    /// </para>
+    /// </summary>
+    public void ApplyTo(GameManager manager)
+    {
+        manager.SetMatchPreview(GameType, RaceToMode);
+        manager.SetShotClockLengths(ShotClockSeconds, ShotClockExtensionSeconds);
+        manager.SetColorTheme(ColorTheme);
+        manager.SetScoreboardStyle(ScoreboardStyle);
+        manager.SetScoreBarVisible(Visibility.ScoreBarVisible);
+        manager.SetBallTrackerVisible(Visibility.BallTrackerVisible);
+        manager.SetWinnerBannerVisible(Visibility.WinnerBannerVisible);
+        manager.SetShotClockDisplay(ShotClockDisplay);
+        manager.SetStaleCue(StaleCueEnabled);
+    }
+
 }

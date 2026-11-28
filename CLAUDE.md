@@ -156,10 +156,11 @@ dotnet clean
 - The top of that screen is a **SETUP PRESET** row: a picker of saved setups, a name box, **SAVE PRESET** and
   **Delete**, and a status line instead of a dialog. A preset carries the look (theme, style, show/hide flags,
   clock drawing, stale cue), the game type and Race-To mode, both clock lengths and the overlay port — everything
-  a venue needs that the profile does not keep, and no player names. Picking one applies it through the same
-  property assignments an operator's edit makes, so the ball layout, the preview, the lengths and the look reach
-  `GameManager` by their existing paths; the five that are buttons on the live view are written through
-  `GameManager` as those buttons do and mirrored on screen. `presets.json` holds up to 50, one entry per name
+  a venue needs that the profile does not keep, and no player names. Picking one calls `SetupPreset.ApplyTo`,
+  which writes every setting through `GameManager` — the single route `OperatorProfile` uses, so nothing reaches
+  state a way an edit does not — and the screen then re-reads state rather than writing its own copy back. The
+  picker is an action, not an indicator: a save leaves it unpicked, because a name already selected cannot be
+  picked again and that pick is how saved values are put back. `presets.json` holds up to 50, one entry per name
   ignoring case; a repeated name replaces, a blank one cannot be saved, and the file goes through `DurableFile`.
 - Live view: score +/- per player, current-shooter toggle with a CALL EXTENSION button beside it, ball-group
   assignment buttons (8-ball only) or ball display (9/10-ball), new-rack/reset-match controls. The shared OVERLAY

@@ -318,8 +318,17 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
   picked preset and says so. A preset's port that could not be bound is captured as the default instead.
 - Mutation-proved, then reverted, four ways: capture dropping the shot length, a repeated name appending a second entry,
   applying skipping the stale cue, and the picker not being reloaded after a save. Each failed the fact that covers it.
-- 0.43.0 -> 0.44.0. 170 Core + 36 Overlay + 205 Controller, 0 warnings. Not checked in the window: the row itself has
-  not been seen or clicked — the values it writes and the file it leaves are what the tests pin.
+- Applying goes through one route: `SetupPreset.ApplyTo` writes all of it — the look, the game type, Race-To mode,
+  both lengths and the five button settings — through `GameManager`, the route `OperatorProfile` also uses, and the
+  screen re-reads state afterwards instead of pushing its own copy of those five back. Two paths there is how the
+  screen and the overlay come to disagree. Saving no longer leaves the name picked, because a name already selected
+  cannot be picked again — and that pick is the only gesture that puts the saved values back after an edit.
+- Checked in the real window with UI Automation (not just the suite): the row lays out as one band above the scroll
+  area with nothing overlapping, SAVE PRESET and Delete are disabled while nothing is picked, a preset saved at 35/25
+  puts 35 back on the screen *and* into the state the overlay is served after an edit to 50, and Delete empties the
+  file. The suite could not have seen the last of those: the first attempt at applying was a silent no-op, because
+  the picker was still sitting on the name it had just saved.
+- 0.44.0 -> 0.44.1. 172 Core + 36 Overlay + 206 Controller, 0 warnings.
 
 ### 2026-11-28 — The startup order is a test, not a live check
 

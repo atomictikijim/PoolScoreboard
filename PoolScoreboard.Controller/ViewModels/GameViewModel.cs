@@ -715,8 +715,10 @@ public partial class GameViewModel : ObservableObject
         }
 
         // Reloaded from the file rather than patched in memory, so the picker shows what the next launch will read.
+        // The name is not left selected: the picker records what was *picked*, and a name already selected cannot be
+        // picked again — which would be the one gesture that puts the saved values back after an edit.
         _presets = _presetStore.Load();
-        RefreshPresetNames(name);
+        RefreshPresetNames(selected: null);
         PresetStatus = $"Saved '{name}'.";
         _persist?.Invoke();
     }
@@ -763,39 +765,27 @@ public partial class GameViewModel : ObservableObject
     /// </summary>
     private void ApplyPreset(SetupPreset preset)
     {
+        // One route into state: the preset writes itself through GameManager, the way the saved profile does, and the
+        // screen is then re-read from what state holds instead of pushing its own copy back in. A second path here —
+        // some values through the properties, the rest straight into the manager — is how the screen and the overlay
+        // drifted apart the first time this was written.
+        preset.ApplyTo(_gameManager);
+
+        // Filled the way startup fills them: reads of state with the change handlers suppressed, so this is not a
+        // second write of the same values.
+        _restoring = true;
+        try
+        {
+            ApplyRestoredLook(_gameManager.GetStateSnapshot());
+        }
+        finally
+        {
+            _restoring = false;
+        }
+
+        // The two that also drive the screen's layout, so they are announced to the bindings.
         SelectedGameType = preset.GameType;
         SelectedRaceToMode = preset.RaceToMode;
-        ShotClockSeconds = preset.ShotClockSeconds;
-        ShotClockExtensionSeconds = preset.ShotClockExtensionSeconds;
-
-        HomeBackgroundColor = preset.ColorTheme.HomeBackground;
-        AwayBackgroundColor = preset.ColorTheme.AwayBackground;
-        HomeAccentColor = preset.ColorTheme.HomeAccent;
-        AwayAccentColor = preset.ColorTheme.AwayAccent;
-        HomeTextColor = preset.ColorTheme.HomeText;
-        AwayTextColor = preset.ColorTheme.AwayText;
-
-        CornerRoundness = preset.ScoreboardStyle.CornerRoundness;
-        OverallScale = preset.ScoreboardStyle.OverallScale;
-        GlossyFinish = preset.ScoreboardStyle.GlossyFinish;
-        SelectedEndCapStyle = preset.ScoreboardStyle.EndCapStyle;
-        SelectedShooterIndicatorStyle = preset.ScoreboardStyle.ShooterIndicatorStyle;
-
-        // These five are commands on the live view rather than bindable properties — the properties beside them only
-        // mirror state — so a preset has to write them the way those commands do. The mirrors are assigned as well,
-        // because at setup nothing fills them back in from the state event: an assignment alone would move the label and
-        // leave the overlay as it was, and the manager call alone would leave the buttons saying the old thing.
-        _gameManager.SetScoreBarVisible(preset.Visibility.ScoreBarVisible);
-        _gameManager.SetBallTrackerVisible(preset.Visibility.BallTrackerVisible);
-        _gameManager.SetWinnerBannerVisible(preset.Visibility.WinnerBannerVisible);
-        _gameManager.SetShotClockDisplay(preset.ShotClockDisplay);
-        _gameManager.SetStaleCue(preset.StaleCueEnabled);
-
-        ScoreBarVisible = preset.Visibility.ScoreBarVisible;
-        BallTrackerVisible = preset.Visibility.BallTrackerVisible;
-        WinnerBannerVisible = preset.Visibility.WinnerBannerVisible;
-        ShotClockDisplay = preset.ShotClockDisplay;
-        StaleCueEnabled = preset.StaleCueEnabled;
 
         // Last, because a port change rebinds the overlay host: the preset's port is the venue's.
         OverlayPort = preset.OverlayPort;

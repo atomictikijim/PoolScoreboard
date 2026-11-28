@@ -399,8 +399,9 @@ gives every scenario below a blank list.
 1. Set 8-Ball, Split, a shot length of 35 and an extension of 25, and change one colour.
 2. Type `House A` in the name box and press **SAVE PRESET**.
 
-*Expected:* the status line reads `Saved 'House A'.`, the picker now lists `House A`, and `presets.json` exists with one
-entry holding those four values and the colour. **SAVE PRESET** is disabled while the name box is empty or blank.
+*Expected:* the status line reads `Saved 'House A'.`, the picker now lists `House A` but is not left showing it as
+picked, and `presets.json` exists with one entry holding those four values and the colour. **SAVE PRESET** is
+disabled while the name box is empty or blank, and **Delete** is disabled until a preset is picked.
 
 ### SP-2 — Applying a preset
 
@@ -416,9 +417,11 @@ and the overlay preview follows — the ball layout swaps to the 8-ball display 
 
 1. With SP-1 done, change the setup, type `House B` and save.
 2. Change the setup again, type `house a` and save.
+3. Pick `House A`.
 
 *Expected:* after step 1 the picker lists both names alphabetically. After step 2 there are still two entries — the
-second save replaced `House A` with the new values, and the picker keeps one entry per name.
+second save replaced `House A` with the new values, and the picker keeps one entry per name. At step 3 the shot
+lengths and the rest of the setup show the values from step 2, and the status line reads `Applied 'House A'.`
 
 ### SP-4 — Deleting
 

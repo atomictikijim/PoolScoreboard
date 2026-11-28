@@ -535,6 +535,29 @@ public sealed class GameViewModelTests : IDisposable
     }
 
     [Fact]
+    public void SavePreset_LeavesThePickerEmpty_SoThePresetCanBeAppliedBack()
+    {
+        var manager = new GameManager();
+        var viewModel = BuildViewModel(manager);
+
+        viewModel.ShotClockSeconds = 35;
+        viewModel.PresetName = "House A";
+        viewModel.SavePresetCommand.Execute(null);
+
+        // Saving says what was stored, not that the screen is that preset now. Leaving the name picked would make
+        // the next pick of it a no-op, and that pick is the only gesture that puts the saved values back.
+        Assert.Null(viewModel.SelectedPreset);
+
+        viewModel.ShotClockSeconds = 50;
+        viewModel.SelectedPreset = "House A";
+
+        Assert.Equal(35, viewModel.ShotClockSeconds);
+        Assert.Equal(35, manager.GetStateSnapshot().ShotClockSeconds);
+        Assert.Equal("Applied 'House A'.", viewModel.PresetStatus);
+    }
+
+
+    [Fact]
     public void SelectingAPreset_AppliesItsMatchChoicesAndItsLook()
     {
         // Saved by an earlier session, so the picker is filled from the file at construction.
