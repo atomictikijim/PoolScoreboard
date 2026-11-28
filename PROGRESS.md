@@ -329,16 +329,19 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
   its two companions for a self-contained publish, so the workflow adds no `-p:` flags that could drift from a real
   release. Before zipping, the job fails if the exe is missing or any `.dll` was left beside it, so a lost switch is
   a red run rather than a download that needs more than the exe.
-- The suite is not repeated there: `ci.yml`'s `on: push:` covers tags as well as branches, so the tag's own push
-  builds and tests the commit being released.
+- The job builds and runs the whole suite before it publishes, with the same two commands `ci.yml` uses. The first
+  cut published straight from `Restore`, on the reasoning that `ci.yml` also starts on a tag push — but two
+  workflows start together and neither waits for the other, so a red suite could turn up after the release was
+  already downloadable. The release is the one build nobody looks at again, so it verifies its own commit.
 - Nothing in the app changed — build tooling only — so there is no version bump, and no shipped code path can be
   affected by it.
 - Checked locally: the script against the real props file exits 0 for `v0.43.0-beta`, `v0.43.0`, `v0.43.0-rc.2` and
   `v0.43.0-beta.2`, exits 1 naming both numbers for `v0.42.0-beta` (the assertion that matters), and refuses
   `0.43.0`, `v0.43.0.1`, `v0.43-beta` and `vv0.43.0` as malformed. The publish command was run here into a temp
   directory: one 87 MB `PoolScoreboard.Controller.exe`, no `.dll` beside it, and the zip step packed it — and threw
-  as intended when run at a directory holding a `.dll`. The workflow file parses as YAML with the eight steps it
-  should have. **Not checked:** the workflow has never run on GitHub — no tag was pushed, so the runner,
+  as intended when run at a directory holding a `.dll`. The Release build and the whole suite were run here with the job's own
+  commands — 155 Core + 36 Overlay + 189 Controller, 0 warnings — and the workflow file parses as YAML with the
+  ten steps it should have. **Not checked:** the workflow has never run on GitHub — no tag was pushed, so the runner,
   `gh release create` and the `contents: write` permission are unproven until the first release; and the script was
   exercised under Windows PowerShell 5.1, while the runner uses PowerShell 7.
 

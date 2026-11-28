@@ -4,8 +4,9 @@ name: Release
 # push is the one event that builds a distributable: the Phase 6 publish is a `dotnet publish`
 # nobody has to type by hand, and the tag is checked against Directory.Build.props before anything
 # is uploaded, because a download whose tag, title and file properties disagree is worse than no
-# release at all. Ordinary pushes never run this — ci.yml builds and tests every push, including a
-# tag's, so this job publishes without repeating the suite.
+# release at all. Ordinary pushes never run this; a tag's push also starts ci.yml, but the two jobs
+# run side by side and neither waits for the other, so this one builds and runs the suite itself: a red
+# suite must not ship a release that the next run would call broken.
 on:
   push:
     tags:
@@ -49,6 +50,14 @@ jobs:
 
       - name: Restore
         run: dotnet restore PoolScoreboard.sln
+
+      # The same two commands ci.yml runs, in the same order, for the same reason: the release is the one
+      # build nobody looks at again, and ci.yml starting on the same tag push is not an ordering.
+      - name: Build
+        run: dotnet build PoolScoreboard.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test PoolScoreboard.sln --configuration Release --no-build --logger "console;verbosity=normal"
 
       # The documented Phase 6 command. PublishSingleFile and its two companions are switched on by
       # the Controller's csproj when SelfContained is true, so no extra -p: flags belong here.
