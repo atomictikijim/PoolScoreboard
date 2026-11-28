@@ -92,11 +92,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = '${{ github.ref_name }}'
+          # A suffixed tag is a prerelease: v0.43.0-beta is not the build people should get as "Latest", and the
+          # flag follows the tag rather than being something to remember on the day.
+          $prerelease = @()
+          if ($tag -match '-') { $prerelease = @('--prerelease') }
           # A re-run of a failed release lands on the same release rather than a second one.
           gh release view $tag 2>$null | Out-Null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag $env:ASSET --clobber
+            if ($prerelease.Count -gt 0) { gh release edit $tag @prerelease }
           } else {
             $notes = "PoolScoreboard $env:VERSION for Windows x64 — one self-contained executable, no .NET runtime to install. Unzip it and run PoolScoreboard.Controller.exe."
-            gh release create $tag $env:ASSET --title "PoolScoreboard $env:VERSION" --notes $notes
+            gh release create $tag $env:ASSET --title "PoolScoreboard $env:VERSION" --notes $notes @prerelease
           }
