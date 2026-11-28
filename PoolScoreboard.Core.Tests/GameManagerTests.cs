@@ -423,6 +423,27 @@ public class GameManagerTests
     }
 
     [Fact]
+    public void TheStaleCue_IsSwitchedOnMidMatch_AndSurvivesTheNextState()
+    {
+        var manager = NewMatch();
+
+        Assert.False(manager.GetStateSnapshot().StaleCueEnabled);
+
+        manager.SetStaleCue(true);
+
+        // Off until the operator asks, and applied at once: the page showing frozen numbers is the one already up.
+        Assert.True(manager.GetStateSnapshot().StaleCueEnabled);
+
+        manager.ResetGame();
+        Assert.True(manager.GetStateSnapshot().StaleCueEnabled);
+
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        // Describes the show rather than the match, like the theme and the clock's drawing.
+        Assert.True(manager.GetStateSnapshot().StaleCueEnabled);
+    }
+
+    [Fact]
     public void InitializeGame_SetsUpActiveGameWithPlayer1AsCurrentShooter()
     {
         var manager = NewMatch();

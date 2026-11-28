@@ -105,6 +105,17 @@ public partial class GameViewModel : ObservableObject
     public string ShotClockDisplayButtonText =>
         ShotClockDisplay == ShotClockDisplay.Time ? "Shot Clock: Time" : "Shot Clock: Line";
 
+    /// <summary>
+    /// Whether the overlay marks itself once its stream has been dead for a few seconds. A look setting, so it works
+    /// mid-match and is saved with the profile.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StaleCueButtonText))]
+    private bool staleCueEnabled;
+
+    /// <summary>What the toggle is set to, so the button says whether a dead stream is being marked.</summary>
+    public string StaleCueButtonText => StaleCueEnabled ? "Stale Cue: On" : "Stale Cue: Off";
+
     [ObservableProperty]
     private PlayerViewModel? homePlayer;
 
@@ -819,6 +830,22 @@ public partial class GameViewModel : ObservableObject
     private void ExtendShotClock() => _gameManager.ExtendShotClock();
 
     /// <summary>
+    /// Turns the overlay's dead-stream cue on or off. A look setting like the clock's drawing, so it is saved the
+    /// moment it is pressed rather than waited for on exit.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleStaleCue()
+    {
+        // Read once: the state push inside SetStaleCue already sets this property, so negating it afterwards would
+        // flip the new value straight back.
+        var next = !StaleCueEnabled;
+
+        _gameManager.SetStaleCue(next);
+        StaleCueEnabled = next;
+        _persist?.Invoke();
+    }
+
+    /// <summary>
     /// Re-reads the clock for the readout. Called on every state change and by the window's timer, because a
     /// deadline is a single instant: between the start of a shot and its end nothing is raised, so the number has
     /// to be recomputed rather than waited for. <see cref="DateTimeOffset.Now"/> comes from the injected clock so
@@ -980,6 +1007,7 @@ public partial class GameViewModel : ObservableObject
         ScoreBarVisible = state.Visibility.ScoreBarVisible;
         BallTrackerVisible = state.Visibility.BallTrackerVisible;
         WinnerBannerVisible = state.Visibility.WinnerBannerVisible;
+        StaleCueEnabled = state.StaleCueEnabled;
 
         foreach (var (number, ball) in _allBalls)
             ball.IsPocketed = state.PocketedBalls.Contains(number);

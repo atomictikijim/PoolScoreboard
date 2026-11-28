@@ -228,6 +228,18 @@ public sealed class OverlayHttpTests : IAsyncLifetime
         Assert.Equal("Line", (await GetJson(ScoreboardState)).GetProperty("shotClockDisplay").GetString());
     }
 
+    [Fact]
+    public async Task TheStaleCueReachesThePayloadThePageReads()
+    {
+        Assert.False((await GetJson(ScoreboardState)).GetProperty("staleCueEnabled").GetBoolean());
+
+        _gameManager.SetStaleCue(true);
+
+        // The page only marks itself when this arrives, and only learns it from a frame: a cue that never reached the
+        // payload would leave a dead overlay looking live forever.
+        Assert.True((await GetJson(ScoreboardState)).GetProperty("staleCueEnabled").GetBoolean());
+    }
+
     private static DateTimeOffset ShotClockDeadline(JsonElement state) =>
         DateTimeOffset.Parse(
             state.GetProperty("shotClockEndsAt").GetString()!,

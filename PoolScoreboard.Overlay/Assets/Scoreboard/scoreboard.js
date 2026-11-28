@@ -48,6 +48,15 @@
 
   let hasRenderedOnce = false;
 
+  // How long a dead stream is allowed to look live before the page says so: long enough to ride out the reconnect
+  // EventSource attempts by itself, short enough that nobody reads frozen numbers as a live match.
+  const STALE_AFTER_MS = 4000;
+
+  // Whether the operator asked for the cue at all, which the payload only says once a frame has arrived. Off by
+  // default because a mark on the overlay is their call, not ours.
+  let staleCueEnabled = false;
+  let staleTimer = null;
+
   // The state carries the instant the shot's clock runs out, not the seconds left, so the countdown happens here
   // between frames: one frame when the clock starts, and it ticks in the OBS capture without the host sending
   // forty of them.
@@ -82,6 +91,26 @@
     scoreboardRoot.classList.toggle('shooter-glow', showGlow);
     shooterPointerHome.classList.toggle('visible', showTriangle && homeIsShooter);
     shooterPointerAway.classList.toggle('visible', showTriangle && !homeIsShooter);
+  }
+
+  function setStaleCue(stale) {
+    document.body.classList.toggle('stale', stale);
+  }
+
+  // An error starts the clock on the cue; a frame or a reconnect inside those seconds clears it, so only a stream
+  // that stays down is marked. Deliberately not a watchdog on frames: the host sends one per change rather than a
+  // heartbeat, so a quiet table and a dead host look identical from here.
+  function scheduleStaleCue(source) {
+    clearTimeout(staleTimer);
+    staleTimer = setTimeout(() => {
+      if (staleCueEnabled && source.readyState !== EventSource.OPEN)
+        setStaleCue(true);
+    }, STALE_AFTER_MS);
+  }
+
+  function clearStaleCue() {
+    clearTimeout(staleTimer);
+    setStaleCue(false);
   }
 
   function setElementVisible(el, visible, skipAnimation) {
@@ -197,6 +226,10 @@
   function render(state) {
     applyTheme(state.colors);
 
+    // A frame is proof the stream is alive, so it clears the cue and carries whether the cue is on at all.
+    staleCueEnabled = state.staleCueEnabled === true;
+    clearStaleCue();
+
     homeName.textContent = displayText(state.home.name, 'HOME');
     awayName.textContent = displayText(state.away.name, 'AWAY');
     homeTeam.textContent = (state.home.teamName || '').toUpperCase();
@@ -271,6 +304,8 @@
         console.error('Failed to parse scoreboard state', err);
       }
     };
+    source.onopen = clearStaleCue;
+    source.onerror = () => scheduleStaleCue(source);
   }
 
   // Four ticks a second: enough to land on each whole second without the display ever looking late, cheap enough

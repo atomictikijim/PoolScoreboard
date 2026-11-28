@@ -27,6 +27,12 @@ public class OperatorProfile
     /// so it is remembered with the theme and the show/hide settings and comes back on the next launch.
     /// </summary>
     public ShotClockDisplay ShotClockDisplay { get; set; } = ShotClockDisplay.Time;
+
+    /// <summary>
+    /// Whether the overlay marks itself when its stream dies. Remembered with the rest of the look, so an operator who
+    /// wants the cue does not have to turn it on again every launch.
+    /// </summary>
+    public bool StaleCueEnabled { get; set; }
     public PlayerProfile HomePlayer { get; set; } = new();
     public PlayerProfile AwayPlayer { get; set; } = new();
 
@@ -54,6 +60,7 @@ public class OperatorProfile
         ScoreboardStyle = state.ScoreboardStyle.Copy(),
         Visibility = state.Visibility.Copy(),
         ShotClockDisplay = state.ShotClockDisplay,
+        StaleCueEnabled = state.StaleCueEnabled,
         HomePlayer = PlayerProfile.From(state.Player1),
         AwayPlayer = PlayerProfile.From(state.Player2)
     };
@@ -71,6 +78,7 @@ public class OperatorProfile
         manager.SetBallTrackerVisible(Visibility.BallTrackerVisible);
         manager.SetWinnerBannerVisible(Visibility.WinnerBannerVisible);
         manager.SetShotClockDisplay(ShotClockDisplay);
+        manager.SetStaleCue(StaleCueEnabled);
 
         HomePlayer.ApplyTo(manager, isHome: true, homeEndCapIcon);
         AwayPlayer.ApplyTo(manager, isHome: false, awayEndCapIcon);

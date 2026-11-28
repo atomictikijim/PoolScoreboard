@@ -45,7 +45,8 @@ public static class ScoreboardStateMapper
         ShotClockSeconds = state.ShotClockSeconds,
         ShotClockDisplay = state.ShotClockDisplay.ToString(),
         ShotClockEndsAt = state.ShotClockEndsAt?.ToString("o", CultureInfo.InvariantCulture),
-        ShotClockArmed = state.ShotClockArmed
+        ShotClockArmed = state.ShotClockArmed,
+        StaleCueEnabled = state.StaleCueEnabled
     };
 
     private static PlayerDto ToPlayerDto(Player player, int score) => new()

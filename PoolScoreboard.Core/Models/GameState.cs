@@ -44,6 +44,13 @@ public class GameState
     /// <summary>How the countdown is drawn while a clock is showing — numbers, or a line that drains.</summary>
     public ShotClockDisplay ShotClockDisplay { get; set; } = ShotClockDisplay.Time;
 
+    /// <summary>
+    /// Whether the overlay should say so when its stream has been dead for a few seconds. Off until the operator asks
+    /// for it, because a mark on the overlay is their call; part of the look rather than the match, so it is carried
+    /// and saved with the theme and the show/hide settings.
+    /// </summary>
+    public bool StaleCueEnabled { get; set; }
+
     /// <summary>How long a shot gets until Match Setup says otherwise.</summary>
     public const int DefaultShotClockSeconds = 40;
 
@@ -116,6 +123,7 @@ public class GameState
             ScoreboardStyle = ScoreboardStyle.Copy(),
             Visibility = Visibility.Copy(),
             ShotClockDisplay = ShotClockDisplay,
+            StaleCueEnabled = StaleCueEnabled,
             CueBallSpin = CueBallSpin?.Copy(),
             ShotClockSeconds = ShotClockSeconds,
             ShotClockExtensionSeconds = ShotClockExtensionSeconds,

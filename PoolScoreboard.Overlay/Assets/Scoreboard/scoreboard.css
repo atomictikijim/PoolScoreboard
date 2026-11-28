@@ -35,6 +35,7 @@ html, body {
      is the intended trade-off, not a bug. */
   transform: scale(var(--ui-scale));
   transform-origin: top left;
+  transition: filter 0.3s ease;
 }
 
 .pill {
@@ -426,4 +427,31 @@ html, body {
 .ball.pocketed {
   opacity: 0.32;
   filter: grayscale(1);
+}
+
+/* Opt-in stale cue: a dead host leaves the last frame on screen, confident and frozen, so once the stream has been
+   gone for a few seconds the board drains of colour and dims, and a badge says why. */
+body.stale .scoreboard {
+  filter: saturate(0.3) brightness(0.7);
+}
+
+.stale-cue {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #b00020;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+body.stale .stale-cue {
+  opacity: 1;
 }

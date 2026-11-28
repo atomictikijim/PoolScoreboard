@@ -34,8 +34,11 @@
                 <Button Content="Winner Banner" Command="{Binding ToggleWinnerBannerVisibleCommand}"
                         Style="{Binding WinnerBannerVisible, Converter={StaticResource BoolToButtonStyleConverter}}" Padding="12,8" Margin="0,0,8,0" />
                 <Button Content="{Binding ShotClockDisplayButtonText}" Command="{Binding ToggleShotClockDisplayCommand}"
-                        Style="{StaticResource InactiveButtonStyle}" Padding="12,8"
+                        Style="{StaticResource InactiveButtonStyle}" Padding="12,8" Margin="0,0,8,0"
                         ToolTip="The running shot clock: the numbers, or a line that drains and turns red in its last five seconds. Press to swap." />
+                <Button Content="{Binding StaleCueButtonText}" Command="{Binding ToggleStaleCueCommand}"
+                        Style="{Binding StaleCueEnabled, Converter={StaticResource BoolToButtonStyleConverter}}" Padding="12,8"
+                        ToolTip="Marks the scoreboard once its stream has been dead for a few seconds, so frozen numbers cannot pass for live ones. Press to turn on or off." />
             </StackPanel>
         </DataTemplate>
     </Window.Resources>

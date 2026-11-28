@@ -56,6 +56,10 @@
     <div class="ball-tracker sb-hideable" id="ballTracker"></div>
   </div>
 
+  <!-- Only shown when the operator has turned the cue on and the stream has stayed down: the board dims through the
+       body class and this badge says why, so frozen numbers cannot pass for live ones. -->
+  <div class="stale-cue" id="staleCue">SIGNAL LOST</div>
+
   <script src="/overlay/scoreboard/app.js"></script>
 </body>
 </html>

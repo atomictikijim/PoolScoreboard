@@ -263,7 +263,11 @@ on the port the overlay was really served on rather than the default or a value 
   can never disagree about when time is nearly up. An expired shot fills the whole track red rather than leaving it
   empty, because a drained line and a clock nobody started look identical. `shotClockArmed` draws a clock that is
   waiting at its full length without counting — the state a new rack leaves behind — dimmed so it cannot be
-  mistaken for a running one.
+  mistaken for a running one. `staleCueEnabled` is the opt-in mark for a dead stream: with it on, `scoreboard.js`
+  waits four seconds after the `EventSource` errors — `source.onopen` and any frame cancel the wait, so a reconnect
+  is never marked — and then dims the board, drains its colour and shows a `SIGNAL LOST` badge until a frame
+  arrives. It is a timer on the *error*, not a watchdog on frames, because the host sends one frame per change rather
+  than a heartbeat, so from the page a quiet table and a dead host look identical.
 - `/overlay/cueball` — separate browser-source page: a cue-ball graphic; clicking it places
   a red dot marking the spin/contact point. Independent of and separately positionable from
   the scoreboard overlay in the OBS scene.
@@ -346,6 +350,8 @@ alignment, not a pixel match).
   while the clock is waiting or hidden, and only a spent extension greys it. The clock is either numbers or the line, never both, and the line
   carries no numerals at all — which is the point of it across a room, but means an operator who wants the exact
   time on screen has to leave the display on `Time`.
+- The overlay's dead-stream cue is off until the operator turns `Stale Cue` on, and only the scoreboard page has
+  it: the cue-ball page's payload carries no look settings, so it would need the flag added there.
 - `controller.log` is capped by size only, never by age: at startup a log over 1 MiB becomes
   `controller.old.log`, so exactly one previous session survives and older ones are discarded.
 - The roster only holds players who have actually been on screen for a started match (or present

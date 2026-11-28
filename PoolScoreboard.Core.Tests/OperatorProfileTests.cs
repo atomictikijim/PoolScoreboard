@@ -121,6 +121,22 @@ public class OperatorProfileTests
     }
 
     [Fact]
+    public void TheStaleCueIsRememberedWithTheLook()
+    {
+        var manager = ManagerWithMatch();
+        manager.SetStaleCue(true);
+
+        var saved = OperatorProfile.Capture(manager.GetStateSnapshot());
+        Assert.True(saved.StaleCueEnabled);
+
+        var restored = new GameManager();
+        saved.ApplyTo(restored);
+
+        // An operator who wants the cue should not have to turn it on again after every relaunch.
+        Assert.True(restored.GetStateSnapshot().StaleCueEnabled);
+    }
+
+    [Fact]
     public void TheShotClockDisplayIsRememberedWithTheLook()
     {
         var manager = ManagerWithMatch();

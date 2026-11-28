@@ -294,6 +294,32 @@ public sealed class GameViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheStaleCueToggle_ReachesTheStateAndIsSaved()
+    {
+        var saves = 0;
+        var manager = new GameManager();
+        var viewModel = new GameViewModel(
+            manager, () => saves++, overlaySession: null, new PlayerRosterStore(_root), dispatcher: null, owner: null);
+        StartMatch(manager, homeTarget: 3, awayTarget: 3);
+
+        Assert.Equal("Stale Cue: Off", viewModel.StaleCueButtonText);
+
+        viewModel.ToggleStaleCueCommand.Execute(null);
+
+        // The button says what the overlay is doing, and a look setting is saved the moment it is pressed.
+        Assert.True(manager.GetStateSnapshot().StaleCueEnabled);
+        Assert.True(viewModel.StaleCueEnabled);
+        Assert.Equal("Stale Cue: On", viewModel.StaleCueButtonText);
+        Assert.Equal(1, saves);
+
+        viewModel.ToggleStaleCueCommand.Execute(null);
+
+        Assert.False(manager.GetStateSnapshot().StaleCueEnabled);
+        Assert.Equal("Stale Cue: Off", viewModel.StaleCueButtonText);
+        Assert.Equal(2, saves);
+    }
+
+    [Fact]
     public void TheDisplayToggleSwapsTheClockBetweenTimeAndALine_AndSaves()
     {
         var saves = 0;

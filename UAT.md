@@ -270,6 +270,20 @@ never started.
 *Expected:* the clock disappears as the winner banner appears, rather than restarting behind it, and neither key
 brings it back while the banner is up. RESET MATCH returns to setup with no clock.
 
+### SC-16 — The overlay says when its stream is dead
+
+*Precondition:* the Controller running with a match up, OBS (or a browser) showing `/overlay/scoreboard`, and
+`Stale Cue: Off` on the OVERLAY row.
+
+1. With the cue off, close the Controller and watch the overlay for ten seconds.
+2. Relaunch the Controller, press `Stale Cue` so it reads `On`, and confirm the overlay looks normal.
+3. Close the Controller again and watch.
+4. Relaunch and watch.
+
+*Expected:* step 1 leaves the overlay exactly as it was — frozen numbers, no mark, by design. Step 3 shows the board
+dimmed and drained of colour after about four seconds, with a red `SIGNAL LOST` badge at the bottom, and it stays
+that way. Step 4 brings the board back to full colour and takes the badge away on the first frame, with no refresh.
+
 ### SC-15 — The live view says who still has an extension
 
 *Precondition:* a match running, the Controller's live view in front, the header readable.

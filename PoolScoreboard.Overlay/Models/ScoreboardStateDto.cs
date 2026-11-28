@@ -41,6 +41,12 @@ public class ScoreboardStateDto
     /// waiting for the operator to start it. Mutually exclusive with <see cref="ShotClockEndsAt"/>.
     /// </summary>
     public bool ShotClockArmed { get; init; }
+
+    /// <summary>
+    /// True when the operator asked the page to mark itself once its stream has been dead for a few seconds. The page
+    /// keeps its last frame when the host dies, so without this a dead overlay shows confident, frozen numbers.
+    /// </summary>
+    public bool StaleCueEnabled { get; init; }
 }
 
 public class PlayerDto

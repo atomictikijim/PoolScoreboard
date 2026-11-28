@@ -70,8 +70,8 @@ public class GameManager
     }
 
     /// <summary>
-    /// Moves the operator's look — colour theme, scoreboard style, show/hide settings and how the shot clock is
-    /// drawn — onto a new state, as copies. Both ways of leaving a match (starting one and resetting one) keep
+    /// Moves the operator's look — colour theme, scoreboard style, show/hide settings, how the shot clock is drawn
+    /// and whether a dead stream is marked — onto a new state, as copies. Both ways of leaving a match (starting one and resetting one) keep
     /// these, because they describe the show rather than the score, and the HTTP control API paths have no screen
     /// behind them to re-apply anything.
     /// </summary>
@@ -81,6 +81,7 @@ public class GameManager
         to.ScoreboardStyle = from.ScoreboardStyle.Copy();
         to.Visibility = from.Visibility.Copy();
         to.ShotClockDisplay = from.ShotClockDisplay;
+        to.StaleCueEnabled = from.StaleCueEnabled;
     }
 
     public void AddPoint(bool isPlayer1)
@@ -479,6 +480,20 @@ public class GameManager
     /// last five seconds. Deliberately allowed mid-match, unlike the lengths — it changes nothing about the shot,
     /// only how it reads on the overlay — and it rides along with the rest of the look into the next match.
     /// </summary>
+    /// <summary>
+    /// Turns the overlay's dead-stream cue on or off. A look setting like the clock's drawing rather than a rule:
+    /// allowed mid-match, carried into the next state by <see cref="CarryOperatorStyling"/>, and saved with the
+    /// profile.
+    /// </summary>
+    public void SetStaleCue(bool enabled)
+    {
+        lock (_sync)
+        {
+            _currentGame.StaleCueEnabled = enabled;
+            RaiseGameStateChanged(_currentGame.Clone());
+        }
+    }
+
     public void SetShotClockDisplay(ShotClockDisplay display)
     {
         lock (_sync)

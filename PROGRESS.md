@@ -73,6 +73,9 @@ live:
 Recorded when the overlay-guard note below ran out of items. Each was chosen for what it saves a streamed match,
 not for symmetry with work already done.
 
+Status 2026-11-28: #1, #4 and #8 are done; #7 is struck, because it had already shipped before this list was
+written; #2, #3, #5, #6 and #9 are open.
+
 1. **Match history and a per-player record.** The Known Gaps entry says a finished match is kept nowhere, which is
    the difference between a live display and an app that accumulates value: who won last time, a session's win
    count, a season record. Core already has the pieces (`ResumableMatch` for the snapshot shape, `DurableFile` for
@@ -92,18 +95,30 @@ not for symmetry with work already done.
    `/api/control/shotclock/*` start/restart or hide it, a point restarts a running clock, and a new rack or a
    reset hides it. Extended 2026-11-28: both lengths are Match Setup fields, each player can call one extension per
    rack, a ball leaving the table or a shooter toggle restarts the clock like a point does, and a won match hides
-   it instead of restarting it behind the banner.*
+   it instead of restarting it behind the banner.* *Done 2026-11-28 as well: the drawing is the operator's choice of
+   numbers or a draining line, potting the money ball stops the clock, a new rack leaves it waiting at its full
+   length for a manual start, the live view reads it out (`0:32 · running`, `0:40 · waiting`, `0:00 · time up`) with
+   a chip per player showing who still has an extension, and CALL EXTENSION is greyed once the shooter has spent
+   theirs.*
 5. **Tag-triggered release workflow.** Phase 6 packaging is a `dotnet publish` typed by hand, and CLAUDE.md asks
    versions to keep in step with the `v0.<major>.<ui>-beta` tags — a rule nothing checks. A `push: tags: v*` job
    that publishes the single-file win-x64 build and asserts `VersionPrefix` matches the tag. Zero runtime risk.
 6. **A test for the startup wiring.** Every extracted piece is tested, but the *order* — profile before window,
    autosave after profile, port before anything binds — is proven only by `verify-live.ps1`, which CI cannot run.
    That ordering has already produced one bug (the profile event deleting the match being restored).
-7. **True striped ball rendering.** Ball colors are the documented placeholder; solids and stripes are solid fills,
-   so a viewer cannot tell a 3 from an 11. Pure CSS/SVG in `Assets/Scoreboard`, which the asset guard keeps honest.
+7. **True striped ball rendering.** *Struck 2026-11-28: already shipped 2026-08-15, before this list was written, so
+   the entry was stale rather than pending. `scoreboard.css` draws `.ball.stripe` as a white body with a 46% colour
+   band, `ballElement()` builds the `.solid`/`.stripe` pair, and `BallButtonStyle` layers the same band in WPF — a
+   viewer can tell a 3 from an 11 today. Nothing left to do here.*
 8. **An opt-in "overlay is stale" cue.** Both pages deliberately keep their last frame when the host dies, which is
    right for a blip and wrong for a dead host: the scene shows confident, frozen numbers and says nothing. After a
-   few seconds of a closed stream, mark the page. The one overlay behaviour with no test at all today.
+   few seconds of a closed stream, mark the page. The one overlay behaviour with no test at all today. *Done
+   2026-11-28 for the scoreboard page: a `Stale Cue: Off / On` button in the shared OVERLAY row — a look setting,
+   saved with the profile — travels to the page as `staleCueEnabled`. With it on, four seconds after the stream
+   errors and only if it has not reconnected, the board dims and drains of colour and a `SIGNAL LOST` badge says
+   why; the next frame clears both. Nothing watches for frames in general, because the host sends one per change
+   rather than a heartbeat, so a quiet table looks exactly like a dead host. The cue-ball page is not marked yet: its
+   payload carries no look settings, so it would need the flag on its own.*
 9. **Named setup presets.** Settings are one flat profile in `%AppData%`; an operator with two venues or two overlay
    styles retypes colours and the port each time. A named profile file plus a picker, composing with #1.
 
@@ -283,6 +298,32 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-28 — The overlay can say its stream is dead
+
+- The ranked follow-ups list was brought up to date first: #7 (true striped balls) is struck because it shipped on
+  2026-08-15, before the list was written, and #4 now records the whole of today's shot-clock work instead of only
+  the first cut.
+- #8, the opt-in stale cue: a `Stale Cue: Off / On` button in the shared OVERLAY row turns it on. It travels to the
+  page as `staleCueEnabled`, so it is one more look setting rather than a URL an operator has to remember to edit.
+- With it on, the page starts a four-second timer when the `EventSource` errors and shows a `SIGNAL LOST` badge, with
+  the board dimmed and drained of colour, if it has not reconnected by the end. A frame or a reconnect clears both, so
+  a blip is not marked and the first frame after a relaunch undoes it with no refresh.
+- Deliberately a timer on the error rather than a watchdog on frames: the host sends one frame per change, not a
+  heartbeat, so "no frames for four seconds" describes a quiet table exactly as well as a dead host.
+- The cue-ball page is not marked — its payload carries no look settings — and the cue is off by default, so the
+  overlay behaves exactly as before until someone asks otherwise.
+- Mutation-proved, then reverted, four ways: `CarryOperatorStyling` dropping the flag (a new rack turned the cue off
+  behind the operator's back), the profile forgetting it, the mapper never sending it, and the toggle negating its own
+  property — that last one was a real bug, caught by the new test before the commit rather than found afterwards.
+- 0.39.0 -> 0.40.0. 149 Core + 35 Overlay + 174 Controller, 0 warnings. Checked live in Chromium against the running
+  app: the button read `Stale Cue: Off` and the payload carried false; pressing it through UI Automation made it `On`
+  and the payload true; with the page loaded and unmarked, killing the Controller marked it after four seconds — the
+  target styles read back as badge opacity 1 and board `saturate(0.3) brightness(0.7)` — and relaunching the Controller
+  cleared the mark on the next frame, with no reload. The fade itself was not seen: the preview tab is hidden and
+  Chromium freezes transitions there, so the end state was read with the transitions removed. The cue-off case rests on
+  the payload test rather than a second live kill, and the setting was turned back off afterwards so the operator's
+  saved profile is as it was.
 
 ### 2026-11-28 — A spent extension cannot be called
 
