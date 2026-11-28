@@ -92,7 +92,13 @@ written; #2, #3, #5, #6 and #9 are open.
    free; the clock and the look are deliberately not restored, and a match starting, a reset, a resume or a new rack
    clears the history. The `A` key, the existing Stream Deck route and no new UI at all.*
 3. **Global hotkeys.** Shortcuts are live-view-only, so they need the Controller focused; a real stream has OBS
-   focused while the operator scores. `RegisterHotKey` for the same five actions, enabled only during a match.
+   focused while the operator scores. `RegisterHotKey` for the same five actions, enabled only during a match. *Done
+   2026-11-28: `Hotkeys/GlobalHotkeys.cs` gives each of the seven live-view actions a `Ctrl+Alt` chord, and
+   `Hotkeys/GlobalHotkeySession` registers them against the window only while a match runs, releasing them on a reset
+   and on close. Deliberately not the bare keys: system-wide they would take the letters and the spacebar from every
+   other program mid-stream, OBS's own text boxes included. Behind `IHotkeyRegistration`, so the rule is tested
+   without taking chords from the machine running the tests, and a drift guard reads `case Key.X:` from the window so
+   a new shortcut without its global twin fails the build. No new UI: the Help window lists the chords.*
 4. **A shot clock / match timer on the overlay.** The WNT reference the developer chose has a clock and
    `GameState` has no time in it at all. Additive (one field, one overlay element, one control route, one key) and
    it feeds #1 with match duration. Needs a decision: per shot with a reset, or continuous. *Done 2026-11-27, as a
@@ -304,7 +310,35 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
-### 2026-11-28 — Undo takes back more than a point
+### 2026-11-28 — The keys work while OBS has focus
+
+- The seven live-view actions have global twins: `Ctrl+Alt+Q/P/A/Space/N/T/E`, from `Hotkeys/GlobalHotkeys.cs`. They
+  run the same view-model command the window's key runs, so a chord can never do something the window cannot.
+- `Hotkeys/GlobalHotkeySession` registers them with `RegisterHotKey` against the window only while a match is running:
+  `GameInitialized` flips them on at the start of a match and off at a reset, and closing the window disposes the
+  session. Attaching an already-running match registers at once, which is the normal case — the autosave restores a
+  match before the window exists. Registration sits behind `IHotkeyRegistration` so that rule is tested with a fake
+  rather than by taking chords from the machine running the tests.
+- Deliberately not the bare letters the window uses: registering those system-wide would take Q/P/A/N/T/E and the
+  spacebar from every other program for the length of a match, including the text boxes an operator types into in OBS.
+  `Ctrl+Alt` is the combination almost nothing claims, and Windows reports a chord someone else owns instead of
+  stealing it — a refusal is logged through `Trace` and simply does nothing.
+- `WM_HOTKEY` arrives through an `HwndSource` hook; an id the session is not holding reaches nothing, and the command's
+  `CanExecute` is honoured, so `Ctrl+Alt+E` refuses exactly when the greyed button does.
+- `GlobalHotkeyTests` covers the table (one chord per action, unique ids and keys, `Ctrl+Alt` on every one), each chord
+  driving its command against a real `GameManager`, the lifecycle with a fake registrar (nothing at setup, all on at a
+  match, all released on reset and on dispose, attaching after activation, a refused chord leaving the rest working),
+  and a drift guard that reads `case Key.X:` out of `MainWindow.xaml.cs` and fails if a window shortcut has no global
+  twin.
+- Mutation-proved, then reverted, six ways: registering at setup, an attach that registers nothing, a refused chord
+  counted as registered, a dispose that leaves them behind, a chord pointed at the wrong command, and a window
+  shortcut with no global twin.
+- 0.41.0 -> 0.42.0. 155 Core + 36 Overlay + 189 Controller, 0 warnings. Checked live from outside the app: at setup
+  another process could register `Ctrl+Alt+Q`; once START MATCH was pressed all seven chords came back "already
+  registered" (win32 1409) while `Ctrl+Alt+K`, which is not ours, stayed free; and after RESET MATCH `Ctrl+Alt+Q` was
+  free again. What that does not show is a chord being pressed — cutting the letters says the app holds them, not what
+  a press does, and pressing them needs input this machine is not driven by.
+
 
 - `UndoPoint` and its stack of who-scored-what are gone. Undo is now a stack of `GameState` snapshots — the state as
   it was before each command — so a wrong shooter, group or ball is taken back the same way a wrong point is, which
