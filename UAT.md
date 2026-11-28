@@ -280,9 +280,11 @@ brings it back while the banner is up. RESET MATCH returns to setup with no cloc
 4. Toggle back to the first player and press CALL EXTENSION again.
 5. Press NEW RACK.
 
-*Expected:* step 1 reads `Home: 1 left  Away: 1 left`. Step 2 leaves the shooter's chip at `Home: used`, dimmed, with
-the other side still `1 left`. Step 3 spends `Away` the same way. Step 4 changes nothing on screen and adds no time
-to the clock — the dimmed chip is the only warning, and it was there. Step 5 puts both back to `1 left`.
+*Expected:* step 1 reads `Home: 1 left  Away: 1 left` and CALL EXTENSION is live. Step 2 leaves the shooter's chip at
+`Home: used`, dimmed, with the other side still `1 left`, and CALL EXTENSION greys out — it does not respond to a
+click, and `E` does nothing either. Step 3 spends `Away` the same way, so the button is live again after the toggle
+and grey again after the call. Step 4 leaves the greyed button alone, because there is nothing to press. Step 5 puts
+both back to `1 left` with the button live again.
 
 ### SC-14 — The Controller reads the clock out too
 

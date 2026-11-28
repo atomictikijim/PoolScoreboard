@@ -461,9 +461,23 @@
                     </StackPanel>
                     <!-- Beside the shooter toggle because it is the same kind of thing: a mid-shot button the
                          operator presses for the player at the table. -->
-                    <Button Grid.Column="1" Content="CALL EXTENSION" Style="{StaticResource InactiveButtonStyle}"
+                    <!-- Greyed once the shooter has spent theirs: the command's CanExecute is the rule, so this
+                         only has to say what an unavailable button looks like, and the E key checks the same thing. -->
+                    <Button Grid.Column="1" Content="CALL EXTENSION"
                             Command="{Binding ExtendShotClockCommand}" Height="36" Margin="0,0,8,0"
-                            ToolTip="Adds the extension time to the running clock for the current shooter. One per player per rack." />
+                            ToolTip="Adds the extension time to the running clock for the current shooter. One per player per rack.">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource InactiveButtonStyle}">
+                                <Style.Triggers>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Background" Value="{StaticResource BackgroundBrush}" />
+                                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                        <Setter Property="Cursor" Value="Arrow" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                     <Button Grid.Column="2" Content="{Binding CurrentShooterButtonText}" Style="{StaticResource ActiveButtonStyle}" Command="{Binding ToggleCurrentShooterCommand}" Height="36" />
                 </Grid>
 

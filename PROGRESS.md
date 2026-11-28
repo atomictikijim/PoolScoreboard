@@ -284,6 +284,25 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
+### 2026-11-28 — A spent extension cannot be called
+
+- CALL EXTENSION now greys out — window-coloured fill, secondary text, arrow cursor — while the player at the table
+  has already spent theirs, and the `E` key checks the same rule instead of running the command regardless. The
+  header chip already said `used`; a button that looked live and did nothing was still a wasted press.
+- The rule is the command's `CanExecute`, from a `CanCallExtension` that follows the *current shooter's* flag, so a
+  toggle across to the other player makes the button usable again and neither the button nor the key can disagree
+  with the other. CommunityToolkit's `Execute` does not consult `CanExecute`, which is why the key handler checks it
+  explicitly — otherwise the key would quietly do what the greyed button refuses.
+- Mutation-proved, then reverted: `CanCallExtension` forced true (a spent extension left the button live), and the
+  readable side swapped for the other one (the button followed the wrong player). Not proven: the key's check needs
+  real key input, which the tests cannot send and this machine is not driven by hand — the call it guards is one Core
+  already refuses, so the only thing at stake is the key agreeing with the button.
+- 0.38.0 -> 0.39.0. 147 Core + 34 Overlay + 173 Controller, 0 warnings. Checked in the running window through UI
+  Automation: the button reports itself disabled (`IsEnabled=false`) after the extension route, enabled again when
+  the shooter is toggled to the player who still has one, disabled once more toggled back, and enabled after a new
+  rack — which is also what proves the `CanExecuteChanged` notification reaches the binding. What was not checked:
+  the greyed fill itself (read as state, not pixels) and the `E` key's refusal.
+
 ### 2026-11-28 — The live view says who still has an extension
 
 - A chip per player sits beside the shot-clock readout — `Alice: 1 left`, or `Alice: used` once she has called it —

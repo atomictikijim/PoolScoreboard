@@ -72,8 +72,11 @@ public partial class MainWindow : Window
                 break;
             case Key.E:
                 // The player's extension, called on their behalf: it adds time to the clock already running, once
-                // per player per rack.
-                _viewModel.ExtendShotClockCommand.Execute(null);
+                // per player per rack. Refused the way the greyed button is — Execute would run it regardless, and
+                // the key must not do what the button refuses to.
+                if (_viewModel.ExtendShotClockCommand.CanExecute(null))
+                    _viewModel.ExtendShotClockCommand.Execute(null);
+
                 e.Handled = true;
                 break;
         }

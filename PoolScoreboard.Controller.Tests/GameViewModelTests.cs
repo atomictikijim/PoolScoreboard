@@ -264,6 +264,36 @@ public sealed class GameViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheCallExtensionButton_IsGreyedOnceTheShooterHasSpentTheirs()
+    {
+        var manager = new GameManager();
+        var viewModel = BuildViewModel(manager);
+        StartMatch(manager, homeTarget: 3, awayTarget: 3);
+
+        Assert.True(viewModel.CanCallExtension);
+        Assert.True(viewModel.ExtendShotClockCommand.CanExecute(null));
+
+        manager.StartShotClock();
+        viewModel.ExtendShotClockCommand.Execute(null);
+
+        // Home has spent theirs: the press Core would ignore cannot be made at all.
+        Assert.False(viewModel.CanCallExtension);
+        Assert.False(viewModel.ExtendShotClockCommand.CanExecute(null));
+
+        // The other player still has one, and the button follows the player at the table rather than either side.
+        viewModel.ToggleCurrentShooterCommand.Execute(null);
+        Assert.True(viewModel.CanCallExtension);
+
+        viewModel.ExtendShotClockCommand.Execute(null);
+        Assert.False(viewModel.CanCallExtension);
+
+        // A new rack hands them both back, so the button is usable again without the operator doing anything else.
+        viewModel.ToggleCurrentShooterCommand.Execute(null);
+        manager.ResetBalls();
+        Assert.True(viewModel.CanCallExtension);
+    }
+
+    [Fact]
     public void TheDisplayToggleSwapsTheClockBetweenTimeAndALine_AndSaves()
     {
         var saves = 0;

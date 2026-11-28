@@ -220,6 +220,15 @@ public partial class GameViewModel : ObservableObject
     [ObservableProperty]
     private bool awayExtensionUsed;
 
+    /// <summary>
+    /// Whether the player at the table can still call their extension, which is what greys CALL EXTENSION out and
+    /// takes the <c>E</c> key with it. Core already refuses a second call; the point of this is that the operator
+    /// was pressing a button that silently did nothing, so the press should not be available to make.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ExtendShotClockCommand))]
+    private bool canCallExtension;
+
     /// <summary>The clock the readout describes, kept from the last state so the tick can re-read it every quarter second.</summary>
     private DateTimeOffset? _shotClockEndsAt;
     private bool _shotClockArmed;
@@ -806,7 +815,7 @@ public partial class GameViewModel : ObservableObject
     /// setup screen chose. One per player per rack, and only while a clock is running — both rules are Core's, so
     /// this only has to reach it.
     /// </summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanCallExtension))]
     private void ExtendShotClock() => _gameManager.ExtendShotClock();
 
     /// <summary>
@@ -984,6 +993,11 @@ public partial class GameViewModel : ObservableObject
         AwayExtensionUsed = state.AwayShotClockExtensionUsed;
         HomeExtensionStatus = ExtensionStatus(state.Player1, "Home", state.HomeShotClockExtensionUsed);
         AwayExtensionStatus = ExtensionStatus(state.Player2, "Away", state.AwayShotClockExtensionUsed);
+
+        // The flag that matters is the one belonging to whoever is at the table now, so a toggle across is what
+        // makes the button usable again when only the other player has called theirs.
+        CanCallExtension =
+            !(HomeIsCurrentShooter ? state.HomeShotClockExtensionUsed : state.AwayShotClockExtensionUsed);
 
         RefreshBallLayout();
     }

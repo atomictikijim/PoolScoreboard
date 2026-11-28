@@ -154,7 +154,10 @@ dotnet clean
   `0:00 · time up`, hidden when there is no clock — so the operator does not have to look at the overlay to know
   where the shot stands. Beside it, one chip per player says who still has their extension (`Alice: 1 left`, dimmed
   to `Alice: used` once spent), because a second call from the same player is silently a no-op and the operator
-  needs to know that before pressing CALL EXTENSION rather than after. The deadline is one instant and no state change arrives as it passes, so the readout is
+  needs to know that before pressing CALL EXTENSION rather than after. CALL EXTENSION itself greys out, and the `E`
+  key stops answering, while the player at the table has spent theirs — the command's `CanExecute` is that rule
+  (`GameViewModel.CanCallExtension`), so the key and the button cannot disagree; a spent extension is a press that
+  cannot be made rather than one Core silently ignores. The deadline is one instant and no state change arrives as it passes, so the readout is
   recomputed by a 250 ms `DispatcherTimer` (the same reason the overlay page ticks itself); `GameViewModel` takes
   the "now" for it as an injected clock, the way `GameManager` does, so a test can put it at an exact second.
 - On startup, starts the Overlay's Kestrel host in-process, passing it the same
@@ -337,8 +340,10 @@ alignment, not a pixel match).
   of the saved profile, so a relaunch comes back to the defaults — the same way the game type and Race-To mode do.
   The clock itself is not part of `match.json`, so a resumed match shows no clock — a countdown from a previous
   session would be a lie — and there is no pause once it is running: it stops and hides with a reset, a won match or
-  the clear route, while a new rack leaves it waiting at the full length for a manual start. The operator's screen says who has an extension left, but the overlay
-  carries nothing about extensions, so a viewer cannot see it either. The clock is either numbers or the line, never both, and the line
+  the clear route, while a new rack leaves it waiting at the full length for a manual start. The operator's screen says who has an extension left, and greys the button out
+  once the player at the table has spent theirs, but the overlay carries nothing about extensions, so a viewer
+  cannot see it either. A call with no clock running is still ignored rather than refused: the button stays live
+  while the clock is waiting or hidden, and only a spent extension greys it. The clock is either numbers or the line, never both, and the line
   carries no numerals at all — which is the point of it across a room, but means an operator who wants the exact
   time on screen has to leave the display on `Time`.
 - `controller.log` is capped by size only, never by age: at startup a log over 1 MiB becomes
