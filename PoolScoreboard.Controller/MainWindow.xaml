@@ -422,7 +422,16 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="{Binding WinnerAnnouncement}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                    <!-- Winner banner and the shot-clock readout share the left of the header: one is only ever up
+                         when the other has been cleared, so neither needs a row of its own. -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding WinnerAnnouncement}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,20,0" />
+                        <TextBlock Text="SHOT CLOCK" Style="{StaticResource LabelTextBlockStyle}" VerticalAlignment="Center" Margin="0,0,8,0"
+                                   Visibility="{Binding ShotClockReadoutVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <TextBlock Text="{Binding ShotClockReadout}" Style="{StaticResource ValueTextBlockStyle}" VerticalAlignment="Center"
+                                   AutomationProperties.AutomationId="ShotClockReadout"
+                                   Visibility="{Binding ShotClockReadoutVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    </StackPanel>
                     <!-- Beside the shooter toggle because it is the same kind of thing: a mid-shot button the
                          operator presses for the player at the table. -->
                     <Button Grid.Column="1" Content="CALL EXTENSION" Style="{StaticResource InactiveButtonStyle}"

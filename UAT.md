@@ -270,6 +270,19 @@ never started.
 *Expected:* the clock disappears as the winner banner appears, rather than restarting behind it, and neither key
 brings it back while the banner is up. RESET MATCH returns to setup with no clock.
 
+### SC-14 — The Controller reads the clock out too
+
+*Precondition:* a match running, the Controller's live view in front.
+
+1. Without starting anything, look at the top left of the live view.
+2. Press NEW RACK.
+3. Press `T` and watch for about five seconds.
+4. Let the shot run past zero.
+
+*Expected:* step 1 shows nothing — there is no clock. Step 2 shows `SHOT CLOCK 0:40 · waiting`. Step 3 changes to
+`0:32 · running` and counts down on its own, second by second, without touching the overlay. Step 4 settles on
+`0:00 · time up`, which stays until the clock is hidden or the rack is reset.
+
 ### SC-13 — A new rack resets the clock but does not start it
 
 *Precondition:* a match running with a clock started, and the overlay open in a browser.

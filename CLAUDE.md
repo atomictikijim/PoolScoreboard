@@ -150,6 +150,11 @@ dotnet clean
   assignment buttons (8-ball only) or ball display (9/10-ball), new-rack/reset-match controls. The shared OVERLAY
   row (on both screens) ends with a **Shot Clock: Time / Line** button that swaps the countdown's drawing; it is a
   look setting, so it works mid-match and is saved with the profile.
+- The header also carries a small **shot-clock readout** — `0:32 · running`, `0:40 · waiting` after a new rack, or
+  `0:00 · time up`, hidden when there is no clock — so the operator does not have to look at the overlay to know
+  where the shot stands. The deadline is one instant and no state change arrives as it passes, so the readout is
+  recomputed by a 250 ms `DispatcherTimer` (the same reason the overlay page ticks itself); `GameViewModel` takes
+  the "now" for it as an injected clock, the way `GameManager` does, so a test can put it at an exact second.
 - On startup, starts the Overlay's Kestrel host in-process, passing it the same
   `GameManager` instance the UI is bound to. `OverlayHostRunner.Start` returns null when the host cannot bind
   (the overlay port, 51234 by default, already taken — usually a leftover Controller) and logs the reason, so startup continues

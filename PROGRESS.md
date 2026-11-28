@@ -284,6 +284,24 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
+### 2026-11-28 — The live view reads out the shot clock
+
+- The header now carries `0:32 · running`, `0:40 · waiting` (after a new rack) or `0:00 · time up`, and nothing at
+  all when no clock is showing — so the operator can tell where the shot stands without looking at the overlay,
+  which is the whole reason it exists.
+- The number has to move on its own: a deadline is a single instant and `GameStateChanged` never fires as it passes,
+  so a 250 ms `DispatcherTimer` calls `GameViewModel.RefreshShotClockReadout`, which recomputes from the injected
+  clock. No dispatcher (the tests) means no timer, and the facts call the refresh directly — which is also what
+  keeps the formatting, rounding and state wording testable without a window.
+- Rounded up, so the readout only says `0:00` once the time really has run out, and past the deadline it says
+  `time up` rather than going blank, matching an overlay whose clock stays on screen at zero.
+- Mutation-proved, then reverted: the waiting branch dropped (a rack left the readout blank instead of showing the
+  allowance) and the deadline branch reading the length instead of the remaining time.
+- 0.37.0, 147 Core + 34 Overlay + 171 Controller, 0 warnings. Checked in the running window (read through UI
+  Automation, not by eye): nothing while no clock is showing, `0:40 · waiting` after a new rack, then `0:31` and
+  `0:23 · running` two probes apart with nothing else touching the app — the tick really moves it — and hidden
+  again after the clear route.
+
 ### 2026-11-28 — A new rack resets the clock without starting it
 
 - `ResetBalls` used to clear the clock, so a fresh rack showed nothing at all. It now clears the deadline and sets

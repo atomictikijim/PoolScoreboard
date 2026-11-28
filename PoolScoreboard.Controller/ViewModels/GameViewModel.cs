@@ -55,6 +55,12 @@ public partial class GameViewModel : ObservableObject
 
     /// <summary>Owner for the dialogs this view model opens; null when there is no window (tests).</summary>
     private readonly Window? _owner;
+
+    /// <summary>
+    /// What "now" means to the live view's shot-clock readout. Injected for the same reason
+    /// <see cref="GameManager"/> takes one: a test can say exactly how much time is left rather than sleep for it.
+    /// </summary>
+    private readonly Func<DateTimeOffset> _clock;
     private readonly PlayerRoster _roster;
 
     /// <summary>The saved players both sides' pickers bind to, most recently used first.</summary>
@@ -186,6 +192,22 @@ public partial class GameViewModel : ObservableObject
     private bool winnerBannerVisible = true;
 
     /// <summary>
+    /// What the shot clock is doing, for the operator: "<c>0:32 · running</c>", "<c>0:40 · waiting</c>" after a new
+    /// rack, or "<c>0:00 · time up</c>". Null when there is no clock at all, which is what hides the readout.
+    /// </summary>
+    [ObservableProperty]
+    private string? shotClockReadout;
+
+    /// <summary>Whether there is a clock to read out at all — running, waiting, or run out.</summary>
+    [ObservableProperty]
+    private bool shotClockReadoutVisible;
+
+    /// <summary>The clock the readout describes, kept from the last state so the tick can re-read it every quarter second.</summary>
+    private DateTimeOffset? _shotClockEndsAt;
+    private bool _shotClockArmed;
+    private int _shotClockSeconds = GameState.DefaultShotClockSeconds;
+
+    /// <summary>
     /// Where the overlay is served, so the operator can move it when another program already holds the usual port
     /// instead of losing the overlay for the session. 1024-65535 only; a value outside that snaps back to the one
     /// the host is actually on.
@@ -239,7 +261,8 @@ public partial class GameViewModel : ObservableObject
         PlayerRosterStore rosterStore,
         Dispatcher? dispatcher,
         Window? owner,
-        MatchHistoryStore? historyStore = null)
+        MatchHistoryStore? historyStore = null,
+        Func<DateTimeOffset>? clock = null)
     {
         _gameManager = gameManager;
         _persist = persist;
@@ -248,12 +271,27 @@ public partial class GameViewModel : ObservableObject
         _historyStore = historyStore ?? new MatchHistoryStore();
         _dispatcher = dispatcher;
         _owner = owner;
+        _clock = clock ?? (() => DateTimeOffset.Now);
         _gameManager.GameStateChanged += OnGameStateChanged;
 
         // The host can stop serving after a successful start too, and the session probes for that, so the
         // banner is not left showing a stale "serving" state for the rest of the match.
         if (_overlaySession != null)
             _overlaySession.Stopped += OnOverlayStopped;
+
+        // The deadline is one instant, so nothing is raised between the start of a shot and its end: the readout
+        // has to tick on its own, the same way the overlay page does, or the operator would read a number that
+        // only moves when something else changes. No dispatcher means no window (tests), which drive the refresh
+        // directly instead.
+        if (_dispatcher != null)
+        {
+            var timer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
+            {
+                Interval = TimeSpan.FromMilliseconds(250)
+            };
+            timer.Tick += (_, _) => RefreshShotClockReadout();
+            timer.Start();
+        }
 
         // Start from whatever GameManager already holds: App restores the saved operator profile into
         // it before this window exists, so the screen has to show those values rather than defaults.
@@ -754,6 +792,44 @@ public partial class GameViewModel : ObservableObject
     private void ExtendShotClock() => _gameManager.ExtendShotClock();
 
     /// <summary>
+    /// Re-reads the clock for the readout. Called on every state change and by the window's timer, because a
+    /// deadline is a single instant: between the start of a shot and its end nothing is raised, so the number has
+    /// to be recomputed rather than waited for. <see cref="DateTimeOffset.Now"/> comes from the injected clock so
+    /// a test can put the readout at an exact second.
+    /// </summary>
+    internal void RefreshShotClockReadout()
+    {
+        if (_shotClockArmed)
+        {
+            // Waiting at its full length after a new rack: nothing is counting yet, so there is nothing to count
+            // down and the shot's own length is what the operator should read.
+            ShotClockReadout = $"{ClockText(TimeSpan.FromSeconds(_shotClockSeconds))} · waiting";
+            ShotClockReadoutVisible = true;
+            return;
+        }
+
+        if (_shotClockEndsAt is not { } deadline)
+        {
+            ShotClockReadout = null;
+            ShotClockReadoutVisible = false;
+            return;
+        }
+
+        var remaining = deadline - _clock();
+        ShotClockReadout = remaining <= TimeSpan.Zero
+            ? "0:00 · time up"
+            : $"{ClockText(remaining)} · running";
+        ShotClockReadoutVisible = true;
+    }
+
+    /// <summary>Minutes and seconds, rounded up so the readout only says 0:00 once the time really is gone.</summary>
+    private static string ClockText(TimeSpan remaining)
+    {
+        var totalSeconds = Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds));
+        return $"{totalSeconds / 60}:{totalSeconds % 60:00}";
+    }
+
+    /// <summary>
     /// Files the finished match, by explicit request: the operator decides what belongs in the history, so a win
     /// on its own does not write one. Pressing it again for the same match files nothing — the archive refuses an
     /// id it already holds — which is also what covers a resumed match that was saved before the relaunch.
@@ -870,6 +946,11 @@ public partial class GameViewModel : ObservableObject
 
         foreach (var (number, ball) in _allBalls)
             ball.IsPocketed = state.PocketedBalls.Contains(number);
+
+        _shotClockEndsAt = state.ShotClockEndsAt;
+        _shotClockArmed = state.ShotClockArmed;
+        _shotClockSeconds = state.ShotClockSeconds;
+        RefreshShotClockReadout();
 
         RefreshBallLayout();
     }

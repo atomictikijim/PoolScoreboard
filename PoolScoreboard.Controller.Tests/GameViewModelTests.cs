@@ -199,6 +199,43 @@ public sealed class GameViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheReadoutSaysWhatTheClockIsDoing_WithoutLookingAtTheOverlay()
+    {
+        var start = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var now = start;
+        var manager = new GameManager(() => now);
+        var viewModel = new GameViewModel(
+            manager, persist: null, overlaySession: null, new PlayerRosterStore(_root), dispatcher: null, owner: null,
+            clock: () => now);
+        StartMatch(manager, homeTarget: 3, awayTarget: 3);
+
+        // Nothing started, nothing to read.
+        Assert.False(viewModel.ShotClockReadoutVisible);
+
+        manager.ResetBalls();
+        Assert.True(viewModel.ShotClockReadoutVisible);
+        Assert.Equal("0:40 · waiting", viewModel.ShotClockReadout);
+
+        manager.StartShotClock();
+        now = start.AddSeconds(8);
+
+        // A deadline raises no event as it passes, so the refresh is what has to be able to move the number; the
+        // window's timer is only the thing that calls it every quarter second.
+        viewModel.RefreshShotClockReadout();
+
+        Assert.Equal("0:32 · running", viewModel.ShotClockReadout);
+
+        now = start.AddSeconds(42);
+        viewModel.RefreshShotClockReadout();
+
+        // Past the deadline the overlay still draws 0:00, so the readout says the same rather than going blank.
+        Assert.Equal("0:00 · time up", viewModel.ShotClockReadout);
+
+        manager.ClearShotClock();
+        Assert.False(viewModel.ShotClockReadoutVisible);
+    }
+
+    [Fact]
     public void TheDisplayToggleSwapsTheClockBetweenTimeAndALine_AndSaves()
     {
         var saves = 0;
