@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using PoolScoreboard.Controller;
 using PoolScoreboard.Controller.Persistence;
 using PoolScoreboard.Controller.ViewModels;
@@ -24,7 +24,7 @@ public sealed class GameViewModelTests : IDisposable
     // read or write the operator's %AppData% history.
     private GameViewModel BuildViewModel(GameManager manager, MatchHistoryStore? historyStore = null) =>
         new(manager, persist: null, overlaySession: null, new PlayerRosterStore(_root), dispatcher: null, owner: null,
-            historyStore ?? new MatchHistoryStore(_root));
+            historyStore ?? new MatchHistoryStore(_root), presetStore: new SetupPresetStore(_root));
 
     private static void StartMatch(GameManager manager, int homeTarget, int awayTarget)
     {
@@ -487,6 +487,130 @@ public sealed class GameViewModelTests : IDisposable
 
         Assert.True(viewModel.MatchSaved);
         Assert.False(viewModel.CanSaveMatch);
+    }
+
+    // --- Setup presets ---
+
+    [Fact]
+    public void SavePreset_FilesTheSetupOnScreenUnderTheTypedName()
+    {
+        var manager = new GameManager();
+        var viewModel = BuildViewModel(manager);
+
+        viewModel.SelectedGameType = GameType.EightBall;
+        viewModel.SelectedRaceToMode = RaceToMode.Split;
+        viewModel.ShotClockSeconds = 35;
+        viewModel.ShotClockExtensionSeconds = 25;
+        viewModel.PresetName = "  House A  ";
+
+        Assert.True(viewModel.SavePresetCommand.CanExecute(null));
+        viewModel.SavePresetCommand.Execute(null);
+
+        // The file a second store reads is what the next launch will offer, and the name was trimmed because that is
+        // how a preset is looked up again.
+        var saved = new SetupPresetStore(_root).Load().Find("House A");
+        Assert.NotNull(saved);
+        Assert.Equal(GameType.EightBall, saved!.GameType);
+        Assert.Equal(RaceToMode.Split, saved.RaceToMode);
+        Assert.Equal(35, saved.ShotClockSeconds);
+        Assert.Equal(25, saved.ShotClockExtensionSeconds);
+        Assert.Contains("House A", viewModel.PresetNames);
+        Assert.Equal("Saved 'House A'.", viewModel.PresetStatus);
+    }
+
+    [Fact]
+    public void SavePreset_ReplacesTheSameName_InsteadOfListingItTwice()
+    {
+        var viewModel = BuildViewModel(new GameManager());
+
+        viewModel.PresetName = "House A";
+        viewModel.ShotClockSeconds = 40;
+        viewModel.SavePresetCommand.Execute(null);
+
+        viewModel.ShotClockSeconds = 55;
+        viewModel.SavePresetCommand.Execute(null);
+
+        Assert.Equal(new[] { "House A" }, viewModel.PresetNames);
+        Assert.Equal(55, new SetupPresetStore(_root).Load().Find("House A")!.ShotClockSeconds);
+    }
+
+    [Fact]
+    public void SelectingAPreset_AppliesItsMatchChoicesAndItsLook()
+    {
+        // Saved by an earlier session, so the picker is filled from the file at construction.
+        Assert.NotNull(new SetupPresetStore(_root).TryUpsert(new SetupPreset
+        {
+            Name = "House B",
+            GameType = GameType.TenBall,
+            RaceToMode = RaceToMode.Split,
+            ShotClockSeconds = 45,
+            ShotClockExtensionSeconds = 20,
+            OverlayPort = 51241,
+            ColorTheme = new ColorTheme { HomeAccent = "#123456" },
+            Visibility = new ScoreboardVisibility { BallTrackerVisible = false },
+            ShotClockDisplay = ShotClockDisplay.Line,
+            StaleCueEnabled = true
+        }));
+
+        var manager = new GameManager();
+        var viewModel = BuildViewModel(manager);
+
+        viewModel.SelectedPreset = "House B";
+
+        // The screen...
+        Assert.Equal(GameType.TenBall, viewModel.SelectedGameType);
+        Assert.Equal(RaceToMode.Split, viewModel.SelectedRaceToMode);
+        Assert.Equal(45, viewModel.ShotClockSeconds);
+        Assert.Equal(20, viewModel.ShotClockExtensionSeconds);
+        Assert.Equal("#123456", viewModel.HomeAccentColor);
+        Assert.False(viewModel.BallTrackerVisible);
+        Assert.Equal(ShotClockDisplay.Line, viewModel.ShotClockDisplay);
+        Assert.True(viewModel.StaleCueEnabled);
+        Assert.Equal(51241, viewModel.OverlayPort);
+
+        // ...and the state the overlay and the clock will read, pushed by the same change handlers an edit goes through.
+        var state = manager.GetStateSnapshot();
+        Assert.Equal(GameType.TenBall, state.GameType);
+        Assert.Equal(RaceToMode.Split, state.RaceToMode);
+        Assert.Equal(45, state.ShotClockSeconds);
+        Assert.Equal(20, state.ShotClockExtensionSeconds);
+        Assert.Equal("#123456", state.ColorTheme.HomeAccent);
+        Assert.False(state.Visibility.BallTrackerVisible);
+        Assert.Equal(ShotClockDisplay.Line, state.ShotClockDisplay);
+        Assert.True(state.StaleCueEnabled);
+        Assert.Equal("Applied 'House B'.", viewModel.PresetStatus);
+    }
+
+    [Fact]
+    public void DeletingAPreset_TakesItOutOfThePickerAndTheFile()
+    {
+        var store = new SetupPresetStore(_root);
+        store.TryUpsert(new SetupPreset { Name = "House A" });
+        store.TryUpsert(new SetupPreset { Name = "House B" });
+
+        var viewModel = BuildViewModel(new GameManager());
+        viewModel.SelectedPreset = "House A";
+        Assert.True(viewModel.DeletePresetCommand.CanExecute(null));
+
+        viewModel.DeletePresetCommand.Execute(null);
+
+        Assert.Equal(new[] { "House B" }, viewModel.PresetNames);
+        Assert.Equal(new[] { "House B" }, new SetupPresetStore(_root).Load().Names());
+        Assert.Equal("Deleted 'House A'.", viewModel.PresetStatus);
+        Assert.False(viewModel.DeletePresetCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void SavePreset_WithABlankName_CannotBePressedAndSavesNothing()
+    {
+        var viewModel = BuildViewModel(new GameManager());
+        viewModel.PresetName = "   ";
+
+        Assert.False(viewModel.SavePresetCommand.CanExecute(null));
+        viewModel.SavePresetCommand.Execute(null);
+
+        Assert.Empty(new SetupPresetStore(_root).Load().Presets);
+        Assert.Empty(viewModel.PresetNames);
     }
 
     private sealed class FakeOverlaySession : IOverlaySession

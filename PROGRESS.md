@@ -68,83 +68,59 @@ live:
 
 ## Next Steps
 
-### Ranked follow-ups (2026-11-27) — new ground, most valuable first
+### Ranked follow-ups (2026-11-28) — new ground, most valuable first
 
-Recorded when the overlay-guard note below ran out of items. Each was chosen for what it saves a streamed match,
-not for symmetry with work already done.
+Rewritten 2026-11-28, when the 2026-11-27 list ran out. It keeps what was still open, folds the old #9 (named setup
+presets) into #1 now that a preset carries the match setup as well as the look, and adds what a streamed match still
+loses. What the earlier list finished is in the Change Log, not repeated here.
 
-Status 2026-11-28: #1, #4, #5 and #8 are done; #7 is struck, because it had already shipped before this list was
-written; #2, #3 and #9 are open.
+1. **Named setup presets that also carry the match setup.** Settings are one flat profile, and the game type, Race-To
+   mode and both shot-clock lengths were not persisted at all — an operator with two venues retyped colours and four
+   values at the start of every night. A named preset of the look *and* those choices, picked from one list.
+   *Done 2026-11-28: the `SETUP PRESET` row on Match Setup saves and applies a preset carrying the colour theme,
+   scoreboard style, show/hide flags, clock drawing, stale cue, game type, Race-To mode, both lengths and the overlay
+   port — one entry per name ignoring case, capped at 50, in `presets.json`. Player names are deliberately not in it,
+   and nothing applies a preset at launch.*
+2. **A per-player record and head-to-head view from the archive.** `history.json` and `MatchArchive.Standings()` already
+   count wins per name, but the only place that shows is a chip in the History window. "Alice 3-2 vs Bob", a session's
+   standings, the last meeting: the data and the identity rules are in place.
+3. **A pause for the shot clock.** Start, extend, clear or restart, but no pause — so a ref call, a review or a cue
+   change either burns a dead clock or forces a clear-and-restart that lies about the time left. The armed state proves
+   a clock can be drawn without counting, so a frozen, clearly-marked pause is additive.
+4. **The overlay should show who still has an extension.** The operator's header has a chip per player; the stream has
+   nothing, because the payload carries no extension field. One DTO field and one page element make the once-per-rack
+   rule legible to the people the rule is for.
+5. **A smoke check of the published build in the release job.** The job builds, tests and zips, but has never launched
+   the packaged single-file exe: a packaging-only failure would ship to whoever downloaded it. Start it with a temp
+   `%AppData%`, poll the state endpoint for a 200, kill it. Not the headless-UIA idea that was rejected — it drives no
+   window.
+6. **Match duration and session totals in history.** Nothing records when a match started; `MatchRecord` has
+   `CompletedAt` and nothing else. A length per match and a session total follow from the clock work, at the cost of a
+   `history.json` version bump the existing "another version is left in place" rule already handles.
+7. **Export and import for the profile and history.** Settings, roster, icons and results all live in one `%AppData%`
+   folder on one machine; a rebuild loses the season, and there is no export, filter or bulk clear. JSON out and in is
+   the cheapest defence against a loss no test can undo.
+8. **A resume banner instead of a silent resume.** A relaunch restores the match in progress with no prompt, which is
+   right after a crash and confusing eight hours later. A line on the live view ("Resumed a match from 21:14 — RESET to
+   start fresh") fixes it without a modal.
+9. **Configurable global chords.** `Ctrl+Shift` was chosen so AltGr keeps typing `@` and `€`, and the recorded price is
+   that another program's own `Ctrl+Shift+letter` shortcut scores a point mid-match. A per-action chord, saved in the
+   profile, removes that without touching the AltGr rule; the chord table is already one file.
+10. **The cue-ball page's stale cue.** The scoreboard dims and says `SIGNAL LOST`; the cue-ball page keeps its last frame
+    and says nothing, because its payload carries no look settings. Pure parity.
+11. **Surface the build version, and generate release notes.** Nothing in the app says which build it is — no version in
+    Help, nothing reads the assembly version — so a bug report cannot name what is running. A Help line costs almost
+    nothing, and `--generate-notes` replaces the release's hand-written one-liner.
+12. **Release trust: pin the workflow's actions, and sign the exe.** The release job now runs on a tag with
+    `contents: write`, and `actions/checkout@v4` is a moving tag; pinning by SHA closes that. Code signing removes the
+    SmartScreen "unknown publisher" wall, but needs a certificate the developer has to buy — blocked, not unstarted.
+13. **Log rotation by age.** `controller.log` keeps exactly one previous run, which is too little for a problem noticed
+    three sessions later. Tiny change.
 
-1. **Match history and a per-player record.** The Known Gaps entry says a finished match is kept nowhere, which is
-   the difference between a live display and an app that accumulates value: who won last time, a session's win
-   count, a season record. Core already has the pieces (`ResumableMatch` for the snapshot shape, `DurableFile` for
-   the write, the roster for identity). *Done 2026-11-27: the record model, the Core archive call and
-   `history.json` are wired through an explicit SAVE TO HISTORY, so a finished match is filed once and only when
-   the operator says so, and `HistoryWindow` — the History button beside Help — lists them newest first with each
-   name's wins and deletes one behind a confirmation.*
-2. **Undo that covers everything, not just points.** `GameManager` keeps one stack — who scored each point — so
-   `UndoPoint` reverses a point and nothing else. A wrong shooter toggle, ball or group assignment has to be
-   corrected by hand mid-stream, which is the most frequent real failure. Bounded command history, not new UI. *Done
-   2026-11-28: the point stack is gone. Each undoable command — a point, a minus, a shooter toggle, a ball group, a
-   ball on or off the table — records the state before it, in a `GameState` stack capped at `MaxUndoDepth` (50), and
-   `Undo()` puts that shape back. Snapshots rather than one inverse per command, so the next command is covered for
-   free; the clock and the look are deliberately not restored, and a match starting, a reset, a resume or a new rack
-   clears the history. The `A` key, the existing Stream Deck route and no new UI at all.*
-3. **Global hotkeys.** Shortcuts are live-view-only, so they need the Controller focused; a real stream has OBS
-   focused while the operator scores. `RegisterHotKey` for the same five actions, enabled only during a match. *Done
-   2026-11-28: `Hotkeys/GlobalHotkeys.cs` gives each of the seven live-view actions a `Ctrl+Shift` chord, and
-   `Hotkeys/GlobalHotkeySession` registers them against the window only while a match runs, releasing them on a reset
-   and on close. Deliberately not the bare keys: system-wide they would take the letters and the spacebar from every
-   other program mid-stream, OBS's own text boxes included. Behind `IHotkeyRegistration`, so the rule is tested
-   without taking chords from the machine running the tests, and a drift guard reads `case Key.X:` from the window so
-   a new shortcut without its global twin fails the build. No new UI: the Help window lists the chords.*
-4. **A shot clock / match timer on the overlay.** The WNT reference the developer chose has a clock and
-   `GameState` has no time in it at all. Additive (one field, one overlay element, one control route, one key) and
-   it feeds #1 with match duration. Needs a decision: per shot with a reset, or continuous. *Done 2026-11-27, as a
-   per-shot countdown: `GameState.ShotClockEndsAt` is a deadline, the overlay ticks it down itself, `T` and
-   `/api/control/shotclock/*` start/restart or hide it, a point restarts a running clock, and a new rack or a
-   reset hides it. Extended 2026-11-28: both lengths are Match Setup fields, each player can call one extension per
-   rack, a ball leaving the table or a shooter toggle restarts the clock like a point does, and a won match hides
-   it instead of restarting it behind the banner.* *Done 2026-11-28 as well: the drawing is the operator's choice of
-   numbers or a draining line, potting the money ball stops the clock, a new rack leaves it waiting at its full
-   length for a manual start, the live view reads it out (`0:32 · running`, `0:40 · waiting`, `0:00 · time up`) with
-   a chip per player showing who still has an extension, and CALL EXTENSION is greyed once the shooter has spent
-   theirs.*
-5. **Tag-triggered release workflow.** Phase 6 packaging is a `dotnet publish` typed by hand, and CLAUDE.md asks
-   versions to keep in step with the `v0.<major>.<ui>-beta` tags — a rule nothing checks. A `push: tags: v*` job
-   that publishes the single-file win-x64 build and asserts `VersionPrefix` matches the tag. Zero runtime risk.
-   *Done 2026-11-28: `.github/workflows/release.yml` runs on a `v*` tag and nothing else, refuses a tag whose
-   number is not `VersionPrefix` (through `tools/check-release-tag.ps1`), publishes the single-file win-x64 build
-   and attaches the zip to a GitHub release for that tag. `v0.43.0-beta` was then tagged and the workflow ran
-   end to end; the job also builds and runs the suite before it publishes, and a suffixed tag is a prerelease.*
-6. **A test for the startup wiring.** Every extracted piece is tested, but the *order* — profile before window,
-   autosave after profile, port before anything binds — is proven only by `verify-live.ps1`, which CI cannot run.
-   That ordering has already produced one bug (the profile event deleting the match being restored).
-   *Done 2026-11-28: the four steps `App.OnStartup` ran inline now live in `Startup/StartupWiring`, so the
-   sequence can be asserted without a window, a socket or a settings file. `StartupWiringTests` follows the
-   calls, runs the real profile apply and `MatchAutosave` against fakes for the file and the port, and pins
-   "profile before window" with one source guard on `App.xaml`'s `StartupUri`.*
-7. **True striped ball rendering.** *Struck 2026-11-28: already shipped 2026-08-15, before this list was written, so
-   the entry was stale rather than pending. `scoreboard.css` draws `.ball.stripe` as a white body with a 46% colour
-   band, `ballElement()` builds the `.solid`/`.stripe` pair, and `BallButtonStyle` layers the same band in WPF — a
-   viewer can tell a 3 from an 11 today. Nothing left to do here.*
-8. **An opt-in "overlay is stale" cue.** Both pages deliberately keep their last frame when the host dies, which is
-   right for a blip and wrong for a dead host: the scene shows confident, frozen numbers and says nothing. After a
-   few seconds of a closed stream, mark the page. The one overlay behaviour with no test at all today. *Done
-   2026-11-28 for the scoreboard page: a `Stale Cue: Off / On` button in the shared OVERLAY row — a look setting,
-   saved with the profile — travels to the page as `staleCueEnabled`. With it on, four seconds after the stream
-   errors and only if it has not reconnected, the board dims and drains of colour and a `SIGNAL LOST` badge says
-   why; the next frame clears both. Nothing watches for frames in general, because the host sends one per change
-   rather than a heartbeat, so a quiet table looks exactly like a dead host. The cue-ball page is not marked yet: its
-   payload carries no look settings, so it would need the flag on its own.*
-9. **Named setup presets.** Settings are one flat profile in `%AppData%`; an operator with two venues or two overlay
-   styles retypes colours and the port each time. A named profile file plus a picker, composing with #1.
-
-Considered and deliberately not queued: a phone/tablet control page (the loopback-only rule forbids it — a real
-scope change, not a follow-up); an exported `.streamDeckProfile` (absent by design); re-deriving the pages' JS keys
-as a text guard (superseded by the HTTP payload tests); a headless CI end-to-end run (the live check needs a real
-window and real sockets).
+Considered and deliberately not queued: tournament brackets and race-to-set sessions (a different product); a
+phone/tablet control page (the loopback-only rule forbids it); an exported `.streamDeckProfile` (absent by design); a
+full headless end-to-end run (still needs a real window); bundling a webfont (the pages use "Segoe UI", Arial, which
+every Windows OBS install already has).
 
 ### Parked 2026-11-27 — the overlay CI guards: where to pick this up
 
@@ -317,6 +293,33 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-28 — A venue is a name now, not a retype
+
+- Match Setup opens with a **SETUP PRESET** row: a picker, a name box, **SAVE PRESET** and **Delete**, and a line of
+  status text ("Saved 'House A'.", "Applied 'House B'.", "Deleted 'House A'."). No dialog — this is mid-setup and
+  nothing here should have to be dismissed.
+- A preset is the look (colour theme, scoreboard style, the three show/hide flags, how the clock is drawn, the stale
+  cue), the per-match choices that used to reset at every launch (game type and Race-To mode), both shot-clock lengths
+  and the overlay port. Not the players: a preset describes how a venue is dressed and timed, and names baked into one
+  would hand the next player the last one's slot.
+- `SetupPreset` and `PresetLibrary` live in Core with no file access, so capture and the picker's rules are unit-tested:
+  one entry per name ignoring case, the newest spelling winning, a blank name refused, 50 presets with a new name
+  refused when the list is full rather than dropping one already saved. `SetupPresetStore` owns `presets.json` under
+  `%AppData%`, written through `DurableFile`; an unreadable file is kept as `presets.corrupt.json` and a file from
+  another version is left in place and ignored. After every save and delete the picker is rebuilt from the file, so it
+  lists what the next launch will read.
+- Applying a preset goes through the screen's own values — the assignments a typed edit makes — so the ball layout, the
+  match preview, the clock lengths and the look reach `GameManager` by the paths they already use. The five that are
+  buttons on the live view (three show/hide flags, the clock's drawing, the stale cue) are written through `GameManager`
+  the way those buttons do, and the screen's mirrors are set too, because at setup no state event fills them back in.
+  The port is applied last, since changing it rebinds the host.
+- SAVE PRESET is disabled without a name, a repeated name replaces rather than duplicating, and Delete acts on the
+  picked preset and says so. A preset's port that could not be bound is captured as the default instead.
+- Mutation-proved, then reverted, four ways: capture dropping the shot length, a repeated name appending a second entry,
+  applying skipping the stale cue, and the picker not being reloaded after a save. Each failed the fact that covers it.
+- 0.43.0 -> 0.44.0. 170 Core + 36 Overlay + 205 Controller, 0 warnings. Not checked in the window: the row itself has
+  not been seen or clicked — the values it writes and the file it leaves are what the tests pin.
 
 ### 2026-11-28 — The startup order is a test, not a live check
 

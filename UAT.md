@@ -1,4 +1,4 @@
-# User Acceptance Tests
+﻿# User Acceptance Tests
 
 Manual checks for behaviour a unit test cannot see: what a window looks like, what survives closing the app, and
 what a person would call wrong. The automated suite covers the logic behind each of these (see CLAUDE.md,
@@ -382,3 +382,56 @@ does. Step 2 turns it red for the last five seconds, and at 0:00 the whole track
 empty — an empty line would look like a clock nobody started. Step 3 brings the numbers back, and both drawings
 agree about when the clock is nearly up. Step 4 still shows **Shot Clock: Line**,
 because the choice is saved with the rest of the look.
+
+
+## Setup presets
+
+The **SETUP PRESET** row at the top of Match Setup saves the screen's setup under a name and puts it back with one
+pick: the look, the game type, the Race-To mode, both shot-clock lengths and the overlay port. Player names are not
+part of a preset. The row is a picker, a name box, **SAVE PRESET**, **Delete** and a line of status text — there is no
+dialog anywhere in it. Presets live in `%AppData%\PoolScoreboard\presets.json`; deleting that file with the app closed
+gives every scenario below a blank list.
+
+### SP-1 — Saving what is on screen
+
+*Precondition:* no `presets.json`; nothing started.
+
+1. Set 8-Ball, Split, a shot length of 35 and an extension of 25, and change one colour.
+2. Type `House A` in the name box and press **SAVE PRESET**.
+
+*Expected:* the status line reads `Saved 'House A'.`, the picker now lists `House A`, and `presets.json` exists with one
+entry holding those four values and the colour. **SAVE PRESET** is disabled while the name box is empty or blank.
+
+### SP-2 — Applying a preset
+
+*Precondition:* SP-1 done.
+
+1. Change the game type to 10-Ball, the shot length to 60 and the colour back.
+2. Pick `House A` in the picker.
+
+*Expected:* the screen returns to 8-Ball, Split, 35/25 and the saved colour, the status line reads `Applied 'House A'.`,
+and the overlay preview follows — the ball layout swaps to the 8-ball display without pressing anything else.
+
+### SP-3 — A second preset, and a repeated name
+
+1. With SP-1 done, change the setup, type `House B` and save.
+2. Change the setup again, type `house a` and save.
+
+*Expected:* after step 1 the picker lists both names alphabetically. After step 2 there are still two entries — the
+second save replaced `House A` with the new values, and the picker keeps one entry per name.
+
+### SP-4 — Deleting
+
+1. Pick `House A` and press **Delete**.
+
+*Expected:* it disappears from the picker and from `presets.json`, the other preset is untouched, **Delete** is
+disabled while nothing is picked, and relaunching does not bring it back.
+
+### SP-5 — A damaged preset file
+
+*Precondition:* the app closed.
+
+1. Replace `presets.json` with the text `{ not json` and relaunch.
+
+*Expected:* Match Setup opens normally with an empty picker, and the bad file is preserved as `presets.corrupt.json`.
+Saving a preset afterwards starts a fresh list.

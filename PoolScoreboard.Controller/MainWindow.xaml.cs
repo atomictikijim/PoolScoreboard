@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -33,7 +33,8 @@ public partial class MainWindow : Window
             app.OverlaySession,
             new PlayerRosterStore(),
             Dispatcher,
-            this);
+            this,
+            presetStore: new SetupPresetStore());
 
         DataContext = _viewModel;
 

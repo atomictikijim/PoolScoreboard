@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Windows;
@@ -41,6 +41,13 @@ public partial class GameViewModel : ObservableObject
     private readonly MatchHistoryStore _historyStore;
 
     /// <summary>
+    /// The saved setups the Match Setup picker offers — a look, a game type, a Race-To mode, both clock lengths and
+    /// a port, saved under a name. A path rather than a cache, so a second instance handed the same folder reads
+    /// what the first wrote.
+    /// </summary>
+    private readonly SetupPresetStore _presetStore;
+
+    /// <summary>
     /// The match whose record has already been looked for in the history, so a won match costs one file read — at
     /// the moment it is won — rather than one per state change while its banner is up.
     /// </summary>
@@ -62,6 +69,15 @@ public partial class GameViewModel : ObservableObject
     /// </summary>
     private readonly Func<DateTimeOffset> _clock;
     private readonly PlayerRoster _roster;
+
+    /// <summary>
+    /// What the picker is offering. Reloaded from the file after every save and delete rather than patched in memory,
+    /// so what the screen lists is exactly what the next launch will read.
+    /// </summary>
+    private PresetLibrary _presets;
+
+    /// <summary>True while the list is being rebuilt, so assigning the selection does not re-apply a preset.</summary>
+    private bool _refreshingPresets;
 
     /// <summary>The saved players both sides' pickers bind to, most recently used first.</summary>
     public ObservableCollection<SavedPlayerOption> SavedPlayers { get; } = new();
@@ -115,6 +131,32 @@ public partial class GameViewModel : ObservableObject
 
     /// <summary>What the toggle is set to, so the button says whether a dead stream is being marked.</summary>
     public string StaleCueButtonText => StaleCueEnabled ? "Stale Cue: On" : "Stale Cue: Off";
+
+    /// <summary>The names of the saved setups, alphabetically — what the picker on Match Setup offers.</summary>
+    public ObservableCollection<string> PresetNames { get; } = new();
+
+    /// <summary>
+    /// The saved setup picked in that list. Setting it applies what it holds: every value goes through the screen's own
+    /// properties, the ones an operator's edit goes through, so the ball layout, the preview, the clock lengths and
+    /// GameManager's state cannot end up disagreeing with what is on screen.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeletePresetCommand))]
+    private string? selectedPreset;
+
+    /// <summary>
+    /// The name a save writes to. Blank cannot be saved, which is what the SAVE PRESET button is enabled on.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SavePresetCommand))]
+    private string presetName = string.Empty;
+
+    /// <summary>
+    /// What the last preset action did, or why it did nothing. A line of text rather than a dialog: this is mid-setup,
+    /// and nothing here should have to be dismissed.
+    /// </summary>
+    [ObservableProperty]
+    private string? presetStatus;
 
     [ObservableProperty]
     private PlayerViewModel? homePlayer;
@@ -300,13 +342,16 @@ public partial class GameViewModel : ObservableObject
         Dispatcher? dispatcher,
         Window? owner,
         MatchHistoryStore? historyStore = null,
-        Func<DateTimeOffset>? clock = null)
+        Func<DateTimeOffset>? clock = null,
+        SetupPresetStore? presetStore = null)
     {
         _gameManager = gameManager;
         _persist = persist;
         _overlaySession = overlaySession;
         _rosterStore = rosterStore;
         _historyStore = historyStore ?? new MatchHistoryStore();
+        _presetStore = presetStore ?? new SetupPresetStore();
+        _presets = _presetStore.Load();
         _dispatcher = dispatcher;
         _owner = owner;
         _clock = clock ?? (() => DateTimeOffset.Now);
@@ -371,6 +416,7 @@ public partial class GameViewModel : ObservableObject
 
         SetupPlayers(restored);
         RefreshSavedPlayers();
+        RefreshPresetNames(selected: null);
         ApplyMatchPreview();
 
         // A resumed match arrives with scores, groups, pocketed balls and a shooter already set, and nothing
@@ -636,6 +682,143 @@ public partial class GameViewModel : ObservableObject
         session.Start(_gameManager);
         RefreshOverlayStatus();
         _persist?.Invoke();
+    }
+
+    // --- Setup presets ---
+
+    /// <summary>Whether there is a name to save under — a preset nobody can pick by name is not a preset.</summary>
+    public bool CanSavePreset => SetupPreset.NormalizeName(PresetName).Length > 0;
+
+    /// <summary>Whether there is a picked preset to remove.</summary>
+    public bool CanDeletePreset => !string.IsNullOrWhiteSpace(SelectedPreset);
+
+    /// <summary>
+    /// Saves what is on screen under the typed name, replacing whatever that name already held. Captured from state
+    /// rather than from the properties: the screen has already pushed every edit there, and state is what the overlay
+    /// and the shot clock will actually use.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanSavePreset))]
+    private void SavePreset()
+    {
+        var name = SetupPreset.NormalizeName(PresetName);
+        if (name.Length == 0)
+            return;
+
+        var preset = SetupPreset.Capture(name, _gameManager.GetStateSnapshot(), OverlayPort);
+
+        if (_presetStore.TryUpsert(preset) is null)
+        {
+            PresetStatus = _presets.Presets.Count >= PresetLibrary.MaxPresets
+                ? $"No room for another preset — {PresetLibrary.MaxPresets} are already saved."
+                : $"Could not save '{name}'.";
+            return;
+        }
+
+        // Reloaded from the file rather than patched in memory, so the picker shows what the next launch will read.
+        _presets = _presetStore.Load();
+        RefreshPresetNames(name);
+        PresetStatus = $"Saved '{name}'.";
+        _persist?.Invoke();
+    }
+
+    /// <summary>Removes the picked preset. Easy to retype and cheap to recreate, so no confirmation to dismiss.</summary>
+    [RelayCommand(CanExecute = nameof(CanDeletePreset))]
+    private void DeletePreset()
+    {
+        var name = SelectedPreset;
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        if (!_presetStore.TryDelete(name))
+        {
+            PresetStatus = $"Could not delete '{name}'.";
+            return;
+        }
+
+        _presets = _presetStore.Load();
+        RefreshPresetNames(selected: null);
+        PresetStatus = $"Deleted '{name}'.";
+    }
+
+    /// <summary>
+    /// The picker changed, and applying what it names is what a pick means. The status line says which one, so the
+    /// screen does not change under the operator without saying why.
+    /// </summary>
+    partial void OnSelectedPresetChanged(string? oldValue, string? newValue)
+    {
+        if (_refreshingPresets || string.IsNullOrWhiteSpace(newValue))
+            return;
+
+        if (_presets.Find(newValue) is not { } preset)
+            return;
+
+        ApplyPreset(preset);
+        PresetStatus = $"Applied '{preset.Name}'.";
+    }
+
+    /// <summary>
+    /// Writes a saved setup onto the screen. Every value goes through the property an operator's own edit goes through,
+    /// so each change handler pushes it into GameManager: the ball layout, the match preview, the clock lengths and the
+    /// look all follow from those assignments, with no second road into state that could disagree with the screen.
+    /// </summary>
+    private void ApplyPreset(SetupPreset preset)
+    {
+        SelectedGameType = preset.GameType;
+        SelectedRaceToMode = preset.RaceToMode;
+        ShotClockSeconds = preset.ShotClockSeconds;
+        ShotClockExtensionSeconds = preset.ShotClockExtensionSeconds;
+
+        HomeBackgroundColor = preset.ColorTheme.HomeBackground;
+        AwayBackgroundColor = preset.ColorTheme.AwayBackground;
+        HomeAccentColor = preset.ColorTheme.HomeAccent;
+        AwayAccentColor = preset.ColorTheme.AwayAccent;
+        HomeTextColor = preset.ColorTheme.HomeText;
+        AwayTextColor = preset.ColorTheme.AwayText;
+
+        CornerRoundness = preset.ScoreboardStyle.CornerRoundness;
+        OverallScale = preset.ScoreboardStyle.OverallScale;
+        GlossyFinish = preset.ScoreboardStyle.GlossyFinish;
+        SelectedEndCapStyle = preset.ScoreboardStyle.EndCapStyle;
+        SelectedShooterIndicatorStyle = preset.ScoreboardStyle.ShooterIndicatorStyle;
+
+        // These five are commands on the live view rather than bindable properties — the properties beside them only
+        // mirror state — so a preset has to write them the way those commands do. The mirrors are assigned as well,
+        // because at setup nothing fills them back in from the state event: an assignment alone would move the label and
+        // leave the overlay as it was, and the manager call alone would leave the buttons saying the old thing.
+        _gameManager.SetScoreBarVisible(preset.Visibility.ScoreBarVisible);
+        _gameManager.SetBallTrackerVisible(preset.Visibility.BallTrackerVisible);
+        _gameManager.SetWinnerBannerVisible(preset.Visibility.WinnerBannerVisible);
+        _gameManager.SetShotClockDisplay(preset.ShotClockDisplay);
+        _gameManager.SetStaleCue(preset.StaleCueEnabled);
+
+        ScoreBarVisible = preset.Visibility.ScoreBarVisible;
+        BallTrackerVisible = preset.Visibility.BallTrackerVisible;
+        WinnerBannerVisible = preset.Visibility.WinnerBannerVisible;
+        ShotClockDisplay = preset.ShotClockDisplay;
+        StaleCueEnabled = preset.StaleCueEnabled;
+
+        // Last, because a port change rebinds the overlay host: the preset's port is the venue's.
+        OverlayPort = preset.OverlayPort;
+
+        _persist?.Invoke();
+    }
+
+    /// <summary>Rebuilds the picker from the library, selecting a name without re-applying it.</summary>
+    private void RefreshPresetNames(string? selected)
+    {
+        _refreshingPresets = true;
+        try
+        {
+            PresetNames.Clear();
+            foreach (var name in _presets.Names())
+                PresetNames.Add(name);
+
+            SelectedPreset = selected;
+        }
+        finally
+        {
+            _refreshingPresets = false;
+        }
     }
 
     [RelayCommand]

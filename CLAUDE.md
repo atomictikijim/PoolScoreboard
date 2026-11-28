@@ -153,6 +153,14 @@ dotnet clean
 - MVVM: ViewModels for match setup, player setup, and the live game view.
 - Match setup: game type, Race-To mode (single/split) and value(s), the two shot-clock lengths (shot length and
   what an extension adds), color theme picker.
+- The top of that screen is a **SETUP PRESET** row: a picker of saved setups, a name box, **SAVE PRESET** and
+  **Delete**, and a status line instead of a dialog. A preset carries the look (theme, style, show/hide flags,
+  clock drawing, stale cue), the game type and Race-To mode, both clock lengths and the overlay port — everything
+  a venue needs that the profile does not keep, and no player names. Picking one applies it through the same
+  property assignments an operator's edit makes, so the ball layout, the preview, the lengths and the look reach
+  `GameManager` by their existing paths; the five that are buttons on the live view are written through
+  `GameManager` as those buttons do and mirrored on screen. `presets.json` holds up to 50, one entry per name
+  ignoring case; a repeated name replaces, a blank one cannot be saved, and the file goes through `DurableFile`.
 - Live view: score +/- per player, current-shooter toggle with a CALL EXTENSION button beside it, ball-group
   assignment buttons (8-ball only) or ball display (9/10-ball), new-rack/reset-match controls. The shared OVERLAY
   row (on both screens) ends with a **Shot Clock: Time / Line** button that swaps the countdown's drawing; it is a
@@ -220,7 +228,7 @@ running the app. `OverlayHostRunner.Start` returns null when the host cannot bin
 touch the port are `Persistence/OverlayPortSettings`, extracted the way `MatchAutosave` was: `ApplySavedPort` hands
 the profile's port to the session before anything binds (normalized, so one that cannot be bound becomes the
 default), and `RecordPortInUse` stamps the session's port onto a profile being saved, so the next launch comes back
-on the port the overlay was really served on rather than the default or a value that never reached the host. `settings.json`, `roster.json` and `match.json` all go through
+on the port the overlay was really served on rather than the default or a value that never reached the host. `settings.json`, `roster.json`, `match.json`, `history.json` and `presets.json` all go through
   `Persistence/DurableFile`, which writes the text under a `.tmp` name, flushes it to the disk and only then moves
   it into place — so a crash mid-save keeps the previous file, and a power cut cannot publish a half-written one.
   End-cap icon bytes go through the same helper (`WriteAllBytes`), so an icon a saved file names is either the
@@ -365,6 +373,8 @@ alignment, not a pixel match).
   per match rather than per player.
 - The shot clock's length and its extension are set on Match Setup (40 and 30 seconds by default) and are not part
   of the saved profile, so a relaunch comes back to the defaults — the same way the game type and Race-To mode do.
+  A setup preset carries both lengths (and the game type and Race-To mode) together with the look, so a venue can
+  be restored with one pick, but nothing applies a preset at launch: the operator still chooses one.
   The clock itself is not part of `match.json`, so a resumed match shows no clock — a countdown from a previous
   session would be a lie — and there is no pause once it is running: it stops and hides with a reset, a won match or
   the clear route, while a new rack leaves it waiting at the full length for a manual start. The operator's screen says who has an extension left, and greys the button out

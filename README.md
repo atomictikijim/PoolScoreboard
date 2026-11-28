@@ -41,6 +41,9 @@ its own overlay server on localhost, so it keeps working with no network at all.
   a cue ball graphic. The operator clicks it to drop a red contact-point dot showing the
   spin/english being used on a shot. Lives in its own browser source separate from the
   scoreboard, so it can be sized and positioned anywhere in the scene.
+- **Setup Presets**: save a venue's whole setup — colours, scoreboard style, show/hide, how the clock is drawn,
+  game type, Race-To mode, both shot-clock lengths and the overlay port — under a name, then swap between venues
+  with one pick on the Match Setup screen.
 - **Stream Deck Control**: a documented Stream Deck profile (button layout + local HTTP
   endpoints) drives scores, shooter toggle, ball assignment, and rack/match reset without
   touching the desktop window.
@@ -131,7 +134,7 @@ page in this repo's `streamdeck/` folder both use the new one.
 - Core stays UI-free and fully unit-testable.
 - Persistence lives in `%AppData%\PoolScoreboard\`: `settings.json` holds the colour theme,
   scoreboard style, show/hide state and the last two players, while `roster.json` holds the saved
-  player list. End-cap artwork is stored as files under `icons\`, not inline. The match in progress is
+  player list and `presets.json` the named setups Match Setup offers. End-cap artwork is stored as files under `icons\`, not inline. The match in progress is
   written to `match.json` after every change — scores, game type and Race-To mode, ball groups, pocketed balls
   and whose turn it is — and removed when the match is reset, so a crash mid-match resumes where it was on the
   next launch. There is still no match history.

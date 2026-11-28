@@ -1,4 +1,4 @@
-<Window x:Class="PoolScoreboard.Controller.MainWindow"
+﻿<Window x:Class="PoolScoreboard.Controller.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -98,6 +98,7 @@
             <Grid Visibility="{Binding GameInitialized, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="20" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
@@ -105,7 +106,42 @@
 
                 <TextBlock Grid.Row="0" Text="MATCH SETUP" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
 
-                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <!-- Setup presets: the look plus the four per-match choices that otherwise get retyped every night
+                     (game type, Race-To mode and both clock lengths), and the venue's overlay port. Picking one applies
+                     it to the screen; SAVE PRESET captures what is on screen under the name typed beside it. A line of
+                     status text instead of a dialog: this is mid-setup, so nothing here should need dismissing. -->
+                <Grid Grid.Row="1" Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="SETUP PRESET" Style="{StaticResource LabelTextBlockStyle}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <ComboBox Grid.Column="1" Width="180" ItemsSource="{Binding PresetNames}"
+                              SelectedItem="{Binding SelectedPreset}"
+                              AutomationProperties.AutomationId="SetupPresetPicker"
+                              ToolTip="Pick a saved setup to apply its look, game type, Race-To mode, clock lengths and port." />
+                    <TextBox Grid.Column="2" Width="170" Margin="10,0,0,0"
+                             Text="{Binding PresetName, UpdateSourceTrigger=PropertyChanged}"
+                             AutomationProperties.AutomationId="PresetNameBox"
+                             Style="{StaticResource StandardTextBoxStyle}"
+                             ToolTip="Name to save the setup on screen under. Saving an existing name replaces it." />
+                    <Button Grid.Column="3" Content="SAVE PRESET" Style="{StaticResource InactiveButtonStyle}"
+                            Command="{Binding SavePresetCommand}" Padding="14,6" Margin="10,0,0,0" />
+                    <Button Grid.Column="4" Content="Delete" Style="{StaticResource InactiveButtonStyle}"
+                            Command="{Binding DeletePresetCommand}" Padding="12,6" Margin="8,0,0,0"
+                            ToolTip="Remove the picked preset." />
+                    <TextBlock Grid.Column="5" Text="{Binding PresetStatus}" Margin="12,0,0,0"
+                               VerticalAlignment="Center" Style="{StaticResource ValueTextBlockStyle}"
+                               TextTrimming="CharacterEllipsis" />
+                </Grid>
+
+
+                <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -394,7 +430,7 @@
 
                 <!-- Overlay show/hide sits next to START MATCH so the operator can hide the score
                      bar and ball tracker first and start the match with them still hidden. -->
-                <Grid Grid.Row="3" Margin="0,16,0,0">
+                <Grid Grid.Row="4" Margin="0,16,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
