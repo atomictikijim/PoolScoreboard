@@ -660,7 +660,7 @@ public partial class GameViewModel : ObservableObject
     private void SubtractAwayPoint() => _gameManager.SubtractPoint(isPlayer1: false);
 
     [RelayCommand]
-    private void UndoLastPoint() => _gameManager.UndoPoint();
+    private void UndoLastAction() => _gameManager.Undo();
 
     [RelayCommand]
     private void ToggleCurrentShooter() => _gameManager.ToggleCurrentShooter();

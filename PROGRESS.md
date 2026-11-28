@@ -85,7 +85,12 @@ written; #2, #3, #5, #6 and #9 are open.
    name's wins and deletes one behind a confirmation.*
 2. **Undo that covers everything, not just points.** `GameManager` keeps one stack — who scored each point — so
    `UndoPoint` reverses a point and nothing else. A wrong shooter toggle, ball or group assignment has to be
-   corrected by hand mid-stream, which is the most frequent real failure. Bounded command history, not new UI.
+   corrected by hand mid-stream, which is the most frequent real failure. Bounded command history, not new UI. *Done
+   2026-11-28: the point stack is gone. Each undoable command — a point, a minus, a shooter toggle, a ball group, a
+   ball on or off the table — records the state before it, in a `GameState` stack capped at `MaxUndoDepth` (50), and
+   `Undo()` puts that shape back. Snapshots rather than one inverse per command, so the next command is covered for
+   free; the clock and the look are deliberately not restored, and a match starting, a reset, a resume or a new rack
+   clears the history. The `A` key, the existing Stream Deck route and no new UI at all.*
 3. **Global hotkeys.** Shortcuts are live-view-only, so they need the Controller focused; a real stream has OBS
    focused while the operator scores. `RegisterHotKey` for the same five actions, enabled only during a match.
 4. **A shot clock / match timer on the overlay.** The WNT reference the developer chose has a clock and
@@ -299,7 +304,36 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
-### 2026-11-28 — The overlay can say its stream is dead
+### 2026-11-28 — Undo takes back more than a point
+
+- `UndoPoint` and its stack of who-scored-what are gone. Undo is now a stack of `GameState` snapshots — the state as
+  it was before each command — so a wrong shooter, group or ball is taken back the same way a wrong point is, which
+  was the most frequent real mistake mid-stream and the one the ranked list put second.
+- Commands recorded: `AddPoint`, `SubtractPoint` (only when it takes a point off), `ToggleCurrentShooter`,
+  `AssignBallGroup` (only when it changes the group), `PocketBall`/`UnpocketBall`/`ToggleBall`. Look and clock
+  settings are not commands: changing the accent colour should not become the thing undo takes back first.
+- Snapshots rather than one inverse per command, so a command added later is covered without writing its own. The
+  cost is a rule about what a snapshot may restore: `RestoreMatchShape` puts back scores, shooter, groups, balls and
+  winner, and leaves the clock and the look alone, because a deadline restored from a minute ago would draw a clock
+  that had already expired. Players are updated in place rather than swapped, since the Controller holds the ones it
+  was set up with (and the shooter/winner sides are translated, because a snapshot holds copies).
+- Bounded at `MaxUndoDepth` = 50, oldest dropped first, and cleared by a match starting, a reset, a resume or a new
+  rack — walking back into the previous rack would put its balls on a table that has just been cleared.
+- No new UI: the `A` key, the existing undo command and `/api/control/score/undo` all now reach `Undo()`; the Help
+  line and the Stream Deck table say what it covers now. `UndoPoint`/`UndoLastPointCommand` are renamed
+  `Undo`/`UndoLastActionCommand`, since they no longer name what they do.
+- One existing test was replaced rather than adjusted: `SubtractPoint_DoesNotMakeALaterUndoGoNegative` pinned the old
+  rule (undo the last *point*, floored) and the new rule makes undo take back the minus instead, which is the point
+  of the change. Its replacement pins that, then the point under it, then an empty history.
+- Mutation-proved, then reverted, six ways: a shooter toggle not recorded, a group assignment not recorded, a pocketed
+  ball not recorded, the history unbounded, the clock rewound with the rest, and a new rack keeping the old rack
+  undoable. The last one first came back **NOT CAUGHT**: the pocket a test used as its witness sat *before* the
+  snapshot, so both worlds looked identical — the test was rewritten around a point, where the difference shows, and
+  the mutation then failed.
+- 0.40.0 -> 0.41.0. 155 Core + 36 Overlay + 174 Controller, 0 warnings. Checked live against the running app through
+  the control API: a point, a shooter toggle and ball 3 pocketed, then four undos put the ball back, the shooter back
+  and the score back to 0–0, with the fourth doing nothing.
+
 
 - The ranked follow-ups list was brought up to date first: #7 (true striped balls) is struck because it shipped on
   2026-08-15, before the list was written, and #4 now records the whole of today's shot-clock work instead of only

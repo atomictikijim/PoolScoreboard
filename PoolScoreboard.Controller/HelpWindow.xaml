@@ -194,7 +194,7 @@
                         <TextBlock Text="Keyboard shortcuts (Live View only)" Style="{StaticResource HelpSubHeadingStyle}" />
                         <TextBlock Style="{StaticResource HelpCodeStyle}">Q — add a point for Home</TextBlock>
                         <TextBlock Style="{StaticResource HelpCodeStyle}">P — add a point for Away</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">A — undo the last point</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">A — undo the last change (point, shooter, ball or group)</TextBlock>
                         <TextBlock Style="{StaticResource HelpCodeStyle}">Space — toggle current shooter</TextBlock>
                         <TextBlock Style="{StaticResource HelpCodeStyle}">N — start a new rack</TextBlock>
                         <TextBlock Style="{StaticResource HelpCodeStyle}">T — start or restart the shot clock</TextBlock>

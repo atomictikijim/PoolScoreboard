@@ -131,7 +131,7 @@ public sealed class ResumableMatchTests
 
         // The two points are back on screen but their history entries are not, so undo must not take a point
         // off a match the operator just resumed — the first undo after a restart does nothing.
-        manager.UndoPoint();
+        manager.Undo();
         Assert.Equal(1, manager.GetStateSnapshot().Player1Score);
         Assert.Equal(1, manager.GetStateSnapshot().Player2Score);
     }

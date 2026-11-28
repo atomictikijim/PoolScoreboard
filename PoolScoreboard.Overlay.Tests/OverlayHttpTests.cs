@@ -229,6 +229,19 @@ public sealed class OverlayHttpTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TheUndoRouteTakesBackMoreThanAPoint()
+    {
+        (await _client.GetAsync("/api/control/shooter/toggle")).EnsureSuccessStatusCode();
+        Assert.False((await GetJson(ScoreboardState)).GetProperty("homeIsCurrentShooter").GetBoolean());
+
+        (await _client.GetAsync("/api/control/score/undo")).EnsureSuccessStatusCode();
+
+        // The Stream Deck's single undo button follows the operator's key: a wrong shooter is taken back the way the
+        // last point is.
+        Assert.True((await GetJson(ScoreboardState)).GetProperty("homeIsCurrentShooter").GetBoolean());
+    }
+
+    [Fact]
     public async Task TheStaleCueReachesThePayloadThePageReads()
     {
         Assert.False((await GetJson(ScoreboardState)).GetProperty("staleCueEnabled").GetBoolean());

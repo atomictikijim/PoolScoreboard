@@ -110,7 +110,7 @@ dotnet clean
 ### PoolScoreboard.Core (Game Logic)
 
 - `GameManager` — orchestrator for all game state and operations: `InitializeGame`,
-  `AddPoint`/`SubtractPoint`, `UndoPoint`, `ToggleCurrentShooter`, `AssignBallGroup`, `ResetGame`,
+  `AddPoint`/`SubtractPoint`, `Undo`, `ToggleCurrentShooter`, `AssignBallGroup`, `ResetGame`,
   `StartShotClock`/`ExtendShotClock`/`ClearShotClock`, and `SetShotClockLengths` for the two lengths Match Setup
   offers (clamped to 5-300 seconds; ignored once a match is running, because the clock on screen is counting down
   for a player). Raises `GameStateChanged` after every mutation.
@@ -124,6 +124,13 @@ dotnet clean
   rather than restarting it, so nothing counts down behind the winner banner; a reset clears it too, while a new
   rack leaves it **armed**: on screen at the full length, not counting, until the operator starts it after the
   break.
+  `Undo` takes back the last command the operator can change their mind about — a point or a minus, a shooter
+  toggle, a ball group, a ball on or off the table — by putting back the state recorded before it: a bounded stack of
+  `GameState` snapshots (`MaxUndoDepth`, 50) that a match starting, a reset, a resume or a new rack clears. Snapshots
+  rather than one inverse per command, so a command added later is covered without writing its own; it restores the
+  match's shape only, because a clock deadline from a minute ago would draw an expired clock and a colour chosen after
+  the mistake is not part of it. The players are updated in place rather than swapped, since the Controller holds the
+  ones it was set up with.
   `ExtendShotClock` adds `ShotClockExtensionSeconds` to the clock already running for the current shooter, once per
   player per rack (a new rack hands both of them one back), and is ignored when no clock is running so a call at
   the wrong moment is not spent. Its "now" comes from a clock injected into the constructor, so a test can assert

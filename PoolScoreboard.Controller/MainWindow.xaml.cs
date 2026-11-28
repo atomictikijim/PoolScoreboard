@@ -53,7 +53,9 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 break;
             case Key.A:
-                _viewModel.UndoLastPointCommand.Execute(null);
+                // One undo for every command the operator can take back — a point or a minus, the shooter, a ball or
+                // a group — so a wrong toggle mid-stream is corrected the way a wrong point is.
+                _viewModel.UndoLastActionCommand.Execute(null);
                 e.Handled = true;
                 break;
             case Key.Space:

@@ -28,12 +28,31 @@ public class GameManager
     public GameManager(Func<DateTimeOffset>? clock = null) => _clock = clock ?? (() => DateTimeOffset.Now);
 
     /// <summary>
-    /// Which player scored each point, in order, so <see cref="UndoPoint"/> can reverse the most
-    /// recent point rather than inferring it from the scores. Internal bookkeeping only — not part
-    /// of <see cref="GameState"/>/the overlay payload — and cleared whenever a match starts or is
-    /// reset.
+    /// How many commands undo can take back. A cap rather than an unbounded log: a long match would otherwise keep
+    /// every shot of it in memory for the sake of a mistake made in the last minute.
     /// </summary>
-    private readonly List<bool> _pointHistory = new();
+    public const int MaxUndoDepth = 50;
+
+    /// <summary>
+    /// The state as it was before each command undo can reverse, newest last. Snapshots rather than one entry per
+    /// kind of command: a wrong point, shooter, group or ball all become the same line, and a command added later is
+    /// covered without writing its own inverse. Internal bookkeeping only — not part of
+    /// <see cref="GameState"/>/the overlay payload — and cleared when a match starts, is reset or resumed, or a new
+    /// rack begins.
+    /// </summary>
+    private readonly List<GameState> _undoHistory = new();
+
+    /// <summary>
+    /// Remembers the state as it was before a command undo can take back. Called under the lock, before the mutation.
+    /// The oldest entry goes at the cap: it is the mistake an operator is least likely to still want.
+    /// </summary>
+    private void RecordForUndo()
+    {
+        if (_undoHistory.Count == MaxUndoDepth)
+            _undoHistory.RemoveAt(0);
+
+        _undoHistory.Add(_currentGame.Clone());
+    }
 
     public event EventHandler<GameStateChangedEventArgs>? GameStateChanged;
 
@@ -45,7 +64,7 @@ public class GameManager
     {
         lock (_sync)
         {
-            _pointHistory.Clear();
+            _undoHistory.Clear();
 
             var next = new GameState
             {
@@ -91,18 +110,14 @@ public class GameManager
             if (!_currentGame.IsGameActive)
                 return;
 
+            RecordForUndo();
+
             _currentGame.CueBallSpin = null;
 
             if (isPlayer1)
-            {
                 _currentGame.Player1Score++;
-                _pointHistory.Add(true);
-            }
             else
-            {
                 _currentGame.Player2Score++;
-                _pointHistory.Add(false);
-            }
 
             UpdateWinner();
 
@@ -124,9 +139,9 @@ public class GameManager
     }
 
     /// <summary>
-    /// Corrects one side's score downwards, without touching undo history: this is an explicit
-    /// per-side minus, not "undo the last point". Reaching Race-To only sets the winner banner, so
-    /// the match stays editable and a mistake can be corrected here without a full reset.
+    /// Corrects one side's score downwards: an explicit per-side minus, which is itself undoable, so a minus pressed
+    /// by mistake is taken back the same way a point is. Reaching Race-To only sets the winner banner, so the match
+    /// stays editable and a mistake can be corrected here without a full reset.
     /// </summary>
     public void SubtractPoint(bool isPlayer1)
     {
@@ -134,6 +149,11 @@ public class GameManager
         {
             if (!_currentGame.IsGameActive)
                 return;
+
+            // Only a minus that takes a point off is a command; one that floors at zero changes nothing and would
+            // otherwise fill the history with presses that undo has nothing to restore.
+            if (isPlayer1 ? _currentGame.Player1Score > 0 : _currentGame.Player2Score > 0)
+                RecordForUndo();
 
             if (isPlayer1)
             {
@@ -233,6 +253,8 @@ public class GameManager
             if (!_currentGame.IsGameActive)
                 return;
 
+            RecordForUndo();
+
             _currentGame.CurrentShooter = ReferenceEquals(_currentGame.CurrentShooter, _currentGame.Player1)
                 ? _currentGame.Player2
                 : _currentGame.Player1;
@@ -245,36 +267,63 @@ public class GameManager
         }
     }
 
-    public void UndoPoint()
+    /// <summary>
+    /// Takes back the last command the operator can change their mind about — a point or a minus, a shooter toggle, a
+    /// ball group, a ball on or off the table — by putting back the state recorded before it. One key and one Stream
+    /// Deck button for all of them, because a wrong shooter mid-stream is corrected the same way a wrong point is.
+    /// <para>
+    /// What does not come back is the clock and the look: a deadline restored from a minute ago would draw a clock
+    /// that is already expired, and a colour chosen after the mistake is not part of it, so the snapshot only
+    /// supplies what describes the match. Nothing happens at setup, after a reset or resume, or once a new rack has
+    /// started, where the history has been cleared.
+    /// </para>
+    /// </summary>
+    public void Undo()
     {
         lock (_sync)
         {
-            if (_pointHistory.Count == 0)
+            if (_undoHistory.Count == 0)
                 return;
 
-            var wasPlayer1 = _pointHistory[^1];
-            _pointHistory.RemoveAt(_pointHistory.Count - 1);
+            var previous = _undoHistory[^1];
+            _undoHistory.RemoveAt(_undoHistory.Count - 1);
 
-            // Floored, like SubtractPoint: a per-side minus can already have taken off the point
-            // this history entry recorded, and undo must not drive a score negative.
-            if (wasPlayer1)
-            {
-                if (_currentGame.Player1Score > 0)
-                    _currentGame.Player1Score--;
-            }
-            else
-            {
-                if (_currentGame.Player2Score > 0)
-                    _currentGame.Player2Score--;
-            }
-
-            // Undo can drop a score back below Race-To, which clears the winner banner. (An empty
-            // history is the only "nothing to undo" case, and ResetGame clears it, so this can't
-            // resurrect an already-reset match.)
-            UpdateWinner();
-
+            RestoreMatchShape(previous);
             RaiseGameStateChanged(_currentGame.Clone());
         }
+    }
+
+    /// <summary>
+    /// Puts the parts of a snapshot that describe the match back onto the current state: scores, shooter, ball groups,
+    /// the balls off the table and the winner. Field by field rather than swapping the state object, because the
+    /// Controller holds the players it was set up with; the shooter and the winner are translated by the side they
+    /// stood for, since a snapshot holds copies.
+    /// </summary>
+    private void RestoreMatchShape(GameState snapshot)
+    {
+        _currentGame.Player1Score = snapshot.Player1Score;
+        _currentGame.Player2Score = snapshot.Player2Score;
+
+        _currentGame.Player1.BallGroup = snapshot.Player1.BallGroup;
+        _currentGame.Player2.BallGroup = snapshot.Player2.BallGroup;
+
+        _currentGame.PocketedBalls.Clear();
+        foreach (var ballNumber in snapshot.PocketedBalls)
+            _currentGame.PocketedBalls.Add(ballNumber);
+
+        _currentGame.CurrentShooter = snapshot.CurrentShooter switch
+        {
+            null => null,
+            var shooter when ReferenceEquals(shooter, snapshot.Player1) => _currentGame.Player1,
+            _ => _currentGame.Player2
+        };
+
+        _currentGame.Winner = snapshot.Winner switch
+        {
+            null => null,
+            var winner when ReferenceEquals(winner, snapshot.Player1) => _currentGame.Player1,
+            _ => _currentGame.Player2
+        };
     }
 
     /// <summary>
@@ -291,6 +340,11 @@ public class GameManager
 
             var player = isHome ? _currentGame.Player1 : _currentGame.Player2;
             var other = isHome ? _currentGame.Player2 : _currentGame.Player1;
+
+            // Only a change is a command: pressing the group a side already has would otherwise leave an undo that
+            // restores what is already on screen.
+            if (player.BallGroup != group)
+                RecordForUndo();
 
             player.BallGroup = group;
             other.BallGroup = group switch
@@ -312,6 +366,11 @@ public class GameManager
     {
         lock (_sync)
         {
+            // Bringing the ball back is undoable too, so both halves of a per-ball button are commands; a press on a
+            // ball that is already off the table changes nothing and records nothing.
+            if (!_currentGame.PocketedBalls.Contains(ballNumber))
+                RecordForUndo();
+
             if (_currentGame.PocketedBalls.Add(ballNumber))
                 BallLeftTheTable(ballNumber);
 
@@ -327,6 +386,9 @@ public class GameManager
     {
         lock (_sync)
         {
+            if (_currentGame.PocketedBalls.Contains(ballNumber))
+                RecordForUndo();
+
             _currentGame.PocketedBalls.Remove(ballNumber);
             RaiseGameStateChanged(_currentGame.Clone());
         }
@@ -340,6 +402,8 @@ public class GameManager
     {
         lock (_sync)
         {
+            RecordForUndo();
+
             // Only the pocketing half is a shot; bringing a ball back is a correction and leaves the clock running.
             if (!_currentGame.PocketedBalls.Remove(ballNumber) &&
                 _currentGame.PocketedBalls.Add(ballNumber))
@@ -353,7 +417,8 @@ public class GameManager
 
     /// <summary>
     /// A new rack is a new game: the previous shot's countdown has nothing left to time, so it is stopped — but the
-    /// new rack is not started either. The clock waits at its full length (armed, not running) until the operator
+    /// new rack is not started either. The undo history goes with the old rack, because walking back into it would put
+    /// the last rack's balls back on a table that has just been cleared. The clock waits at its full length (armed, not running) until the operator
     /// starts it after the break, which is both what the rack's allowance is worth showing and what stops a
     /// countdown running while a player is still chalking up. Both players also get their extension back, because
     /// the rule is one each per rack.
@@ -362,6 +427,7 @@ public class GameManager
     {
         lock (_sync)
         {
+            _undoHistory.Clear();
             _currentGame.PocketedBalls.Clear();
             _currentGame.ShotClockEndsAt = null;
             _currentGame.ShotClockArmed = true;
@@ -523,7 +589,7 @@ public class GameManager
 
             player1.BallGroup = BallGroup.Unassigned;
             player2.BallGroup = BallGroup.Unassigned;
-            _pointHistory.Clear();
+            _undoHistory.Clear();
 
             var next = new GameState
             {
@@ -557,7 +623,7 @@ public class GameManager
     {
         lock (_sync)
         {
-            _pointHistory.Clear();
+            _undoHistory.Clear();
 
             var next = new GameState
             {

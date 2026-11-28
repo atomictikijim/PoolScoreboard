@@ -270,6 +270,20 @@ never started.
 *Expected:* the clock disappears as the winner banner appears, rather than restarting behind it, and neither key
 brings it back while the banner is up. RESET MATCH returns to setup with no clock.
 
+### SC-17 — Undo takes back more than a point
+
+*Precondition:* a match running, the live view in front, nothing scored yet.
+
+1. Press `Space` to put the other player at the table, then press `A`.
+2. In 8-ball, press a group button (SOLIDS or STRIPES), then press `A`.
+3. Pocket a ball on the tracker, then press `A`.
+4. Score a point, then press `A`.
+5. Press `A` five more times with nothing left to undo.
+
+*Expected:* each `A` puts the screen back to before the press in front of it — the shooter returns to where it was,
+both groups read unassigned again, the ball comes back on the table, the score drops by one. Step 5 changes nothing
+and does not crash: an empty history is simply ignored.
+
 ### SC-16 — The overlay says when its stream is dead
 
 *Precondition:* the Controller running with a match up, OBS (or a browser) showing `/overlay/scoreboard`, and

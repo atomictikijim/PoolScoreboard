@@ -591,7 +591,7 @@ public class GameManagerTests
     }
 
     [Fact]
-    public void SubtractPoint_DoesNotMakeALaterUndoGoNegative()
+    public void SubtractPoint_IsItselfUndoable_AndUndoNeverGoesNegative()
     {
         var manager = NewMatch();
 
@@ -599,14 +599,128 @@ public class GameManagerTests
         manager.SubtractPoint(isPlayer1: true);
         Assert.Equal(0, manager.GetStateSnapshot().Player1Score);
 
-        // The point is still on the undo history; undoing it afterwards must not push the score
-        // below zero just because the minus got there first.
-        manager.UndoPoint();
+        // The minus is the most recent command, so undo puts that point back instead of taking a second one off:
+        // the old rule (undo the last *point*) is what this test used to pin, and it would have driven the score
+        // below zero here.
+        manager.Undo();
+        Assert.Equal(1, manager.GetStateSnapshot().Player1Score);
+
+        // Then the point before it comes off the way it went on.
+        manager.Undo();
+        Assert.Equal(0, manager.GetStateSnapshot().Player1Score);
+
+        // And with nothing left to take back, the history is simply empty.
+        manager.Undo();
         Assert.Equal(0, manager.GetStateSnapshot().Player1Score);
     }
 
     [Fact]
-    public void UndoPoint_ReversesTheMostRecentlyScoredPoint_NotTheLeader()
+    public void Undo_TakesBackAWrongShooterToggle()
+    {
+        var manager = NewMatch();
+
+        manager.ToggleCurrentShooter();
+
+        var toggled = manager.GetStateSnapshot();
+        Assert.Same(toggled.Player2, toggled.CurrentShooter);
+
+        manager.Undo();
+
+        // The mistake the item was written for: the wrong player is put at the table mid-stream.
+        var undone = manager.GetStateSnapshot();
+        Assert.Same(undone.Player1, undone.CurrentShooter);
+    }
+
+    [Fact]
+    public void Undo_TakesBackABallGroupAssignment()
+    {
+        var manager = NewMatch(GameType.EightBall);
+
+        manager.AssignBallGroup(isHome: true, BallGroup.Solids);
+
+        var assigned = manager.GetStateSnapshot();
+        Assert.Equal(BallGroup.Solids, assigned.Player1.BallGroup);
+        Assert.Equal(BallGroup.Stripes, assigned.Player2.BallGroup);
+
+        manager.Undo();
+
+        // Both sides come back, because the assignment moved both: the complement is part of the same command.
+        var undone = manager.GetStateSnapshot();
+        Assert.Equal(BallGroup.Unassigned, undone.Player1.BallGroup);
+        Assert.Equal(BallGroup.Unassigned, undone.Player2.BallGroup);
+    }
+
+    [Fact]
+    public void Undo_TakesBackAPocketedBall()
+    {
+        var manager = NewMatch();
+
+        manager.PocketBall(3);
+        Assert.Contains(3, manager.GetStateSnapshot().PocketedBalls);
+
+        manager.Undo();
+
+        Assert.DoesNotContain(3, manager.GetStateSnapshot().PocketedBalls);
+    }
+
+    [Fact]
+    public void Undo_DoesNotRewindTheClock()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+        manager.StartShotClock();
+
+        now = now.AddSeconds(10);
+        manager.AddPoint(isPlayer1: true);
+        var afterPoint = manager.GetStateSnapshot().ShotClockEndsAt;
+
+        manager.Undo();
+
+        // The point comes back off, but time does not: a deadline restored from before the point would draw a clock
+        // that had already run out.
+        var undone = manager.GetStateSnapshot();
+        Assert.Equal(0, undone.Player1Score);
+        Assert.Equal(afterPoint, undone.ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void Undo_WalksBackOnlyTheLastMaxUndoDepthCommands()
+    {
+        var manager = NewMatch(homeRaceTo: 200, awayRaceTo: 200);
+
+        for (var i = 0; i < GameManager.MaxUndoDepth + 10; i++)
+            manager.AddPoint(isPlayer1: true);
+
+        Assert.Equal(GameManager.MaxUndoDepth + 10, manager.GetStateSnapshot().Player1Score);
+
+        for (var i = 0; i < GameManager.MaxUndoDepth + 10; i++)
+            manager.Undo();
+
+        // The cap, not the match, is what ran out: the ten points beyond it are out of reach and stay on the board.
+        Assert.Equal(10, manager.GetStateSnapshot().Player1Score);
+    }
+
+    [Fact]
+    public void Undo_DoesNothingOnceANewRackHasStarted()
+    {
+        var manager = NewMatch();
+
+        manager.AddPoint(isPlayer1: true);
+        manager.ResetBalls();
+
+        manager.Undo();
+        manager.Undo();
+
+        // A new rack is a new game: the point from the last one is not waiting to be taken back, because the table
+        // its snapshot describes is not this table any more.
+        Assert.Equal(1, manager.GetStateSnapshot().Player1Score);
+    }
+
+    [Fact]
+    public void Undo_ReversesTheMostRecentlyScoredPoint_NotTheLeader()
     {
         var manager = NewMatch();
 
@@ -614,7 +728,7 @@ public class GameManagerTests
         manager.AddPoint(true);
         manager.AddPoint(false); // away scores last, but home is still ahead
 
-        manager.UndoPoint();
+        manager.Undo();
 
         var state = manager.GetStateSnapshot();
         Assert.Equal(2, state.Player1Score);
@@ -622,7 +736,7 @@ public class GameManagerTests
     }
 
     [Fact]
-    public void UndoPoint_WalksBackThroughPointsInReverseOrder()
+    public void Undo_WalksBackThroughPointsInReverseOrder()
     {
         var manager = NewMatch();
 
@@ -630,24 +744,24 @@ public class GameManagerTests
         manager.AddPoint(false);
         manager.AddPoint(true);
 
-        manager.UndoPoint(); // undoes home's second point
+        manager.Undo(); // undoes home's second point
         Assert.Equal(1, manager.GetStateSnapshot().Player1Score);
         Assert.Equal(1, manager.GetStateSnapshot().Player2Score);
 
-        manager.UndoPoint(); // undoes away's point
+        manager.Undo(); // undoes away's point
         Assert.Equal(1, manager.GetStateSnapshot().Player1Score);
         Assert.Equal(0, manager.GetStateSnapshot().Player2Score);
     }
 
     [Fact]
-    public void UndoPoint_AtATie_ReversesTheMostRecentPoint()
+    public void Undo_AtATie_ReversesTheMostRecentPoint()
     {
         var manager = NewMatch();
 
         manager.AddPoint(true);
         manager.AddPoint(false);
 
-        manager.UndoPoint();
+        manager.Undo();
 
         var state = manager.GetStateSnapshot();
         Assert.Equal(1, state.Player1Score);
@@ -655,14 +769,14 @@ public class GameManagerTests
     }
 
     [Fact]
-    public void UndoPoint_AfterTheWinningPoint_ClearsTheWinner()
+    public void Undo_AfterTheWinningPoint_ClearsTheWinner()
     {
         var manager = NewMatch(raceToMode: RaceToMode.Split, homeRaceTo: 1);
 
         manager.AddPoint(true); // Alice reaches race-to 1
         Assert.NotNull(manager.GetStateSnapshot().Winner);
 
-        manager.UndoPoint();
+        manager.Undo();
 
         var state = manager.GetStateSnapshot();
         Assert.True(state.IsGameActive);
@@ -671,14 +785,14 @@ public class GameManagerTests
     }
 
     [Fact]
-    public void UndoPoint_DoesNothingAfterResetGame()
+    public void Undo_DoesNothingAfterResetGame()
     {
         var manager = NewMatch();
         manager.AddPoint(true);
         manager.AddPoint(true);
 
         manager.ResetGame();
-        manager.UndoPoint();
+        manager.Undo();
 
         var state = manager.GetStateSnapshot();
         Assert.False(state.IsGameActive);
@@ -687,11 +801,11 @@ public class GameManagerTests
     }
 
     [Fact]
-    public void UndoPoint_DoesNothingWhenNoPointsScored()
+    public void Undo_DoesNothingWhenNoPointsScored()
     {
         var manager = NewMatch();
 
-        manager.UndoPoint();
+        manager.Undo();
 
         var state = manager.GetStateSnapshot();
         Assert.Equal(0, state.Player1Score);

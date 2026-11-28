@@ -25,7 +25,7 @@ using the mapping below, then export/share it from there if needed.
 | Away +1           | `/api/control/score/away/add`             | Adds one point to the away player. Sets the winner banner if it reaches their Race-To target — the match stays fully editable afterward. |
 | Home -1           | `/api/control/score/home/subtract`        | Removes one point from the home player (does nothing below 0). Clears the winner banner if their score drops back below their Race-To target. |
 | Away -1           | `/api/control/score/away/subtract`        | Removes one point from the away player (does nothing below 0). Clears the winner banner if their score drops back below their Race-To target. |
-| Undo              | `/api/control/score/undo`                 | Reverses the most recently scored point, taking it off whichever player scored it — including at a tie. Does nothing once the board is back to 0–0. |
+| Undo              | `/api/control/score/undo`                 | Reverses the last change: a point (off whichever player scored it, including at a tie), a minus, the shooter, a ball group, or a ball on or off the table. Up to 50 changes back; a new rack, a reset or a resume clears what is left. |
 | Toggle Shooter    | `/api/control/shooter/toggle`              | Switches the current-shooter indicator to the other player. |
 | Home: Solids      | `/api/control/balls/home/solids`           | 8-ball only. Assigns Solids to the home player (away player auto-flips to Stripes). |
 | Home: Stripes     | `/api/control/balls/home/stripes`          | 8-ball only. Assigns Stripes to the home player (away player auto-flips to Solids). |

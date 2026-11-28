@@ -41,7 +41,7 @@ internal static class ControlEndpoints
 
         app.MapGet("/api/control/score/undo", () =>
         {
-            gameManager.UndoPoint();
+            gameManager.Undo();
             return Results.Ok();
         });
 
