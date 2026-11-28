@@ -137,7 +137,9 @@ page in this repo's `streamdeck/` folder both use the new one.
   player list and `presets.json` the named setups Match Setup offers. End-cap artwork is stored as files under `icons\`, not inline. The match in progress is
   written to `match.json` after every change — scores, game type and Race-To mode, ball groups, pocketed balls
   and whose turn it is — and removed when the match is reset, so a crash mid-match resumes where it was on the
-  next launch. There is still no match history.
+  next launch. A finished match is filed to `history.json` only when SAVE TO HISTORY is pressed: the History
+  window lists those with each name's wins, and the Records window turns the same archive into a per-player table
+  (matches, won, lost, win %) and a head-to-head between any two names with the last meeting.
 - Diagnostics land in `%AppData%\PoolScoreboard\controller.log`, appended across runs with a
   "Controller started" line per session. Shutdown warnings (such as the overlay host missing its stop
   timeout) go there, since by then there is no window to show them in. ASP.NET Core's own warnings and errors

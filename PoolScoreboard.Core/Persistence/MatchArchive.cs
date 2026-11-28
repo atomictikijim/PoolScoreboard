@@ -1,4 +1,4 @@
-using PoolScoreboard.Core.Models;
+﻿using PoolScoreboard.Core.Models;
 
 namespace PoolScoreboard.Core.Persistence;
 
@@ -101,6 +101,132 @@ public class MatchArchive
             .ThenBy(standing => standing.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
+
+    /// <summary>
+    /// Every name that has played a recorded match, with what it has played, won and lost — the same list
+    /// <see cref="Standings"/> counts, read for a table rather than a chip: a name that has only ever lost appears
+    /// here too, and so does the count of matches behind a win. Most wins first, then most matches, then name.
+    /// <para>
+    /// A name is its spelling ignoring case and surrounding space, the way the roster and the chips compare them,
+    /// and the spelling shown is the one from the player's most recent match, because the list is walked newest
+    /// first. A blank side (a name the operator never filled in) counts for nobody, and a record whose two sides
+    /// hold the same name is one person who played one match — two rows for them would make every count wrong.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<MatchPlayerRecord> PlayerRecords()
+    {
+        var records = new Dictionary<string, MatchPlayerRecord>(StringComparer.OrdinalIgnoreCase);
+
+        void Count(string name, bool won, DateTimeOffset when)
+        {
+            if (!records.TryGetValue(name, out var record))
+            {
+                // First sighting, and the list is newest first: this is the name's latest spelling and the time
+                // they last played.
+                record = new MatchPlayerRecord { Name = name, LastPlayed = when };
+                records[name] = record;
+            }
+
+            record.Played++;
+            if (won)
+                record.Wins++;
+        }
+
+        foreach (var match in Matches)
+        {
+            var home = NameOf(match.HomeName);
+            var away = NameOf(match.AwayName);
+
+            if (home.Length == 0 && away.Length == 0)
+                continue;
+
+            if (home.Length == 0)
+            {
+                Count(away, won: !match.HomeWon, match.CompletedAt);
+                continue;
+            }
+
+            if (away.Length == 0)
+            {
+                Count(home, won: match.HomeWon, match.CompletedAt);
+                continue;
+            }
+
+            if (string.Equals(home, away, StringComparison.OrdinalIgnoreCase))
+            {
+                Count(home, won: true, match.CompletedAt);
+                continue;
+            }
+
+            Count(home, match.HomeWon, match.CompletedAt);
+            Count(away, !match.HomeWon, match.CompletedAt);
+        }
+
+        return records.Values
+            .OrderByDescending(record => record.Wins)
+            .ThenByDescending(record => record.Played)
+            .ThenBy(record => record.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>
+    /// The names the archive holds, alphabetical and in their latest spelling, for a picker — every player who has
+    /// played, winners or not.
+    /// </summary>
+    public IReadOnlyList<string> Players() =>
+        PlayerRecords()
+            .Select(record => record.Name)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    /// <summary>
+    /// How two names have fared against each other, or null when the question does not mean anything: either name
+    /// is blank, or the two are the same person — nobody plays themselves, so a count of one name against itself
+    /// would be a second, contradicting answer to the one <see cref="PlayerRecords"/> already gives.
+    /// <para>
+    /// Only matches those two played each other count; a match one of them played against somebody else says
+    /// nothing about this pairing. Both sides are compared, either way round, so which end of a record a name was
+    /// on does not decide whose win it is.
+    /// </para>
+    /// </summary>
+    public MatchHeadToHead? HeadToHead(string? first, string? second)
+    {
+        var one = NameOf(first);
+        var other = NameOf(second);
+
+        if (one.Length == 0 || other.Length == 0 || string.Equals(one, other, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        var headToHead = new MatchHeadToHead { FirstName = one, SecondName = other };
+
+        foreach (var match in Matches)
+        {
+            var home = NameOf(match.HomeName);
+            var away = NameOf(match.AwayName);
+
+            var firstPlayedHome = string.Equals(home, one, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(away, other, StringComparison.OrdinalIgnoreCase);
+            var firstPlayedAway = string.Equals(home, other, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(away, one, StringComparison.OrdinalIgnoreCase);
+
+            if (!firstPlayedHome && !firstPlayedAway)
+                continue;
+
+            headToHead.Matches++;
+
+            // Newest first, so the first match counted is the last time they met.
+            headToHead.LastMeeting ??= match;
+
+            if (firstPlayedHome ? match.HomeWon : !match.HomeWon)
+                headToHead.FirstWins++;
+            else
+                headToHead.SecondWins++;
+        }
+
+        return headToHead;
+    }
+
+    private static string NameOf(string? name) => (name ?? string.Empty).Trim();
 }
 
 /// <summary>One name's record across the archive: how many of the recorded matches they won.</summary>
@@ -109,4 +235,46 @@ public class MatchStanding
     public string Name { get; set; } = string.Empty;
 
     public int Wins { get; set; }
+}
+
+/// <summary>
+/// One name's record across the archive: the matches they played, how many they won, and when they last played.
+/// Derived from the records rather than stored, so a hand-edited or older-version file cannot carry counts that
+/// disagree with the matches beside them.
+/// </summary>
+public class MatchPlayerRecord
+{
+    public string Name { get; set; } = string.Empty;
+
+    public int Played { get; set; }
+
+    public int Wins { get; set; }
+
+    public int Losses => Played - Wins;
+
+    /// <summary>Wins as a fraction of the matches played; zero for a record with none, which is what its row reads as.</summary>
+    public double WinRate => Played == 0 ? 0 : (double)Wins / Played;
+
+    /// <summary>When they last played — the newest recorded match they appear in.</summary>
+    public DateTimeOffset LastPlayed { get; set; }
+}
+
+/// <summary>
+/// How two names have fared against each other: how many matches they played, how many each won, and the last one.
+/// </summary>
+public class MatchHeadToHead
+{
+    public string FirstName { get; set; } = string.Empty;
+
+    public string SecondName { get; set; } = string.Empty;
+
+    /// <summary>Matches the two played each other — always <see cref="FirstWins"/> plus <see cref="SecondWins"/>.</summary>
+    public int Matches { get; set; }
+
+    public int FirstWins { get; set; }
+
+    public int SecondWins { get; set; }
+
+    /// <summary>The newest match they played, or null when they have not met.</summary>
+    public MatchRecord? LastMeeting { get; set; }
 }

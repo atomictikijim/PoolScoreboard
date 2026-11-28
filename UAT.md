@@ -438,3 +438,37 @@ disabled while nothing is picked, and relaunching does not bring it back.
 
 *Expected:* Match Setup opens normally with an empty picker, and the bad file is preserved as `presets.corrupt.json`.
 Saving a preset afterwards starts a fresh list.
+
+## Player records
+
+The **Records** button on the top bar opens a read-only view of `history.json`: one row per name that has played, and
+how any two picked names stand against each other. It deletes nothing and files nothing — SAVE TO HISTORY on the live
+view is still the only way a match enters the history, and the History window is still the only place one is removed.
+
+### PR-1 — An empty history
+
+*Precondition:* no `history.json` (or delete it with the app closed, then relaunch).
+
+1. Click **Records**.
+
+*Expected:* the window opens at once with no rows, the sentence "No matches recorded yet — finish a match and its
+players appear here.", both pickers empty and "Pick two different players." in the panel. Close returns to whichever
+screen was behind it.
+
+### PR-2 — Every name that played, not just the winners
+
+*Precondition:* three matches filed: Alice beat Bob 2–1, Bob beat Alice 2–0, Alice beat Carol 3–2.
+
+1. Click **Records**.
+
+*Expected:* three rows — Alice 3 played / 2 won / 1 lost / 67%, Bob 2 / 1 / 1 / 50%, Carol 1 / 0 / 1 / 0% — most wins
+first. Carol's row is there even though she has won nothing. The two who have won the most, Alice and Bob, are already
+picked, and the panel reads "Alice 1 – 1 Bob" with "2 matches" and the date and score of the last one they played.
+
+### PR-3 — Picking a different pair
+
+1. With PR-2 done, pick `Carol` in the lower picker.
+
+*Expected:* the panel reads "Alice 1 – 0 Carol" with "1 match" and the score of the one match they played. Picking
+`Alice` in the lower picker as well changes nothing but the wording — the panel says "Pick two different players."
+rather than counting a name against itself.

@@ -1106,6 +1106,14 @@ public partial class GameViewModel : ObservableObject
         RefreshSavedMatch(_gameManager.GetStateSnapshot(), reread: true);
     }
 
+    // Read-only, so unlike the History window nothing in it can change what the live view says about this match —
+    // and it looks the archive up for itself, so it shows the file as it is when opened.
+    [RelayCommand]
+    private void ShowRecords()
+    {
+        new RecordsWindow(_historyStore) { Owner = _owner }.ShowDialog();
+    }
+
     private void OnGameStateChanged(object? sender, GameStateChangedEventArgs e)
     {
         // State changes can be raised from a Kestrel thread — the HTTP control API the Stream Deck

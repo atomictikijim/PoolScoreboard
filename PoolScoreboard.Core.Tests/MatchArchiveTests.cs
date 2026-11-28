@@ -1,4 +1,4 @@
-using PoolScoreboard.Core.Enums;
+﻿using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
 using PoolScoreboard.Core.Persistence;
 
@@ -251,6 +251,144 @@ public sealed class MatchArchiveTests
         Assert.False(archive.Contains(string.Empty));
     }
 
+    [Fact]
+    public void PlayerRecords_CountsEveryNameThatPlayed_WonAndLost()
+    {
+        var archive = new MatchArchive();
+
+        // Newest first, as the archive stores them: Bob beat Alice, Alice beat Bob, Carol beat Alice.
+        archive.Matches.Add(Record("Bob", "Alice", homeWon: true, CompletedAt.AddMinutes(40)));
+        archive.Matches.Add(Record("Alice", "Bob", homeWon: true, CompletedAt.AddMinutes(20)));
+        archive.Matches.Add(Record("Alice", "Carol", homeWon: false, CompletedAt));
+
+        var records = archive.PlayerRecords();
+
+        // A loss puts a name in the table too — the chips in the History window only ever counted winners.
+        Assert.Equal(new[] { "Alice", "Bob", "Carol" }, records.Select(record => record.Name));
+
+        var alice = records[0];
+        Assert.Equal(3, alice.Played);
+        Assert.Equal(1, alice.Wins);
+        Assert.Equal(2, alice.Losses);
+        Assert.Equal(1d / 3, alice.WinRate, 3);
+
+        // Her latest match, which is the one where she lost to Bob.
+        Assert.Equal(CompletedAt.AddMinutes(40), alice.LastPlayed);
+
+        Assert.Equal(2, records[1].Played);
+        Assert.Equal(1, records[1].Wins);
+        Assert.Equal(1, records[2].Played);
+        Assert.Equal(1, records[2].Wins);
+    }
+
+    [Fact]
+    public void PlayerRecords_IgnoresABlankSide_AndCountsOneNameOnBothSidesOnce()
+    {
+        var archive = new MatchArchive();
+        archive.Matches.Add(Record("Alice", "alice", homeWon: true, CompletedAt));
+        archive.Matches.Add(Record("Bob", "   ", homeWon: true, CompletedAt.AddMinutes(-5)));
+        archive.Matches.Add(Record("  ", "  ", homeWon: true, CompletedAt.AddMinutes(-9)));
+
+        var records = archive.PlayerRecords();
+
+        // One person on both sides is one match, not two — anything else would make every count wrong.
+        Assert.Equal(new[] { "Alice", "Bob" }, records.Select(record => record.Name));
+        Assert.Equal(1, records[0].Played);
+        Assert.Equal(1, records[0].Wins);
+        Assert.Equal(1, records[1].Played);
+    }
+
+    [Fact]
+    public void PlayerRecords_ShowsTheNameAsItWasLastTyped()
+    {
+        var archive = new MatchArchive();
+        archive.Matches.Add(Record("alice", "Bob", homeWon: true, CompletedAt));
+        archive.Matches.Add(Record("Alice", "Bob", homeWon: false, CompletedAt.AddMinutes(-10)));
+
+        var player = archive.PlayerRecords().Single(record =>
+            string.Equals(record.Name, "Alice", StringComparison.OrdinalIgnoreCase));
+
+        // Ignoring case is identity; the spelling is the one from the newest match, as the chips do it.
+        Assert.Equal("alice", player.Name);
+        Assert.Equal(2, player.Played);
+        Assert.Equal(1, player.Wins);
+    }
+
+    [Fact]
+    public void Players_ListsEveryoneWhoPlayed_Alphabetically()
+    {
+        var archive = new MatchArchive();
+        // Newest first: Alice's latest spelling is the plain one, and the older misspelling is the same person.
+        archive.Matches.Add(Record("Zed", "Alice", homeWon: true, CompletedAt));
+        archive.Matches.Add(Record("Bob", "alice", homeWon: false, CompletedAt.AddMinutes(-5)));
+
+        Assert.Equal(new[] { "Alice", "Bob", "Zed" }, archive.Players());
+    }
+
+    [Fact]
+    public void HeadToHead_CountsOnlyTheMatchesThoseTwoPlayedEachOther()
+    {
+        var archive = new MatchArchive();
+        archive.Matches.Add(Record("Bob", "Alice", homeWon: true, CompletedAt.AddMinutes(30)));
+        archive.Matches.Add(Record("Alice", "Bob", homeWon: true, CompletedAt.AddMinutes(20)));
+        archive.Matches.Add(Record("Alice", "Carol", homeWon: true, CompletedAt.AddMinutes(10)));
+        archive.Matches.Add(Record("Alice", "Bob", homeWon: false, CompletedAt));
+
+        var headToHead = archive.HeadToHead("alice", "bob");
+
+        Assert.NotNull(headToHead);
+        Assert.Equal(3, headToHead!.Matches);
+
+        // Whose win it is follows the side each name played, not the side the asker named first.
+        Assert.Equal(1, headToHead.FirstWins);
+        Assert.Equal(2, headToHead.SecondWins);
+        Assert.Equal(CompletedAt.AddMinutes(30), headToHead.LastMeeting!.CompletedAt);
+    }
+
+    [Fact]
+    public void HeadToHead_RefusesAQuestionThatIsNotOne()
+    {
+        var archive = new MatchArchive();
+        archive.Matches.Add(Record("Alice", "Bob", homeWon: true, CompletedAt));
+
+        Assert.Null(archive.HeadToHead(null, "Bob"));
+        Assert.Null(archive.HeadToHead("Alice", "   "));
+
+        // Nobody plays themselves, and PlayerRecords already answers what Alice has done.
+        Assert.Null(archive.HeadToHead("Alice", "alice"));
+    }
+
+    [Fact]
+    public void HeadToHead_ForTwoWhoHaveNotMet_IsAnEmptyRecordRatherThanNothing()
+    {
+        var archive = new MatchArchive();
+        archive.Matches.Add(Record("Alice", "Carol", homeWon: true, CompletedAt));
+        archive.Matches.Add(Record("Bob", "Dave", homeWon: true, CompletedAt.AddMinutes(-5)));
+
+        var headToHead = archive.HeadToHead("Alice", "Bob");
+
+        Assert.NotNull(headToHead);
+        Assert.Equal(0, headToHead!.Matches);
+        Assert.Equal(0, headToHead.FirstWins);
+        Assert.Null(headToHead.LastMeeting);
+    }
+
+    private static MatchRecord Record(string home, string away, bool homeWon, DateTimeOffset when) => new()
+    {
+        MatchId = Guid.NewGuid().ToString("n"),
+        CompletedAt = when,
+        GameType = GameType.EightBall,
+        RaceToMode = RaceToMode.Split,
+        HomeName = home,
+        HomeTeamName = "Team H",
+        HomeRaceTo = 2,
+        HomeScore = homeWon ? 2 : 1,
+        AwayName = away,
+        AwayTeamName = "Team A",
+        AwayRaceTo = 2,
+        AwayScore = homeWon ? 1 : 2,
+        HomeWon = homeWon
+    };
     private static GameManager FinishedMatch(
         int homeTarget,
         int awayTarget,

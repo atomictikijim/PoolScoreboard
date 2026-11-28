@@ -262,6 +262,14 @@ on the port the overlay was really served on rather than the default or a value 
   letting one row be deleted behind a confirmation — the row goes, the chips are recounted from what is left, and
   `MatchHistoryStore.TryDelete` rewrites the file. Nothing there creates a record. The window is separate on
   purpose — the live view and the setup screen gained nothing but the save control.
+- **Records**, beside History on the top bar, is the archive read for a question rather than a list: a row per
+  name that has played (matches, won, lost, win %) from `MatchArchive.PlayerRecords()`, and a head-to-head
+  between two picks — "Alice 1 – 1 Bob", how many matches, and how the last of them went — from
+  `MatchArchive.HeadToHead`, whose own rules refuse a blank name and the same name twice. It opens with the two
+  who have won the most already picked, reads `history.json` through `MatchHistoryStore` when it is constructed,
+  and keeps nothing: the counts are derived from the matches on every open, so no total can disagree with the
+  records beside it. It changes nothing either — filing is still SAVE TO HISTORY, deleting is still the History
+  window's.
 - `Diagnostics/TraceLogFile` appends every `Trace` line to `%AppData%\PoolScoreboard\controller.log`
   (attached first in `OnStartup`, disposed last in `OnExit`), so shutdown warnings can be read after the
   fact. At startup a log over 1 MiB is moved to `controller.old.log`, replacing the previous run's. Each
@@ -370,8 +378,9 @@ alignment, not a pixel match).
   groups, pocketed balls, shooter), which is restored automatically on the next launch — there is no prompt, so
   RESET MATCH is how an operator discards a resumed match. A finished match is filed to `history.json` only when
   SAVE TO HISTORY is pressed, and the History window lists those newest first with each name's wins and deletes one
-  at a time; there is no export, no filter and no bulk clear, the history is capped at 200 matches, and a record is
-  per match rather than per player.
+  at a time; there is no export, no filter and no bulk clear, and the history is capped at 200 matches. A record is
+  per match rather than per player: the Records window's per-player totals and head-to-head are derived from those
+  records when it opens rather than stored beside them.
 - The shot clock's length and its extension are set on Match Setup (40 and 30 seconds by default) and are not part
   of the saved profile, so a relaunch comes back to the defaults — the same way the game type and Race-To mode do.
   A setup preset carries both lengths (and the game type and Race-To mode) together with the look, so a venue can
@@ -497,9 +506,17 @@ live. `MatchArchiveTests` pins the archive call: a finished match is
   window back off the screen: three records come out newest first with their scores and winners, the win chips
   read "Bob 2" then "Alice 1", an empty archive shows the placeholder instead of a blank list, and deleting a row
   removes it from the list, recounts the chips from what is left and is gone from the file afterwards — while
-  declining the confirmation changes nothing. `MatchArchiveTests` also pins `Standings()` — the
-  winner is credited rather than the loser, the most wins come first with names in order within a tie, one player
-  across two spellings counts once under the newest spelling, and a nameless side credits nobody.
+  declining the confirmation changes nothing. `RecordsWindowTests` covers the window beside it: one row per name
+  with its played/won/lost/percent, the head-to-head panel opening on the two who have won the most and following
+  a changed pick (scoreline, match count, and the last meeting's names and score in the machine's own time zone),
+  and an empty archive showing the placeholder and asking for two names. `MatchArchiveTests` also pins
+  `Standings()` — the winner is credited rather than the loser, the most wins come first with names in order
+  within a tie, one player across two spellings counts once under the newest spelling, and a nameless side credits
+  nobody — and the records beside it: `PlayerRecords()` counts every name that played, losers included, one name on
+  both sides once and a blank side for nobody, in the newest spelling; `Players()` lists them alphabetically for
+  the pickers; and `HeadToHead` counts only the matches those two played, credits a win to the side each name
+  played rather than to the home side, and answers nothing for a blank or repeated name or for two who have never
+  met.
 - Overlay/control-API endpoints should be tested against a `GameManager` test instance, not
   a live one.
 - `.githooks/pre-push` mirrors CI (a parse of `tools/verify-live.ps1`, the Release build, then every test project)

@@ -57,6 +57,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="POOLSCOREBOARD" FontSize="13" FontWeight="Bold"
                            Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
@@ -85,11 +86,15 @@
                             Command="{Binding RetryOverlayCommand}" Padding="14,6" Margin="12,0,0,0" />
                 </StackPanel>
 
-                <Button Grid.Column="3" Content="History" Style="{StaticResource InactiveButtonStyle}"
+                <Button Grid.Column="3" Content="Records" Style="{StaticResource InactiveButtonStyle}"
+                        Command="{Binding ShowRecordsCommand}" Padding="16,6" Margin="0,0,8,0"
+                        ToolTip="Every player's record from the history, and how any two of them stand against each other." />
+
+                <Button Grid.Column="4" Content="History" Style="{StaticResource InactiveButtonStyle}"
                         Command="{Binding ShowHistoryCommand}" Padding="16,6" Margin="0,0,8,0"
                         ToolTip="The recorded matches and each player's wins." />
 
-                <Button Grid.Column="4" Content="Help" Style="{StaticResource InactiveButtonStyle}"
+                <Button Grid.Column="5" Content="Help" Style="{StaticResource InactiveButtonStyle}"
                         Command="{Binding ShowHelpCommand}" Padding="16,6" />
             </Grid>
 

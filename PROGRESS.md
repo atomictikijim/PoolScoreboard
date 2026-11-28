@@ -84,6 +84,9 @@ loses. What the earlier list finished is in the Change Log, not repeated here.
 2. **A per-player record and head-to-head view from the archive.** `history.json` and `MatchArchive.Standings()` already
    count wins per name, but the only place that shows is a chip in the History window. "Alice 3-2 vs Bob", a session's
    standings, the last meeting: the data and the identity rules are in place.
+   *Done 2026-11-28: a **Records** window beside History — a row per name that played (matches, won, lost, win %) and a
+   head-to-head between any two picks with the last meeting, all derived from the archive on open and unit-tested in
+   Core (`PlayerRecords`, `Players`, `HeadToHead`).*
 3. **A pause for the shot clock.** Start, extend, clear or restart, but no pause — so a ref call, a review or a cue
    change either burns a dead clock or forces a clear-and-restart that lies about the time left. The armed state proves
    a clock can be drawn without counting, so a frozen, clearly-marked pause is additive.
@@ -293,6 +296,31 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-28 — The archive now answers the question people actually ask
+
+- **Records**, beside History in the top bar, opens a window built from `history.json`: one row per name that has
+  played — matches, won, lost, win % — and, under two pickers, how any two of them stand against each other
+  ("Alice 1 – 1 Bob", "2 matches · last played 2026-11-27 15:50, Alice 2 – 1 Bob"). It opens with the two who have won
+  the most already picked, and says so plainly when the history is empty.
+- `MatchArchive.PlayerRecords()` is the table: every name that played, including one that has only ever lost (the
+  History window's chips list winners only), ordered by wins, then matches played, then name. `Players()` feeds the
+  pickers, alphabetical in each name's latest spelling. `HeadToHead(first, second)` counts only the matches those two
+  played each other, and refuses a blank name or the same name twice — nobody plays themselves, and `PlayerRecords`
+  already answers what one name has done.
+- The identity rules are the ones already in the file: a name is its spelling ignoring case and surrounding space,
+  shown as last typed, and a blank side counts for nobody. A record whose two sides hold one name is one player who
+  played one match, not two rows for the same person.
+- Nothing is stored for any of it: the counts are derived from the matches every time the window opens, so a
+  hand-edited or older-version file cannot carry a total that disagrees with the matches beside it.
+- Mutation-proved, then reverted, five ways: counting one name on both sides twice, crediting a head-to-head win to the
+  home side rather than to the name, allowing a name against itself, reading the oldest spelling instead of the newest,
+  and naming the wrong side's wins in the scoreline. Each failed the fact that covers it.
+- Checked in the window with UI Automation: the button sits beside History with the bar still fitting, the window opens
+  and closes with the Controller still running, an empty history shows its placeholder and "Pick two different
+  players.", and over a seeded three-match history the rows read Alice 3/2/1 67%, Bob 2/1/1 50%, Carol 1/0/1 0% with
+  Alice and Bob picked and "Alice 1 – 1 Bob" under them. The seeded file was put back afterwards.
+- 0.44.1 -> 0.45.0. 179 Core + 36 Overlay + 209 Controller, 0 warnings.
 
 ### 2026-11-28 — A venue is a name now, not a retype
 
