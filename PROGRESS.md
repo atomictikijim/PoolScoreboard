@@ -284,6 +284,26 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
+### 2026-11-28 — A new rack resets the clock without starting it
+
+- `ResetBalls` used to clear the clock, so a fresh rack showed nothing at all. It now clears the deadline and sets
+  `GameState.ShotClockArmed`: the clock sits on screen at its full length, dimmed and not counting, and the operator
+  starts it after the break with `T`, the extension button's neighbour on the deck, or the start route. Nothing else
+  starts it — a potted ball and a shooter toggle leave it waiting.
+- `StartShotClock` takes the clock out of that state, `ClearShotClock` hides a waiting clock as well as a running
+  one (its guard now covers both, so the hide route is not a no-op after a new rack), and a won match and the money
+  ball leave neither a deadline nor an armed flag.
+- The overlay learned one more state: `shotClockArmed` in the payload draws the full length with no countdown, no
+  colour change and 55% opacity, so a waiting clock cannot be read as one already running. The line is full, the
+  numbers read the shot's length.
+- Mutation-proved, then reverted, seven ways: the armed flag dropped from `ResetBalls` (the clock vanished instead of
+  waiting), starting leaving it armed, a reset carrying it onto the setup screen, the clear route ignoring it, a won
+  match keeping it, the money ball keeping it, and the payload dropping `shotClockArmed`. The last two mutating
+  cleanly meant the first drafts of two tests were wrong — they started the clock before the reset and the win, so
+  the flag was already false and the mutation proved nothing. Both were tightened until the mutation failed.
+- 0.35.0 -> 0.36.0. 147 Core + 34 Overlay + 170 Controller, 0 warnings. Not checked by hand: the waiting clock has
+  not been seen in the window or in OBS.
+
 ### 2026-11-28 — The money ball stops the clock
 
 - Potting the ball the rack is counting towards ends the game, so the shot clock now stops with it instead of

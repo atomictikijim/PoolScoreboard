@@ -289,6 +289,12 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 
+/* A clock waiting at its full length after a new rack is not counting: dimmed, so the allowance is readable without
+   looking like time already running down. */
+.shot-clock.idle {
+  opacity: 0.55;
+}
+
 .shot-clock-label {
   font-size: 12px;
   letter-spacing: 2px;

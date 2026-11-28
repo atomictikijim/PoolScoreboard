@@ -44,7 +44,8 @@ public static class ScoreboardStateMapper
         // Controller sit. `Date.parse` accepts it; a bare local time would not.
         ShotClockSeconds = state.ShotClockSeconds,
         ShotClockDisplay = state.ShotClockDisplay.ToString(),
-        ShotClockEndsAt = state.ShotClockEndsAt?.ToString("o", CultureInfo.InvariantCulture)
+        ShotClockEndsAt = state.ShotClockEndsAt?.ToString("o", CultureInfo.InvariantCulture),
+        ShotClockArmed = state.ShotClockArmed
     };
 
     private static PlayerDto ToPlayerDto(Player player, int score) => new()

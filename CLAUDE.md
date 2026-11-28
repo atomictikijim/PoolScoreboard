@@ -121,7 +121,9 @@ dotnet clean
   rule: potting it ends the rack, so `BallLeftTheTable` stops the clock (null deadline) instead of restarting it,
   and both ball routes — the Controller's buttons and the Stream Deck's per-ball toggle — go through that one
   method. A point that wins the match clears the clock
-  rather than restarting it, so nothing counts down behind the winner banner; a new rack and a reset clear it too.
+  rather than restarting it, so nothing counts down behind the winner banner; a reset clears it too, while a new
+  rack leaves it **armed**: on screen at the full length, not counting, until the operator starts it after the
+  break.
   `ExtendShotClock` adds `ShotClockExtensionSeconds` to the clock already running for the current shooter, once per
   player per rack (a new rack hands both of them one back), and is ignored when no clock is running so a call at
   the wrong moment is not spent. Its "now" comes from a clock injected into the constructor, so a test can assert
@@ -249,7 +251,9 @@ on the port the overlay was really served on rather than the default or a value 
   fraction of the shot left (against `shotClockSeconds`, capped at a full line when an extension pushes the time
   past the length) and which takes its green/red from the same `low`/`expired` classes the numbers use, so the two
   can never disagree about when time is nearly up. An expired shot fills the whole track red rather than leaving it
-  empty, because a drained line and a clock nobody started look identical.
+  empty, because a drained line and a clock nobody started look identical. `shotClockArmed` draws a clock that is
+  waiting at its full length without counting — the state a new rack leaves behind — dimmed so it cannot be
+  mistaken for a running one.
 - `/overlay/cueball` — separate browser-source page: a cue-ball graphic; clicking it places
   a red dot marking the spin/contact point. Independent of and separately positionable from
   the scoreboard overlay in the OBS scene.
@@ -325,8 +329,8 @@ alignment, not a pixel match).
 - The shot clock's length and its extension are set on Match Setup (40 and 30 seconds by default) and are not part
   of the saved profile, so a relaunch comes back to the defaults — the same way the game type and Race-To mode do.
   The clock itself is not part of `match.json`, so a resumed match shows no clock — a countdown from a previous
-  session would be a lie — and there is no pause: a clock hides with a new rack, a reset, a won match or the clear
-  route, and starts again at full time. Nothing on screen says who has used their extension: the per-side flag is
+  session would be a lie — and there is no pause once it is running: it stops and hides with a reset, a won match or
+  the clear route, while a new rack leaves it waiting at the full length for a manual start. Nothing on screen says who has used their extension: the per-side flag is
   silent, so the second call simply does nothing. The clock is either numbers or the line, never both, and the line
   carries no numerals at all — which is the point of it across a room, but means an operator who wants the exact
   time on screen has to leave the display on `Time`.

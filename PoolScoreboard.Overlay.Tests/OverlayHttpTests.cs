@@ -352,6 +352,27 @@ public sealed class OverlayHttpTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ANewRackLeavesTheClockIdleAtFullLengthWithoutRunningIt()
+    {
+        (await _client.GetAsync("/api/control/shotclock/start")).EnsureSuccessStatusCode();
+        Assert.NotEqual(JsonValueKind.Null, (await GetJson(ScoreboardState)).GetProperty("shotClockEndsAt").ValueKind);
+
+        (await _client.GetAsync("/api/control/rack/new")).EnsureSuccessStatusCode();
+
+        // Not counting, but still on screen: the page draws the clock from these two fields together, so a rack that
+        // left both empty would blank it rather than show the new rack's allowance.
+        var rack = await GetJson(ScoreboardState);
+        Assert.Equal(JsonValueKind.Null, rack.GetProperty("shotClockEndsAt").ValueKind);
+        Assert.True(rack.GetProperty("shotClockArmed").GetBoolean());
+
+        (await _client.GetAsync("/api/control/shotclock/start")).EnsureSuccessStatusCode();
+
+        var started = await GetJson(ScoreboardState);
+        Assert.False(started.GetProperty("shotClockArmed").GetBoolean());
+        Assert.NotEqual(JsonValueKind.Null, started.GetProperty("shotClockEndsAt").ValueKind);
+    }
+
+    [Fact]
     public async Task ANewRackClearsTheBallTrackerButKeepsTheScore()
     {
         _gameManager.AddPoint(isPlayer1: true);

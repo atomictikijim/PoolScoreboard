@@ -109,9 +109,14 @@ public class GameManager
             // point won the match, because a won match has no next shot: the clock goes with the winner banner
             // rather than counting down behind it.
             if (_currentGame.Winner is not null)
+            {
                 _currentGame.ShotClockEndsAt = null;
+                _currentGame.ShotClockArmed = false;
+            }
             else
+            {
                 RestartRunningShotClock();
+            }
 
             RaiseGameStateChanged(_currentGame.Clone());
         }
@@ -346,8 +351,11 @@ public class GameManager
     }
 
     /// <summary>
-    /// A new rack is a new game, so the previous shot's countdown has nothing left to time and is cleared — and
-    /// both players get their extension back, because the rule is one each per rack.
+    /// A new rack is a new game: the previous shot's countdown has nothing left to time, so it is stopped — but the
+    /// new rack is not started either. The clock waits at its full length (armed, not running) until the operator
+    /// starts it after the break, which is both what the rack's allowance is worth showing and what stops a
+    /// countdown running while a player is still chalking up. Both players also get their extension back, because
+    /// the rule is one each per rack.
     /// </summary>
     public void ResetBalls()
     {
@@ -355,6 +363,7 @@ public class GameManager
         {
             _currentGame.PocketedBalls.Clear();
             _currentGame.ShotClockEndsAt = null;
+            _currentGame.ShotClockArmed = true;
             _currentGame.HomeShotClockExtensionUsed = false;
             _currentGame.AwayShotClockExtensionUsed = false;
             RaiseGameStateChanged(_currentGame.Clone());
@@ -375,6 +384,9 @@ public class GameManager
             if (!_currentGame.IsGameActive || _currentGame.Winner is not null)
                 return;
 
+            // Starting takes over from an armed clock: the idle full-length display a new rack leaves behind is
+            // the same clock, so it stops being idle the moment it begins to count.
+            _currentGame.ShotClockArmed = false;
             _currentGame.ShotClockEndsAt = _clock().AddSeconds(_currentGame.ShotClockSeconds);
             RaiseGameStateChanged(_currentGame.Clone());
         }
@@ -425,9 +437,14 @@ public class GameManager
     private void BallLeftTheTable(int ballNumber)
     {
         if (ballNumber == _currentGame.MoneyBallNumber)
+        {
             _currentGame.ShotClockEndsAt = null;
+            _currentGame.ShotClockArmed = false;
+        }
         else
+        {
             RestartRunningShotClock();
+        }
     }
 
     /// <summary>
@@ -441,17 +458,18 @@ public class GameManager
     }
 
     /// <summary>
-    /// Hides the clock. Nothing is raised when there was none, so a repeated clear cannot wake the overlay pages
-    /// for a state they already show.
+    /// Hides the clock, whether it is counting or waiting at its full length after a new rack. Nothing is raised
+    /// when there was none, so a repeated clear cannot wake the overlay pages for a state they already show.
     /// </summary>
     public void ClearShotClock()
     {
         lock (_sync)
         {
-            if (_currentGame.ShotClockEndsAt is null)
+            if (_currentGame.ShotClockEndsAt is null && !_currentGame.ShotClockArmed)
                 return;
 
             _currentGame.ShotClockEndsAt = null;
+            _currentGame.ShotClockArmed = false;
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }

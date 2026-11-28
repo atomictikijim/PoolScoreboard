@@ -237,12 +237,25 @@
     shotClockEndsAtMs = state.shotClockEndsAt ? Date.parse(state.shotClockEndsAt) : null;
     shotClockLengthMs = (state.shotClockSeconds || 0) * 1000;
     shotClock.classList.toggle('line-display', state.shotClockDisplay === 'Line');
-    if (shotClockEndsAtMs !== null) tickShotClock();
+
+    // A new rack leaves the clock waiting at its full length rather than starting it, so it is drawn without
+    // counting: no colour change, a full line, and dimmed so a viewer cannot mistake a waiting clock for a
+    // running one. Only the operator starts it.
+    const clockArmed = state.shotClockArmed === true;
+    shotClock.classList.toggle('idle', clockArmed);
+
+    if (clockArmed) {
+      shotClock.classList.remove('low', 'expired');
+      shotClockValue.textContent = clockText(shotClockLengthMs);
+      shotClockLineFill.style.width = '100%';
+    } else if (shotClockEndsAtMs !== null) {
+      tickShotClock();
+    }
 
     setElementVisible(scorePill, scoreBarVisible, skipAnimation);
     setElementVisible(ballTracker, showBallTracker, skipAnimation);
     setElementVisible(winnerBanner, showWinner, skipAnimation);
-    setElementVisible(shotClock, shotClockEndsAtMs !== null, skipAnimation);
+    setElementVisible(shotClock, clockArmed || shotClockEndsAtMs !== null, skipAnimation);
 
     renderBalls(state);
 

@@ -98,21 +98,63 @@ public class GameManagerTests
     }
 
     [Fact]
-    public void ANewRackOrAReset_HidesTheClock()
+    public void ANewRackLeavesTheClockIdleAtItsFullLength_AndAResetHidesIt()
     {
         var manager = NewMatch();
         manager.StartShotClock();
 
         manager.ResetBalls();
 
-        // A new rack is a new game; the previous shot's countdown has nothing left to time.
+        // The previous shot's countdown has nothing left to time, but the new rack is not started either: the clock
+        // waits at its full length until the operator starts it after the break.
+        var rack = manager.GetStateSnapshot();
+        Assert.Null(rack.ShotClockEndsAt);
+        Assert.True(rack.ShotClockArmed);
+
+        // And nothing starts it on its own — not a ball going down and not the other player taking the table.
+        manager.PocketBall(4);
+        manager.ToggleCurrentShooter();
         Assert.Null(manager.GetStateSnapshot().ShotClockEndsAt);
+        Assert.True(manager.GetStateSnapshot().ShotClockArmed);
 
         manager.StartShotClock();
+        Assert.NotNull(manager.GetStateSnapshot().ShotClockEndsAt);
+        Assert.False(manager.GetStateSnapshot().ShotClockArmed);
+
+        // Armed again, so the reset below is judged against a clock that was really waiting.
+        manager.ResetBalls();
         manager.ResetGame();
 
-        // And a reset ends the match, so it must not leave a clock counting down on the setup screen.
-        Assert.Null(manager.GetStateSnapshot().ShotClockEndsAt);
+        // A reset ends the match, so it must not leave a clock waiting on the setup screen either.
+        var reset = manager.GetStateSnapshot();
+        Assert.Null(reset.ShotClockEndsAt);
+        Assert.False(reset.ShotClockArmed);
+    }
+
+    [Fact]
+    public void AnIdleClock_IsHiddenByTheClearRouteToo()
+    {
+        var manager = NewMatch();
+        manager.ResetBalls();
+
+        manager.ClearShotClock();
+
+        // Hiding has to cover the waiting clock as well as the running one, or a Stream Deck hide button would do
+        // nothing after a new rack.
+        Assert.False(manager.GetStateSnapshot().ShotClockArmed);
+    }
+
+    [Fact]
+    public void AWonMatch_DoesNotLeaveAnIdleClockBehind()
+    {
+        var manager = NewMatch(homeRaceTo: 1, awayRaceTo: 1);
+        manager.ResetBalls();
+        manager.AddPoint(isPlayer1: true);
+
+        var won = manager.GetStateSnapshot();
+        Assert.NotNull(won.Winner);
+        Assert.Null(won.ShotClockEndsAt);
+        Assert.False(won.ShotClockArmed);
     }
 
     [Fact]
@@ -316,6 +358,12 @@ public class GameManagerTests
         manager.PocketBall(1);
 
         Assert.Equal(now.AddSeconds(GameState.DefaultShotClockSeconds), manager.GetStateSnapshot().ShotClockEndsAt);
+
+        // A clock left waiting by a new rack goes with the rack too: there is no shot left for it to be waiting on.
+        manager.ResetBalls();
+        manager.PocketBall(moneyBall);
+
+        Assert.False(manager.GetStateSnapshot().ShotClockArmed);
     }
 
     [Fact]

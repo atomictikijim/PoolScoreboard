@@ -35,6 +35,12 @@ public class ScoreboardStateDto
     /// frames — exactly one frame is sent when the clock starts, not forty.
     /// </summary>
     public string? ShotClockEndsAt { get; init; }
+
+    /// <summary>
+    /// True while the clock is on screen at its full length without counting — the state a new rack leaves it in,
+    /// waiting for the operator to start it. Mutually exclusive with <see cref="ShotClockEndsAt"/>.
+    /// </summary>
+    public bool ShotClockArmed { get; init; }
 }
 
 public class PlayerDto

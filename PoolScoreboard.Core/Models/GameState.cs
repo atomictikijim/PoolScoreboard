@@ -82,6 +82,14 @@ public class GameState
     public DateTimeOffset? ShotClockEndsAt { get; set; }
 
     /// <summary>
+    /// True while the clock is on screen at its full length but not counting — what a new rack leaves behind, so
+    /// the allowance is visible before the break and the operator starts it by hand. Mutually exclusive with
+    /// <see cref="ShotClockEndsAt"/> by construction: starting clears this, and clearing, a reset or a won match
+    /// leave neither, which is how the clock disappears.
+    /// </summary>
+    public bool ShotClockArmed { get; set; }
+
+    /// <summary>
     /// A deep-enough copy for handing to subscribers and HTTP responses: players, theme, style,
     /// visibility and the pocketed-ball set are cloned, and <see cref="CurrentShooter"/>
     /// /<see cref="Winner"/> are remapped onto the copied players so reference checks still work.
@@ -113,7 +121,8 @@ public class GameState
             ShotClockExtensionSeconds = ShotClockExtensionSeconds,
             HomeShotClockExtensionUsed = HomeShotClockExtensionUsed,
             AwayShotClockExtensionUsed = AwayShotClockExtensionUsed,
-            ShotClockEndsAt = ShotClockEndsAt
+            ShotClockEndsAt = ShotClockEndsAt,
+            ShotClockArmed = ShotClockArmed
         };
     }
 }

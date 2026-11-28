@@ -270,6 +270,18 @@ never started.
 *Expected:* the clock disappears as the winner banner appears, rather than restarting behind it, and neither key
 brings it back while the banner is up. RESET MATCH returns to setup with no clock.
 
+### SC-13 — A new rack resets the clock but does not start it
+
+*Precondition:* a match running with a clock started, and the overlay open in a browser.
+
+1. Press `N` (NEW RACK), then wait about fifteen seconds without touching anything.
+2. Press `T`.
+3. Press NEW RACK again, then press the Stream Deck hide button (`/api/control/shotclock/clear`).
+
+*Expected:* step 1 leaves the clock on screen at the full shot length, dimmed and not counting — a fresh rack's
+allowance, waiting. Step 2 starts it from the full time. Step 3 removes the waiting clock, so hiding works on a
+clock that was never started.
+
 ### SC-12 — The money ball stops the clock
 
 *Precondition:* a match running with a clock started, and a rack where the money ball is still on the table.
