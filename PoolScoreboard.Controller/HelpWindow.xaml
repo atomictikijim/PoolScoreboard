@@ -209,13 +209,13 @@
                         </TextBlock>
 
                         <TextBlock Text="Keyboard shortcuts (anywhere, while a match is running)" Style="{StaticResource HelpSubHeadingStyle}" />
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Alt+Q — add a point for Home</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Alt+P — add a point for Away</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Alt+A — undo the last change</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Alt+Space — toggle current shooter</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Alt+N — start a new rack</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Alt+T — start or restart the shot clock</TextBlock>
-                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Alt+E — call the current shooter's extension</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Shift+Q — add a point for Home</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Shift+P — add a point for Away</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Shift+A — undo the last change</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Shift+Space — toggle current shooter</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Shift+N — start a new rack</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Shift+T — start or restart the shot clock</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Shift+E — call the current shooter's extension</TextBlock>
                         <TextBlock Style="{StaticResource HelpBodyStyle}" Margin="0,8,0,0">
                             These work with OBS in front, so the match can be scored without clicking back to this
                             window. They are registered with Windows only while a match is running and released on a

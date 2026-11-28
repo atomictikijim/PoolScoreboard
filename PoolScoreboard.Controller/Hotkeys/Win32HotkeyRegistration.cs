@@ -30,7 +30,7 @@ internal sealed class Win32HotkeyRegistration : IHotkeyRegistration
         // The interesting failure is somebody else's chord: MOD_NOREPEAT and a real error are not worth a line each,
         // but this one explains a key that silently does nothing.
         if (Marshal.GetLastWin32Error() == ErrorHotkeyAlreadyRegistered)
-            Trace.WriteLine($"[GlobalHotkeys] Ctrl+Alt+{hotkey.Key} is already registered by another program.");
+            Trace.WriteLine($"[GlobalHotkeys] Ctrl+Shift+{hotkey.Key} is already registered by another program.");
 
         return false;
     }
@@ -38,6 +38,8 @@ internal sealed class Win32HotkeyRegistration : IHotkeyRegistration
     public void Unregister(IntPtr window, GlobalHotkey hotkey) => UnregisterHotKey(window, hotkey.Id);
 
     // WPF's ModifierKeys values are the same numbers Win32's MOD_* flags use (Alt 1, Control 2, Shift 4, Win 8).
+    // MOD_ALT is never set by these chords: Windows reports AltGr as Ctrl+Alt, so an Alt chord would take the
+    // characters AltGr types on a non-US layout away from every other program.
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool RegisterHotKey(IntPtr window, int id, uint modifiers, uint virtualKey);

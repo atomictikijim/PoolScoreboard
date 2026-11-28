@@ -101,7 +101,7 @@ public partial class MainWindow : Window
     // Space toggles the current shooter, N starts a new rack, T starts or restarts the
     // shot clock, E calls the current shooter's extension. Only active once a match is
     // running, and ignored while a setup TextBox has focus. The same actions are also
-    // registered as Ctrl+Alt+Q/P/A/Space/N/T/E system-wide (Hotkeys/GlobalHotkeys.cs)
+    // registered as Ctrl+Shift+Q/P/A/Space/N/T/E system-wide (Hotkeys/GlobalHotkeys.cs)
     // while a match runs, because during a stream OBS has the focus, not this window.
     private void MainWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {

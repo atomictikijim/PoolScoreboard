@@ -52,12 +52,18 @@ public sealed class GlobalHotkeyTests : IDisposable
     }
 
     [Fact]
-    public void EveryChordKeepsCtrlAndAlt_SoTheRestOfTheDesktopStillTypes()
+    public void EveryChordLeavesAltOut_SoAltGrCharactersAreStillTyped()
     {
         // Registering a bare letter or the spacebar system-wide would take it from every other program for the length
         // of a match, OBS's own text boxes included — which is why the window's own keys are not what gets registered.
         Assert.All(GlobalHotkeys.Default, hotkey =>
-            Assert.Equal(ModifierKeys.Control | ModifierKeys.Alt, hotkey.Modifiers));
+        {
+            Assert.Equal(GlobalHotkeys.ChordModifiers, hotkey.Modifiers);
+            Assert.Equal((ModifierKeys)0, hotkey.Modifiers & ModifierKeys.Alt);
+        });
+
+        // Windows reports AltGr as Ctrl+Alt, so an Alt chord would swallow the @ a German keyboard types with AltGr+Q
+        // and the EUR sign it types with AltGr+E — for every program on the machine, for the whole match.
     }
 
     [Theory]

@@ -195,12 +195,16 @@ dotnet clean
   windowed) and a hung one both count as having a window, and only a hidden or gone window counts as none.
   `IOverlaySession` is what the window depends on, so the banner and Retry can be tested without a socket.
 - The live view's shortcuts have **global twins**, because during a stream OBS has the focus and the Controller
-  never does: `Hotkeys/GlobalHotkeys.cs` names each action and gives it a `Ctrl+Alt` chord (Q/P/A/Space/N/T/E), and
+  never does: `Hotkeys/GlobalHotkeys.cs` names each action and gives it a `Ctrl+Shift` chord (Q/P/A/Space/N/T/E), and
   `Hotkeys/GlobalHotkeySession` registers them with `RegisterHotKey` against the window **only while a match is
   running** — at setup they have nothing to act on and would be held against every other program on the machine. The
   registration sits behind `IHotkeyRegistration` so that rule is tested without taking keys from the machine running
   the tests. Bare letters are deliberately *not* what gets registered: system-wide they would take the letters and the
-  spacebar from every other program, OBS's own text boxes included. A chord another program already owns comes back as
+  spacebar from every other program, OBS's own text boxes included. `Ctrl+Alt` is not used either: Windows reports
+  AltGr as Ctrl+Alt, so an Alt chord would swallow the `@` a German layout types with AltGr+Q and the `€` it types
+  with AltGr+E, for every program on the machine; `Ctrl+Shift` types no character, and the price is that a program whose
+  own `Ctrl+Shift+letter` shortcut is pressed mid-match gets a point scored instead. A chord another program already
+  owns comes back as
   a failed registration, is logged through `Trace`, and simply does nothing; the window's own keys are unchanged, and
   `GlobalHotkeyTests` holds a drift guard that reads `case Key.X:` out of `MainWindow.xaml.cs`, so a window shortcut
   added without its global twin fails the build.

@@ -274,17 +274,18 @@ brings it back while the banner is up. RESET MATCH returns to setup with no cloc
 
 *Precondition:* a match running, OBS in front, the Controller behind it but visible so its score can be watched.
 
-1. With OBS focused, press `Ctrl+Alt+Q` and `Ctrl+Alt+P`.
-2. Press `Ctrl+Alt+Space`, then `Ctrl+Alt+A`.
-3. Press `Ctrl+Alt+T`, then `Ctrl+Alt+E`.
-4. Press `Ctrl+Alt+N`.
-5. Click RESET MATCH in the Controller, click back into OBS, and press `Ctrl+Alt+Q` again.
-6. Type into any text field in OBS while the chords are registered (during step 3, for instance).
+1. With OBS focused, press `Ctrl+Shift+Q` and `Ctrl+Shift+P`.
+2. Press `Ctrl+Shift+Space`, then `Ctrl+Shift+A`.
+3. Press `Ctrl+Shift+T`, then `Ctrl+Shift+E`.
+4. Press `Ctrl+Shift+N`.
+5. Click RESET MATCH in the Controller, click back into OBS, and press `Ctrl+Shift+Q` again.
+6. Type into any text field in OBS while the chords are registered (during step 3, for instance), including an
+   AltGr character such as `@` or `€` if the keyboard has one.
 
 *Expected:* every chord in steps 1-4 changes the Controller exactly as its own key does — a point each side, the
 shooter flipped and then put back by the undo, a clock started and then given its extension, a new rack leaving the
-clock waiting. Step 5 does nothing at all, because the chords are released at setup. Step 6 types normally: only
-Ctrl+Alt+letter is taken, never a bare letter or the spacebar.
+Clock waiting. Step 5 does nothing at all, because the chords are released at setup. Step 6 types normally: only
+Ctrl+Shift+letter is taken, never a bare letter, the spacebar, or anything AltGr types.
 
 ### SC-17 — Undo takes back more than a point
 

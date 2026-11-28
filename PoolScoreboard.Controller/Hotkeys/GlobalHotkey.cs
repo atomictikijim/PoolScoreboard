@@ -26,21 +26,30 @@ public sealed record GlobalHotkey(int Id, Key Key, ModifierKeys Modifiers, Globa
 public static class GlobalHotkeys
 {
     /// <summary>
-    /// One chord per action, all Ctrl+Alt+letter. Deliberately not the bare Q/P/A/Space/N/T/E the window uses: those
+    /// One chord per action, all Ctrl+Shift+letter. Deliberately not the bare Q/P/A/Space/N/T/E the window uses: those
     /// are ours only while the Controller has focus, and registering them system-wide would take the letters and the
-    /// spacebar from every other program for the length of a match — OBS's own text boxes included. Ctrl+Alt is the
-    /// combination almost nothing else claims, and Windows reports a chord it cannot take rather than stealing it.
+    /// spacebar from every other program for the length of a match — OBS's own text boxes included.
+    /// <para>
+    /// And deliberately not Ctrl+Alt either, which is what this started as: on any non-US layout AltGr *is*
+    /// Ctrl+Alt, so a Ctrl+Alt+Q chord would swallow the @ a German keyboard types with AltGr+Q (and the € on AltGr+E)
+    /// for every program on the machine. Ctrl+Shift types nothing on its own, so no character is taken from anyone.
+    /// The cost is the other direction: Ctrl+Shift+letter is a real app shortcut in some programs (Ctrl+Shift+P in an
+    /// editor, Ctrl+Shift+T for a browser's reopened tab), and those would fire here while a match is running.
+    /// </para>
     /// </summary>
     public static IReadOnlyList<GlobalHotkey> Default { get; } = new GlobalHotkey[]
     {
-        new(1, Key.Q, ModifierKeys.Control | ModifierKeys.Alt, GlobalHotkeyAction.HomePoint),
-        new(2, Key.P, ModifierKeys.Control | ModifierKeys.Alt, GlobalHotkeyAction.AwayPoint),
-        new(3, Key.A, ModifierKeys.Control | ModifierKeys.Alt, GlobalHotkeyAction.Undo),
-        new(4, Key.Space, ModifierKeys.Control | ModifierKeys.Alt, GlobalHotkeyAction.ToggleShooter),
-        new(5, Key.N, ModifierKeys.Control | ModifierKeys.Alt, GlobalHotkeyAction.NewRack),
-        new(6, Key.T, ModifierKeys.Control | ModifierKeys.Alt, GlobalHotkeyAction.StartShotClock),
-        new(7, Key.E, ModifierKeys.Control | ModifierKeys.Alt, GlobalHotkeyAction.ExtendShotClock)
+        new(1, Key.Q, ChordModifiers, GlobalHotkeyAction.HomePoint),
+        new(2, Key.P, ChordModifiers, GlobalHotkeyAction.AwayPoint),
+        new(3, Key.A, ChordModifiers, GlobalHotkeyAction.Undo),
+        new(4, Key.Space, ChordModifiers, GlobalHotkeyAction.ToggleShooter),
+        new(5, Key.N, ChordModifiers, GlobalHotkeyAction.NewRack),
+        new(6, Key.T, ChordModifiers, GlobalHotkeyAction.StartShotClock),
+        new(7, Key.E, ChordModifiers, GlobalHotkeyAction.ExtendShotClock)
     };
+
+    /// <summary>The one modifier set every chord uses, named once so the rule is stated in one place.</summary>
+    public const ModifierKeys ChordModifiers = ModifierKeys.Control | ModifierKeys.Shift;
 
     /// <summary>
     /// The command a hotkey runs — the same one its key and its button run, so a chord can never do something the

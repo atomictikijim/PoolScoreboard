@@ -93,7 +93,7 @@ written; #2, #3, #5, #6 and #9 are open.
    clears the history. The `A` key, the existing Stream Deck route and no new UI at all.*
 3. **Global hotkeys.** Shortcuts are live-view-only, so they need the Controller focused; a real stream has OBS
    focused while the operator scores. `RegisterHotKey` for the same five actions, enabled only during a match. *Done
-   2026-11-28: `Hotkeys/GlobalHotkeys.cs` gives each of the seven live-view actions a `Ctrl+Alt` chord, and
+   2026-11-28: `Hotkeys/GlobalHotkeys.cs` gives each of the seven live-view actions a `Ctrl+Shift` chord, and
    `Hotkeys/GlobalHotkeySession` registers them against the window only while a match runs, releasing them on a reset
    and on close. Deliberately not the bare keys: system-wide they would take the letters and the spacebar from every
    other program mid-stream, OBS's own text boxes included. Behind `IHotkeyRegistration`, so the rule is tested
@@ -309,6 +309,22 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-28 — The global chords no longer eat AltGr characters
+
+- The chords were `Ctrl+Alt`, which is wrong on any non-US layout: Windows reports AltGr as Ctrl+Alt, so `Ctrl+Alt+Q`
+  took the `@` a German keyboard types with AltGr+Q (and the `EUR` sign it types with AltGr+E) away from every program on
+  the machine for the whole match. The rule now lives in one place, `GlobalHotkeys.ChordModifiers`, and it is
+  `Ctrl+Shift`.
+- `Ctrl+Shift` types no character at all, so nothing anybody types is intercepted. The price moved to the other side: a
+  program whose own `Ctrl+Shift+letter` shortcut is pressed mid-match gets a point scored instead, which is recorded as
+  the reason for the choice rather than left to be discovered. `Win+Alt` was not taken instead because Windows reserves
+  part of that space, and a chord it refuses registers nothing and would need another rule.
+- `EveryChordLeavesAltOut_SoAltGrCharactersAreStillTyped` holds it: every chord equals `ChordModifiers` and carries no
+  Alt bit. Mutation-proved, then reverted: putting `Ctrl+Alt` back on all seven fails it.
+- 0.42.0 -> 0.43.0. 155 Core + 36 Overlay + 189 Controller, 0 warnings. Not checked live: no key was pressed, so what a
+  chord does with AltGr held on this machine's layout was not observed — the case rests on Windows' own definition of
+  AltGr plus the table test.
 
 ### 2026-11-28 — The keys work while OBS has focus
 
