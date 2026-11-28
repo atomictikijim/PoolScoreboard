@@ -243,7 +243,8 @@ on the port the overlay was really served on rather than the default or a value 
   payload's `shotClockDisplay` picks which of the two drawings it uses: the numbers, or a line whose width is the
   fraction of the shot left (against `shotClockSeconds`, capped at a full line when an extension pushes the time
   past the length) and which takes its green/red from the same `low`/`expired` classes the numbers use, so the two
-  can never disagree about when time is nearly up.
+  can never disagree about when time is nearly up. An expired shot fills the whole track red rather than leaving it
+  empty, because a drained line and a clock nobody started look identical.
 - `/overlay/cueball` — separate browser-source page: a cue-ball graphic; clicking it places
   a red dot marking the spin/contact point. Independent of and separately positionable from
   the scoreboard overlay in the OBS scene.

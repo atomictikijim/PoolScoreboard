@@ -280,6 +280,7 @@ brings it back while the banner is up. RESET MATCH returns to setup with no cloc
 4. Restart the Controller and read the button's label.
 
 *Expected:* step 1 swaps the pill's numbers for a green line that drains from the right and runs out as the time
-does. Step 2 turns it red for the last five seconds, staying red once the shot has expired. Step 3 brings the
-numbers back, and both drawings agree about when the clock is nearly up. Step 4 still shows **Shot Clock: Line**,
+does. Step 2 turns it red for the last five seconds, and at 0:00 the whole track fills red rather than going
+empty — an empty line would look like a clock nobody started. Step 3 brings the numbers back, and both drawings
+agree about when the clock is nearly up. Step 4 still shows **Shot Clock: Line**,
 because the choice is saved with the rest of the look.

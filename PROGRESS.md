@@ -284,6 +284,16 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
+### 2026-11-28 — An expired line still says the shot ran out
+
+- The line's fill shrinks to nothing at 0:00, so an expired shot left an empty grey track — indistinguishable from a
+  clock that was never started. `.shot-clock.expired` now colours the track itself red, matching the numbers, which
+  read a red `0:00`: the shot ran out, and the overlay keeps saying so until the next clock.
+- Checked in the browser at 0:00 with the classes the page really applies. No test covers it: the rule is one CSS
+  selector on classes the page already toggles, which the HTTP tests keep honest at the payload level but cannot
+  see painted.
+- 0.34.0 -> 0.34.1. 141 Core + 32 Overlay + 170 Controller still green, 0 warnings.
+
 ### 2026-11-28 — The countdown can be a line instead of numbers
 
 - `GameState` gained `ShotClockDisplay` (`Time` or `Line`), set through `GameManager.SetShotClockDisplay` and carried

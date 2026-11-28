@@ -344,6 +344,13 @@ html, body {
   background: #ff3b30;
 }
 
+/* A drained line is an empty grey track, which reads exactly like a clock nobody started — so an expired shot
+   fills the track itself with red instead. The numbers say "0:00" and the line says "time is up", and neither
+   goes blank the moment the shot runs out. */
+.shot-clock.expired .shot-clock-line {
+  background: #ff3b30;
+}
+
 .winner-banner {
   margin-top: 14px;
   padding: 8px 22px;
