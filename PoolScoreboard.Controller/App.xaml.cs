@@ -111,12 +111,16 @@ public partial class App : System.Windows.Application
         // The order the rest of startup depends on lives in StartupWiring, so it can be asserted without a window:
         // the saved port before anything binds, then the profile before a window reads state, then the match in
         // progress, then the overlay host. Its own comment says why each step has to follow the one before.
+        // Named, because two of the steps are plain Actions: swapped positionally they still compile, and the result
+        // would start the overlay before resuming the match it should be serving. The tests build their own wiring, so
+        // nothing but these names holds this call site to its intent.
         new StartupWiring(
-            _settingsStore.Load,
-            profile => _overlayPortSettings.ApplySavedPort(profile),
-            loaded => loaded.Profile.ApplyTo(SharedGameManager, loaded.HomeIconDataUri, loaded.AwayIconDataUri),
-            _matchAutosave.Restore,
-            () => OverlaySession.Start(SharedGameManager))
+            loadProfile: _settingsStore.Load,
+            applyPort: profile => _overlayPortSettings.ApplySavedPort(profile),
+            applyProfile: loaded => loaded.Profile.ApplyTo(
+                SharedGameManager, loaded.HomeIconDataUri, loaded.AwayIconDataUri),
+            resumeMatch: _matchAutosave.Restore,
+            startOverlay: () => OverlaySession.Start(SharedGameManager))
             .Run();
 
         _saveTimer.Tick += (_, _) =>
