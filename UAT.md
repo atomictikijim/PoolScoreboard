@@ -171,10 +171,11 @@ example with another program holding the overlay port).
 
 ## Shot clock
 
-The overlay draws a countdown only while a shot's clock is running. It is started by `T` on the live view or by the
+The overlay draws a countdown only while a shot's clock is showing. It is started by `T` on the live view or by the
 Stream Deck start button, at the length chosen in Match Setup, and it is not the same thing as a match timer: a new
 rack, a reset or a won match hides it. Each player can call one extension per rack with `E`, the CALL EXTENSION
-button, or the Stream Deck button.
+button, or the Stream Deck button. It can be held where it is with `H` — or the PAUSE / RESUME button beside the
+readout — and counts down from that same time when released.
 
 ### SC-1 — Nothing before a match
 
@@ -276,15 +277,15 @@ brings it back while the banner is up. RESET MATCH returns to setup with no cloc
 
 1. With OBS focused, press `Ctrl+Shift+Q` and `Ctrl+Shift+P`.
 2. Press `Ctrl+Shift+Space`, then `Ctrl+Shift+A`.
-3. Press `Ctrl+Shift+T`, then `Ctrl+Shift+E`.
+3. Press `Ctrl+Shift+T`, then `Ctrl+Shift+E`, then `Ctrl+Shift+H` twice.
 4. Press `Ctrl+Shift+N`.
 5. Click RESET MATCH in the Controller, click back into OBS, and press `Ctrl+Shift+Q` again.
 6. Type into any text field in OBS while the chords are registered (during step 3, for instance), including an
    AltGr character such as `@` or `€` if the keyboard has one.
 
 *Expected:* every chord in steps 1-4 changes the Controller exactly as its own key does — a point each side, the
-shooter flipped and then put back by the undo, a clock started and then given its extension, a new rack leaving the
-Clock waiting. Step 5 does nothing at all, because the chords are released at setup. Step 6 types normally: only
+shooter flipped and then put back by the undo, a clock started and then given its extension, held and released
+again, a new rack leaving the Clock waiting. Step 5 does nothing at all, because the chords are released at setup. Step 6 types normally: only
 Ctrl+Shift+letter is taken, never a bare letter, the spacebar, or anything AltGr types.
 
 ### SC-17 — Undo takes back more than a point
@@ -383,6 +384,26 @@ empty — an empty line would look like a clock nobody started. Step 3 brings th
 agree about when the clock is nearly up. Step 4 still shows **Shot Clock: Line**,
 because the choice is saved with the rest of the look.
 
+
+### SC-19 — A clock that can be held
+
+*Precondition:* a match running, the overlay open in a browser, and the Controller's live view in front.
+
+1. Press `T`, let a few seconds run, then press `H`.
+2. Wait ten seconds without touching anything.
+3. Press `H` again.
+4. Press `H`, score a point, then look at the clock.
+5. Start the clock again, press `H`, and press the Stream Deck hide button.
+6. Press `N`, then look at the PAUSE button.
+7. With OBS focused, press `Ctrl+Shift+H` twice.
+
+*Expected:* step 1 freezes the clock — the header reads `0:3x · paused`, the button says **RESUME**, and the overlay
+keeps the same numbers, dimmed, with a `PAUSED` badge instead of counting down. Step 2 changes nothing: the time is
+held, not spent. Step 3 counts down from that same number rather than from 0:40, and the button reads **PAUSE**
+again. Step 4 starts the next shot at its full length from the point instead of resuming the held one. Step 5
+leaves no clock on screen and no PAUSE button beside it. Step 6 shows the dimmed `0:40 · waiting` clock with the
+button greyed out, because there is nothing to freeze. Step 7 holds and releases the clock from the global chord,
+exactly as `H` does, and the button's own state agrees.
 
 ## Setup presets
 

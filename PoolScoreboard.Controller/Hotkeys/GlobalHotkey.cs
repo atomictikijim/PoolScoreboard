@@ -13,7 +13,8 @@ public enum GlobalHotkeyAction
     ToggleShooter,
     NewRack,
     StartShotClock,
-    ExtendShotClock
+    ExtendShotClock,
+    PauseShotClock
 }
 
 /// <summary>One system-wide shortcut: the id Windows reports back, its chord, and the action it runs.</summary>
@@ -45,7 +46,8 @@ public static class GlobalHotkeys
         new(4, Key.Space, ChordModifiers, GlobalHotkeyAction.ToggleShooter),
         new(5, Key.N, ChordModifiers, GlobalHotkeyAction.NewRack),
         new(6, Key.T, ChordModifiers, GlobalHotkeyAction.StartShotClock),
-        new(7, Key.E, ChordModifiers, GlobalHotkeyAction.ExtendShotClock)
+        new(7, Key.E, ChordModifiers, GlobalHotkeyAction.ExtendShotClock),
+        new(8, Key.H, ChordModifiers, GlobalHotkeyAction.PauseShotClock)
     };
 
     /// <summary>The one modifier set every chord uses, named once so the rule is stated in one place.</summary>
@@ -64,6 +66,7 @@ public static class GlobalHotkeys
         GlobalHotkeyAction.NewRack => viewModel.NewRackCommand,
         GlobalHotkeyAction.StartShotClock => viewModel.StartShotClockCommand,
         GlobalHotkeyAction.ExtendShotClock => viewModel.ExtendShotClockCommand,
+        GlobalHotkeyAction.PauseShotClock => viewModel.PauseShotClockCommand,
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "No command is mapped to this hotkey.")
     };
 }

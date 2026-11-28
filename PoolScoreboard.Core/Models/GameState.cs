@@ -97,6 +97,15 @@ public class GameState
     public bool ShotClockArmed { get; set; }
 
     /// <summary>
+    /// How much of the current shot was left when the operator paused it, or null when no clock is paused. A pause
+    /// is the deadline taken off the state and held here: the overlay draws that time without counting it down, and
+    /// resuming puts a deadline back on from it rather than from the full length. Kept apart from
+    /// <see cref="ShotClockEndsAt"/> and <see cref="ShotClockArmed"/> by construction — pausing clears the deadline,
+    /// and resuming, clearing, a new rack, a reset or a won match all end the pause.
+    /// </summary>
+    public TimeSpan? ShotClockPausedRemaining { get; set; }
+
+    /// <summary>
     /// A deep-enough copy for handing to subscribers and HTTP responses: players, theme, style,
     /// visibility and the pocketed-ball set are cloned, and <see cref="CurrentShooter"/>
     /// /<see cref="Winner"/> are remapped onto the copied players so reference checks still work.
@@ -130,7 +139,8 @@ public class GameState
             HomeShotClockExtensionUsed = HomeShotClockExtensionUsed,
             AwayShotClockExtensionUsed = AwayShotClockExtensionUsed,
             ShotClockEndsAt = ShotClockEndsAt,
-            ShotClockArmed = ShotClockArmed
+            ShotClockArmed = ShotClockArmed,
+            ShotClockPausedRemaining = ShotClockPausedRemaining
         };
     }
 }

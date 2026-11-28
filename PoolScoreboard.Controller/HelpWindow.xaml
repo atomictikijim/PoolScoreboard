@@ -203,6 +203,12 @@
                             until you press T, so the break is not on the clock.
                         </TextBlock>
                         <TextBlock Style="{StaticResource HelpCodeStyle}">E — call the current shooter's extension (one per player per rack)</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">H — hold the shot clock, or put it back to counting</TextBlock>
+                        <TextBlock Style="{StaticResource HelpBodyStyle}" Margin="0,6,0,0">
+                            A held clock keeps whatever time was left and stops counting — for a ref call, a
+                            review or a cue change. Pressing it again counts down from that same time, not from
+                            the full length. A point, a pocketed ball or a new shot ends the pause with the shot.
+                        </TextBlock>
                         <TextBlock Style="{StaticResource HelpBodyStyle}" Margin="0,8,0,0">
                             These are disabled while typing in a text field, so they won't interfere with
                             entering names or race-to values.
@@ -216,6 +222,7 @@
                         <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Shift+N — start a new rack</TextBlock>
                         <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Shift+T — start or restart the shot clock</TextBlock>
                         <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Shift+E — call the current shooter's extension</TextBlock>
+                        <TextBlock Style="{StaticResource HelpCodeStyle}">Ctrl+Shift+H — hold the shot clock, or put it back to counting</TextBlock>
                         <TextBlock Style="{StaticResource HelpBodyStyle}" Margin="0,8,0,0">
                             These work with OBS in front, so the match can be scored without clicking back to this
                             window. They are registered with Windows only while a match is running and released on a
@@ -311,6 +318,8 @@
                         <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Start / restart Shot Clock — {0}/api/control/shotclock/start'}" />
                         <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Hide Shot Clock — {0}/api/control/shotclock/clear'}" />
                         <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Call Extension — {0}/api/control/shotclock/extension'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Pause Shot Clock — {0}/api/control/shotclock/pause'}" />
+                        <TextBlock Style="{StaticResource HelpCodeStyle}" Text="{Binding OverlayBaseUrl, StringFormat='Resume Shot Clock — {0}/api/control/shotclock/resume'}" />
 
                         <TextBlock Text="Notes" Style="{StaticResource HelpSubHeadingStyle}" />
                         <TextBlock Style="{StaticResource HelpBulletStyle}">

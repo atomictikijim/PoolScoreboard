@@ -83,6 +83,8 @@ same "run in background" setting, just a different **Title** and **Website** URL
 | Start Shot Clock | `http://127.0.0.1:51234/api/control/shotclock/start`        |
 | Hide Shot Clock  | `http://127.0.0.1:51234/api/control/shotclock/clear`        |
 | Call Extension   | `http://127.0.0.1:51234/api/control/shotclock/extension`    |
+| Pause Shot Clock | `http://127.0.0.1:51234/api/control/shotclock/pause`       |
+| Resume Shot Clock | `http://127.0.0.1:51234/api/control/shotclock/resume`     |
 
 ### Ball display buttons (1-15)
 

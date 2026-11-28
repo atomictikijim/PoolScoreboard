@@ -112,6 +112,21 @@ internal static class ControlEndpoints
             return Results.Ok();
         });
 
+        // Pause and resume are two routes for the same reason start and clear are: mid-match, a button that
+        // sometimes does the opposite of what it says is worse than two buttons. Pausing freezes the time left;
+        // resuming counts it down from there.
+        app.MapGet("/api/control/shotclock/pause", () =>
+        {
+            gameManager.PauseShotClock();
+            return Results.Ok();
+        });
+
+        app.MapGet("/api/control/shotclock/resume", () =>
+        {
+            gameManager.ResumeShotClock();
+            return Results.Ok();
+        });
+
         // The player's extension, called by the operator on their behalf: it adds the setup screen's extension time
         // to the clock already running, once for each player per rack. Core decides both, so a second call in the
         // same rack is a no-op rather than an error a Stream Deck button would show.

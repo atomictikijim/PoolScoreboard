@@ -190,6 +190,28 @@ public sealed class OverlayHttpTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ThePauseAndResumeRoutesHoldTheClock_AndGiveItBackFromWhereItStopped()
+    {
+        (await _client.GetAsync("/api/control/shotclock/start")).EnsureSuccessStatusCode();
+
+        (await _client.GetAsync("/api/control/shotclock/pause")).EnsureSuccessStatusCode();
+
+        var paused = await GetJson(ScoreboardState);
+
+        // The page draws a held clock from this number instead of from a deadline: no deadline means nothing is
+        // counting, and the number is what a resume will count down from.
+        Assert.Equal(JsonValueKind.Null, paused.GetProperty("shotClockEndsAt").ValueKind);
+        var held = paused.GetProperty("shotClockPausedSeconds").GetDouble();
+        Assert.InRange(held, 0, GameState.DefaultShotClockSeconds);
+
+        (await _client.GetAsync("/api/control/shotclock/resume")).EnsureSuccessStatusCode();
+
+        var resumed = await GetJson(ScoreboardState);
+        Assert.Equal(JsonValueKind.Null, resumed.GetProperty("shotClockPausedSeconds").ValueKind);
+        Assert.NotEqual(JsonValueKind.Null, resumed.GetProperty("shotClockEndsAt").ValueKind);
+    }
+
+    [Fact]
     public async Task TheShotClockExtensionMovesTheDeadlineOnceForEachShooter()
     {
         (await _client.GetAsync("/api/control/shotclock/start")).EnsureSuccessStatusCode();

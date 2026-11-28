@@ -135,6 +135,13 @@ dotnet clean
   player per rack (a new rack hands both of them one back), and is ignored when no clock is running so a call at
   the wrong moment is not spent. Its "now" comes from a clock injected into the constructor, so a test can assert
   the exact instant rather than sleep and tolerate.
+  `PauseShotClock` freezes a running clock where it is — `ShotClockPausedRemaining` holds the time left and the
+  deadline is null while paused, which is how the page knows not to count — and `ResumeShotClock` counts down from
+  that held time rather than from the full length. Both are ignored unless there is something to freeze or
+  release, so a second press can neither shorten the shot nor start one nobody asked for. A pause belongs to the
+  shot it froze: a point, a pocketed ball or a shooter toggle starts the next shot from the full length, and a
+  clear, a won match, the money ball or a new rack takes the pause off the screen with the clock. An extension
+  called while paused lands on the held time and is still spent.
 - No database, no async I/O — pure, fast, unit-testable.
 - `Persistence/OperatorProfile` (capture/apply of the saved profile), `Persistence/PlayerRoster`
   (saved-player identity — a name, ignoring case — ordering and the 100-entry cap),
@@ -166,9 +173,12 @@ dotnet clean
   assignment buttons (8-ball only) or ball display (9/10-ball), new-rack/reset-match controls. The shared OVERLAY
   row (on both screens) ends with a **Shot Clock: Time / Line** button that swaps the countdown's drawing; it is a
   look setting, so it works mid-match and is saved with the profile.
-- The header also carries a small **shot-clock readout** — `0:32 · running`, `0:40 · waiting` after a new rack, or
-  `0:00 · time up`, hidden when there is no clock — so the operator does not have to look at the overlay to know
-  where the shot stands. Beside it, one chip per player says who still has their extension (`Alice: 1 left`, dimmed
+- The header also carries a small **shot-clock readout** — `0:32 · running`, `0:40 · waiting` after a new rack,
+  `0:27 · paused` while the operator has it held, or `0:00 · time up`, hidden when there is no clock — so the
+  operator does not have to look at the overlay to know where the shot stands. Beside it is one **PAUSE / RESUME**
+  button whose label says which of the two it will do, because mid-match there is no third thing the operator
+  could have meant by it; its `CanExecute` is "a clock is showing" (counting or held), so the button and the `H`
+  key cannot disagree, and a clock waiting at its full length after a new rack has nothing to freeze. Beside it, one chip per player says who still has their extension (`Alice: 1 left`, dimmed
   to `Alice: used` once spent), because a second call from the same player is silently a no-op and the operator
   needs to know that before pressing CALL EXTENSION rather than after. CALL EXTENSION itself greys out, and the `E`
   key stops answering, while the player at the table has spent theirs — the command's `CanExecute` is that rule
@@ -386,8 +396,9 @@ alignment, not a pixel match).
   A setup preset carries both lengths (and the game type and Race-To mode) together with the look, so a venue can
   be restored with one pick, but nothing applies a preset at launch: the operator still chooses one.
   The clock itself is not part of `match.json`, so a resumed match shows no clock — a countdown from a previous
-  session would be a lie — and there is no pause once it is running: it stops and hides with a reset, a won match or
-  the clear route, while a new rack leaves it waiting at the full length for a manual start. The operator's screen says who has an extension left, and greys the button out
+  session would be a lie. It stops and hides with a reset, a won match or the clear route, while a new rack leaves it
+  waiting at the full length for a manual start; a pause holds one shot's remaining time without stopping anything
+  else, and ends with that shot. The operator's screen says who has an extension left, and greys the button out
   once the player at the table has spent theirs, but the overlay carries nothing about extensions, so a viewer
   cannot see it either. A call with no clock running is still ignored rather than refused: the button stays live
   while the clock is waiting or hidden, and only a spent extension greys it. The clock is either numbers or the line, never both, and the line

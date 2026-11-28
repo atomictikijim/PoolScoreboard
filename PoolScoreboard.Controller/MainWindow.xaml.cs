@@ -139,6 +139,14 @@ public partial class MainWindow : Window
                 _viewModel.StartShotClockCommand.Execute(null);
                 e.Handled = true;
                 break;
+            case Key.H:
+                // Holds the clock where it is, and puts it back: one key, the way the button is one button. Refused
+                // the way the greyed button is, so the key cannot do what the button will not.
+                if (_viewModel.PauseShotClockCommand.CanExecute(null))
+                    _viewModel.PauseShotClockCommand.Execute(null);
+
+                e.Handled = true;
+                break;
             case Key.E:
                 // The player's extension, called on their behalf: it adds time to the clock already running, once
                 // per player per rack. Refused the way the greyed button is — Execute would run it regardless, and

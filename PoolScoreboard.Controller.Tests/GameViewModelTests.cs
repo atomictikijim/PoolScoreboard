@@ -236,6 +236,51 @@ public sealed class GameViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheReadoutSaysPaused_AndTheOneButtonFreezesThenReleasesTheClock()
+    {
+        var start = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var now = start;
+        var manager = new GameManager(() => now);
+        var viewModel = new GameViewModel(
+            manager, persist: null, overlaySession: null, new PlayerRosterStore(_root), dispatcher: null, owner: null,
+            clock: () => now);
+        StartMatch(manager, homeTarget: 3, awayTarget: 3);
+
+        // No clock on screen means nothing to freeze, so the button and the H key are not available.
+        Assert.False(viewModel.CanPauseShotClock);
+        Assert.False(viewModel.PauseShotClockCommand.CanExecute(null));
+        Assert.Equal("PAUSE", viewModel.ShotClockPauseButtonText);
+
+        manager.StartShotClock();
+        now = start.AddSeconds(12);
+        Assert.True(viewModel.CanPauseShotClock);
+
+        viewModel.PauseShotClockCommand.Execute(null);
+
+        Assert.Equal("RESUME", viewModel.ShotClockPauseButtonText);
+        Assert.Equal("0:28 · paused", viewModel.ShotClockReadout);
+        Assert.True(viewModel.ShotClockReadoutVisible);
+
+        // A held clock is still a clock on screen, so there is still one thing to do with it: put it back.
+        Assert.True(viewModel.CanPauseShotClock);
+        Assert.True(viewModel.PauseShotClockCommand.CanExecute(null));
+
+        // Held means held: two minutes later the readout has not moved.
+        now = start.AddMinutes(2);
+        viewModel.RefreshShotClockReadout();
+        Assert.Equal("0:28 · paused", viewModel.ShotClockReadout);
+
+        viewModel.PauseShotClockCommand.Execute(null);
+
+        Assert.Equal("PAUSE", viewModel.ShotClockPauseButtonText);
+        Assert.Equal("0:28 · running", viewModel.ShotClockReadout);
+
+        manager.ClearShotClock();
+        Assert.False(viewModel.CanPauseShotClock);
+        Assert.False(viewModel.PauseShotClockCommand.CanExecute(null));
+    }
+
+    [Fact]
     public void TheHeaderSaysWhoHasAnExtensionLeft_SoASecondCallIsNotASurprise()
     {
         var manager = new GameManager();

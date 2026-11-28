@@ -125,14 +125,9 @@ public class GameManager
             // point won the match, because a won match has no next shot: the clock goes with the winner banner
             // rather than counting down behind it.
             if (_currentGame.Winner is not null)
-            {
-                _currentGame.ShotClockEndsAt = null;
-                _currentGame.ShotClockArmed = false;
-            }
+                HideShotClock();
             else
-            {
                 RestartRunningShotClock();
-            }
 
             RaiseGameStateChanged(_currentGame.Clone());
         }
@@ -431,6 +426,7 @@ public class GameManager
             _currentGame.PocketedBalls.Clear();
             _currentGame.ShotClockEndsAt = null;
             _currentGame.ShotClockArmed = true;
+            _currentGame.ShotClockPausedRemaining = null;
             _currentGame.HomeShotClockExtensionUsed = false;
             _currentGame.AwayShotClockExtensionUsed = false;
             RaiseGameStateChanged(_currentGame.Clone());
@@ -451,10 +447,61 @@ public class GameManager
             if (!_currentGame.IsGameActive || _currentGame.Winner is not null)
                 return;
 
-            // Starting takes over from an armed clock: the idle full-length display a new rack leaves behind is
-            // the same clock, so it stops being idle the moment it begins to count.
+            // Starting takes over from an armed clock and from a paused one: the idle full-length display a new
+            // rack leaves behind, and the frozen one a pause leaves behind, are the same clock — a fresh start is a
+            // fresh shot, from the full length.
             _currentGame.ShotClockArmed = false;
+            _currentGame.ShotClockPausedRemaining = null;
             _currentGame.ShotClockEndsAt = _clock().AddSeconds(_currentGame.ShotClockSeconds);
+            RaiseGameStateChanged(_currentGame.Clone());
+        }
+    }
+
+    /// <summary>
+    /// Freezes the running clock where it is: the deadline comes off the state and the time left goes into
+    /// <see cref="GameState.ShotClockPausedRemaining"/>, so the overlay can draw a clock that is visibly not
+    /// counting. It exists for what a match stops for that is nobody's shot — a ref call, a video review, a cue
+    /// change — where the alternatives are both wrong: a counting clock times something nobody is playing, and a
+    /// clear-and-restart claims the shot has its full length again.
+    /// <para>
+    /// Only a running clock can be paused: one waiting at its full length after a new rack is already not counting,
+    /// and there is nothing to freeze. Nothing is raised when there is no clock to pause, so a press at the wrong
+    /// moment cannot wake the overlay pages.
+    /// </para>
+    /// </summary>
+    public void PauseShotClock()
+    {
+        lock (_sync)
+        {
+            if (!_currentGame.IsGameActive || _currentGame.Winner is not null)
+                return;
+
+            if (_currentGame.ShotClockEndsAt is not { } deadline)
+                return;
+
+            // Clamped at zero: pausing a clock that has already run out leaves it expired rather than handing back
+            // time it never had.
+            var remaining = deadline - _clock();
+            _currentGame.ShotClockEndsAt = null;
+            _currentGame.ShotClockPausedRemaining = remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+            RaiseGameStateChanged(_currentGame.Clone());
+        }
+    }
+
+    /// <summary>
+    /// Puts a paused clock back to counting from the time it was frozen at, not from the full length: a shot paused
+    /// with twenty seconds left resumes with twenty. Ignored when nothing is paused, so a second press cannot start
+    /// a shot nobody meant to start.
+    /// </summary>
+    public void ResumeShotClock()
+    {
+        lock (_sync)
+        {
+            if (_currentGame.ShotClockPausedRemaining is not { } remaining)
+                return;
+
+            _currentGame.ShotClockPausedRemaining = null;
+            _currentGame.ShotClockEndsAt = _clock() + remaining;
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }
@@ -477,7 +524,9 @@ public class GameManager
             if (!_currentGame.IsGameActive || _currentGame.Winner is not null)
                 return;
 
-            if (_currentGame.ShotClockEndsAt is not { } deadline || _currentGame.CurrentShooter is null)
+            var deadline = _currentGame.ShotClockEndsAt;
+            var paused = _currentGame.ShotClockPausedRemaining;
+            if ((deadline is null && paused is null) || _currentGame.CurrentShooter is null)
                 return;
 
             var isHome = ReferenceEquals(_currentGame.CurrentShooter, _currentGame.Player1);
@@ -489,7 +538,14 @@ public class GameManager
             else
                 _currentGame.AwayShotClockExtensionUsed = true;
 
-            _currentGame.ShotClockEndsAt = deadline.AddSeconds(_currentGame.ShotClockExtensionSeconds);
+            // An extension is more time on the shot in progress, so it lands on whichever of the two is holding
+            // that time: the deadline on screen, or the pause that froze it.
+            var extension = TimeSpan.FromSeconds(_currentGame.ShotClockExtensionSeconds);
+            if (paused is { } held)
+                _currentGame.ShotClockPausedRemaining = held + extension;
+            else
+                _currentGame.ShotClockEndsAt = deadline!.Value + extension;
+
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }
@@ -505,8 +561,7 @@ public class GameManager
     {
         if (ballNumber == _currentGame.MoneyBallNumber)
         {
-            _currentGame.ShotClockEndsAt = null;
-            _currentGame.ShotClockArmed = false;
+            HideShotClock();
         }
         else
         {
@@ -520,32 +575,43 @@ public class GameManager
     /// </summary>
     private void RestartRunningShotClock()
     {
-        if (_currentGame.ShotClockEndsAt is not null)
-            _currentGame.ShotClockEndsAt = _clock().AddSeconds(_currentGame.ShotClockSeconds);
+        if (_currentGame.ShotClockEndsAt is null && _currentGame.ShotClockPausedRemaining is null)
+            return;
+
+        // A paused clock counts as showing, and the shot ending ends the pause with it: the next shot is timed
+        // normally rather than picking up the frozen one, which is what keeps a pause meaning "this shot, held"
+        // instead of leaking into the rest of the rack.
+        _currentGame.ShotClockPausedRemaining = null;
+        _currentGame.ShotClockEndsAt = _clock().AddSeconds(_currentGame.ShotClockSeconds);
+    }
+
+    /// <summary>Takes the clock off the screen: not counting, not waiting, not paused.</summary>
+    private void HideShotClock()
+    {
+        _currentGame.ShotClockEndsAt = null;
+        _currentGame.ShotClockArmed = false;
+        _currentGame.ShotClockPausedRemaining = null;
     }
 
     /// <summary>
-    /// Hides the clock, whether it is counting or waiting at its full length after a new rack. Nothing is raised
-    /// when there was none, so a repeated clear cannot wake the overlay pages for a state they already show.
+    /// Hides the clock, whether it is counting, paused or waiting at its full length after a new rack. Nothing is
+    /// raised when there was none, so a repeated clear cannot wake the overlay pages for a state they already show.
     /// </summary>
     public void ClearShotClock()
     {
         lock (_sync)
         {
-            if (_currentGame.ShotClockEndsAt is null && !_currentGame.ShotClockArmed)
+            if (_currentGame.ShotClockEndsAt is null && !_currentGame.ShotClockArmed &&
+                _currentGame.ShotClockPausedRemaining is null)
+            {
                 return;
+            }
 
-            _currentGame.ShotClockEndsAt = null;
-            _currentGame.ShotClockArmed = false;
+            HideShotClock();
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }
 
-    /// <summary>
-    /// Chooses how a running clock is drawn: the countdown as numbers, or as a line that drains and turns red in its
-    /// last five seconds. Deliberately allowed mid-match, unlike the lengths — it changes nothing about the shot,
-    /// only how it reads on the overlay — and it rides along with the rest of the look into the next match.
-    /// </summary>
     /// <summary>
     /// Turns the overlay's dead-stream cue on or off. A look setting like the clock's drawing rather than a rule:
     /// allowed mid-match, carried into the next state by <see cref="CarryOperatorStyling"/>, and saved with the
@@ -560,6 +626,11 @@ public class GameManager
         }
     }
 
+    /// <summary>
+    /// Chooses how a running clock is drawn: the countdown as numbers, or as a line that drains and turns red in its
+    /// last five seconds. Deliberately allowed mid-match, unlike the lengths — it changes nothing about the shot,
+    /// only how it reads on the overlay — and it rides along with the rest of the look into the next match.
+    /// </summary>
     public void SetShotClockDisplay(ShotClockDisplay display)
     {
         lock (_sync)

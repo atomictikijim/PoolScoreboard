@@ -282,9 +282,25 @@ public partial class GameViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ExtendShotClockCommand))]
     private bool canCallExtension;
 
+    /// <summary>
+    /// Whether there is a clock to freeze or unfreeze — one counting, or one already held. False while the clock
+    /// is hidden or waiting at its full length after a new rack, where a pause would mean nothing: the button and
+    /// the key are then unavailable rather than silently ignored.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(PauseShotClockCommand))]
+    private bool canPauseShotClock;
+
+    /// <summary>"PAUSE" while the clock is counting, "RESUME" while it is held — one button, because it is one
+    /// decision half a second apart.</summary>
+    [ObservableProperty]
+    private string shotClockPauseButtonText = "PAUSE";
+
     /// <summary>The clock the readout describes, kept from the last state so the tick can re-read it every quarter second.</summary>
     private DateTimeOffset? _shotClockEndsAt;
     private bool _shotClockArmed;
+    private bool _shotClockPaused;
+    private double _shotClockPausedSeconds;
     private int _shotClockSeconds = GameState.DefaultShotClockSeconds;
 
     /// <summary>
@@ -995,6 +1011,20 @@ public partial class GameViewModel : ObservableObject
     private void StartShotClock() => _gameManager.StartShotClock();
 
     /// <summary>
+    /// Freezes the clock where it is, or puts it back to counting from the time it was frozen at. One command
+    /// rather than two, unlike start and clear: there is no third thing the operator could have meant by pressing
+    /// a button that already says which of the two it will do.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanPauseShotClock))]
+    private void PauseShotClock()
+    {
+        if (_shotClockPaused)
+            _gameManager.ResumeShotClock();
+        else
+            _gameManager.PauseShotClock();
+    }
+
+    /// <summary>
     /// Calls the current shooter's extension on their behalf: the clock already running gains the extension time the
     /// setup screen chose. One per player per rack, and only while a clock is running — both rules are Core's, so
     /// this only has to reach it.
@@ -1031,6 +1061,14 @@ public partial class GameViewModel : ObservableObject
             // Waiting at its full length after a new rack: nothing is counting yet, so there is nothing to count
             // down and the shot's own length is what the operator should read.
             ShotClockReadout = $"{ClockText(TimeSpan.FromSeconds(_shotClockSeconds))} · waiting";
+            ShotClockReadoutVisible = true;
+            return;
+        }
+
+        if (_shotClockPaused)
+        {
+            // Held: the time is real and is not moving, so neither "running" nor "waiting" would be true.
+            ShotClockReadout = $"{ClockText(TimeSpan.FromSeconds(_shotClockPausedSeconds))} · paused";
             ShotClockReadoutVisible = true;
             return;
         }
@@ -1195,8 +1233,15 @@ public partial class GameViewModel : ObservableObject
 
         _shotClockEndsAt = state.ShotClockEndsAt;
         _shotClockArmed = state.ShotClockArmed;
+        _shotClockPaused = state.ShotClockPausedRemaining is not null;
+        _shotClockPausedSeconds = state.ShotClockPausedRemaining?.TotalSeconds ?? 0;
         _shotClockSeconds = state.ShotClockSeconds;
         RefreshShotClockReadout();
+
+        // Only a clock that is showing can be frozen, so that — not the match being on — is what enables the
+        // button and the H key.
+        CanPauseShotClock = _shotClockPaused || _shotClockEndsAt is not null;
+        ShotClockPauseButtonText = _shotClockPaused ? "RESUME" : "PAUSE";
 
         HomeExtensionUsed = state.HomeShotClockExtensionUsed;
         AwayExtensionUsed = state.AwayShotClockExtensionUsed;

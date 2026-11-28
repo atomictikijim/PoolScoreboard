@@ -43,6 +43,13 @@ public class ScoreboardStateDto
     public bool ShotClockArmed { get; init; }
 
     /// <summary>
+    /// Seconds left in the shot while the operator has the clock paused, or null when it is not paused. The page
+    /// draws that time once and stops there — no counting — and badges it, because a frozen clock and an expired one
+    /// would otherwise look identical from across a room. Mutually exclusive with the two above.
+    /// </summary>
+    public double? ShotClockPausedSeconds { get; init; }
+
+    /// <summary>
     /// True when the operator asked the page to mark itself once its stream has been dead for a few seconds. The page
     /// keeps its last frame when the host dies, so without this a dead overlay shows confident, frozen numbers.
     /// </summary>

@@ -209,10 +209,9 @@
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
   }
 
-  function tickShotClock() {
-    if (shotClockEndsAtMs === null) return;
-
-    const remaining = shotClockEndsAtMs - Date.now();
+  // One drawing routine for both states that show a number: a clock counting, and a clock frozen by a pause. The
+  // difference is only whether `remaining` is recomputed or held.
+  function drawClock(remaining) {
     shotClockValue.textContent = clockText(remaining);
     shotClock.classList.toggle('low', remaining > 0 && remaining <= 5000);
     shotClock.classList.toggle('expired', remaining <= 0);
@@ -221,6 +220,11 @@
     // above, so it turns red exactly when the numbers do, and stays red once the time is gone.
     const fraction = shotClockLengthMs > 0 ? Math.min(1, Math.max(0, remaining / shotClockLengthMs)) : 0;
     shotClockLineFill.style.width = (fraction * 100).toFixed(2) + '%';
+  }
+
+  function tickShotClock() {
+    if (shotClockEndsAtMs === null) return;
+    drawClock(shotClockEndsAtMs - Date.now());
   }
 
   function render(state) {
@@ -277,10 +281,20 @@
     const clockArmed = state.shotClockArmed === true;
     shotClock.classList.toggle('idle', clockArmed);
 
+    // A paused clock shows the time it was frozen at and does not count: the page ticks only a clock with a
+    // deadline, so a paused one just stays as this frame drew it until the operator resumes. Its `paused` class
+    // dims it and shows the badge.
+    const clockPausedMs =
+      typeof state.shotClockPausedSeconds === 'number' ? state.shotClockPausedSeconds * 1000 : null;
+    const clockPaused = clockPausedMs !== null;
+    shotClock.classList.toggle('paused', clockPaused);
+
     if (clockArmed) {
       shotClock.classList.remove('low', 'expired');
       shotClockValue.textContent = clockText(shotClockLengthMs);
       shotClockLineFill.style.width = '100%';
+    } else if (clockPaused) {
+      drawClock(clockPausedMs);
     } else if (shotClockEndsAtMs !== null) {
       tickShotClock();
     }
@@ -288,7 +302,7 @@
     setElementVisible(scorePill, scoreBarVisible, skipAnimation);
     setElementVisible(ballTracker, showBallTracker, skipAnimation);
     setElementVisible(winnerBanner, showWinner, skipAnimation);
-    setElementVisible(shotClock, clockArmed || shotClockEndsAtMs !== null, skipAnimation);
+    setElementVisible(shotClock, clockArmed || clockPaused || shotClockEndsAtMs !== null, skipAnimation);
 
     renderBalls(state);
 

@@ -1446,4 +1446,187 @@ public class GameManagerTests
 
         Assert.Null(manager.GetStateSnapshot().CueBallSpin);
     }
+
+    [Fact]
+    public void PauseFreezesTheTimeLeft_AndResumeCountsDownFromIt()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        manager.StartShotClock();
+        now = now.AddSeconds(15);
+        manager.PauseShotClock();
+
+        var paused = manager.GetStateSnapshot();
+        Assert.Null(paused.ShotClockEndsAt);
+        Assert.False(paused.ShotClockArmed);
+        Assert.Equal(TimeSpan.FromSeconds(GameState.DefaultShotClockSeconds - 15), paused.ShotClockPausedRemaining);
+
+        // Time passing while the clock is held does not eat the shot: that is the whole point of holding it.
+        now = now.AddMinutes(3);
+        Assert.Equal(TimeSpan.FromSeconds(25), manager.GetStateSnapshot().ShotClockPausedRemaining);
+
+        manager.ResumeShotClock();
+
+        // From the time left, not from the full length: a resume is the same shot continuing.
+        var resumed = manager.GetStateSnapshot();
+        Assert.Null(resumed.ShotClockPausedRemaining);
+        Assert.Equal(now.AddSeconds(25), resumed.ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void PauseIsIgnoredWithoutARunningClock()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+
+        // At setup there is no clock at all.
+        manager.PauseShotClock();
+        Assert.Null(manager.GetStateSnapshot().ShotClockPausedRemaining);
+
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        // A match with no clock started has nothing to freeze either.
+        manager.PauseShotClock();
+        Assert.Null(manager.GetStateSnapshot().ShotClockPausedRemaining);
+
+        // Nor has one waiting at its full length after a new rack: it is already not counting.
+        manager.ResetBalls();
+        manager.PauseShotClock();
+
+        var armed = manager.GetStateSnapshot();
+        Assert.True(armed.ShotClockArmed);
+        Assert.Null(armed.ShotClockPausedRemaining);
+    }
+
+    [Fact]
+    public void APausedClockCannotBeFrozenTwice_AndResumeDoesNothingWhileItRuns()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        manager.StartShotClock();
+        now = now.AddSeconds(10);
+        manager.PauseShotClock();
+        now = now.AddSeconds(10);
+        manager.PauseShotClock();
+
+        // A second press is the same pause, not a shorter shot.
+        Assert.Equal(TimeSpan.FromSeconds(30), manager.GetStateSnapshot().ShotClockPausedRemaining);
+
+        manager.ResumeShotClock();
+        var deadline = manager.GetStateSnapshot().ShotClockEndsAt;
+        Assert.NotNull(deadline);
+
+        // And a second resume cannot start the countdown over: nothing is paused, so it does nothing.
+        now = now.AddSeconds(5);
+        manager.ResumeShotClock();
+        Assert.Equal(deadline, manager.GetStateSnapshot().ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void AnExtensionWhilePaused_AddsToTheHeldTime_AndIsStillSpent()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        manager.SetShotClockLengths(shotClockSeconds: 30, extensionSeconds: 15);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        manager.StartShotClock();
+        now = now.AddSeconds(10);
+        manager.PauseShotClock();
+        manager.ExtendShotClock();
+
+        var extended = manager.GetStateSnapshot();
+        Assert.Equal(TimeSpan.FromSeconds(35), extended.ShotClockPausedRemaining);
+        Assert.Null(extended.ShotClockEndsAt);
+        Assert.True(extended.HomeShotClockExtensionUsed);
+
+        // The once-per-rack rule does not pause with the clock.
+        manager.ExtendShotClock();
+        Assert.Equal(TimeSpan.FromSeconds(35), manager.GetStateSnapshot().ShotClockPausedRemaining);
+    }
+
+    [Fact]
+    public void APointWhilePaused_TimesTheNextShotRatherThanResumingTheHeldOne()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        manager.StartShotClock();
+        now = now.AddSeconds(25);
+        manager.PauseShotClock();
+        manager.AddPoint(isPlayer1: true);
+
+        // The pause was for the shot that just ended, so the next one starts with its own full allowance.
+        var state = manager.GetStateSnapshot();
+        Assert.Null(state.ShotClockPausedRemaining);
+        Assert.Equal(now.AddSeconds(GameState.DefaultShotClockSeconds), state.ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void StartingOverAPausedClock_BeginsTheShotFromItsFullLength()
+    {
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+        var manager = new GameManager(() => now);
+        manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+        manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+
+        manager.StartShotClock();
+        now = now.AddSeconds(30);
+        manager.PauseShotClock();
+        manager.StartShotClock();
+
+        // Start means start: a held clock is replaced by a fresh shot, not resumed behind the operator's back.
+        var state = manager.GetStateSnapshot();
+        Assert.Null(state.ShotClockPausedRemaining);
+        Assert.Equal(now.AddSeconds(GameState.DefaultShotClockSeconds), state.ShotClockEndsAt);
+    }
+
+    [Fact]
+    public void EverythingThatEndsAShot_AlsoEndsThePause()
+    {
+        static GameManager Paused(DateTimeOffset at)
+        {
+            var manager = new GameManager(() => at);
+            manager.SetPlayerDetails(isHome: true, "Alice", string.Empty, 5, endCapIcon: null);
+            manager.SetPlayerDetails(isHome: false, "Bob", string.Empty, 5, endCapIcon: null);
+            manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+            manager.StartShotClock();
+            manager.PauseShotClock();
+            Assert.NotNull(manager.GetStateSnapshot().ShotClockPausedRemaining);
+            return manager;
+        }
+
+        var now = new DateTimeOffset(2026, 11, 28, 20, 0, 0, TimeSpan.FromHours(-5));
+
+        var cleared = Paused(now);
+        cleared.ClearShotClock();
+        Assert.Null(cleared.GetStateSnapshot().ShotClockPausedRemaining);
+
+        // The money ball ends the rack, so the clock goes with it — paused or not.
+        var moneyBall = Paused(now);
+        moneyBall.ToggleBall(9);
+        Assert.Null(moneyBall.GetStateSnapshot().ShotClockPausedRemaining);
+
+        // A new rack waits at its full length, which is neither counting nor held.
+        var newRack = Paused(now);
+        newRack.ResetBalls();
+        Assert.Null(newRack.GetStateSnapshot().ShotClockPausedRemaining);
+        Assert.True(newRack.GetStateSnapshot().ShotClockArmed);
+    }
 }

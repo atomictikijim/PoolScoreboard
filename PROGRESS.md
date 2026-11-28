@@ -90,6 +90,10 @@ loses. What the earlier list finished is in the Change Log, not repeated here.
 3. **A pause for the shot clock.** Start, extend, clear or restart, but no pause — so a ref call, a review or a cue
    change either burns a dead clock or forces a clear-and-restart that lies about the time left. The armed state proves
    a clock can be drawn without counting, so a frozen, clearly-marked pause is additive.
+   *Done 2026-11-28: **PAUSE / RESUME** beside the readout, `H` on the live view and `Ctrl+Shift+H` anywhere, holding
+   `GameState.ShotClockPausedRemaining` with no deadline while held — the overlay dims the clock and badges it
+   `PAUSED`, the header reads `0:27 · paused`, and a resume counts down from the held time. Two control routes
+   (`/api/control/shotclock/pause`, `/resume`), and every shot-ending path ends the pause with the shot.*
 4. **The overlay should show who still has an extension.** The operator's header has a chip per player; the stream has
    nothing, because the payload carries no extension field. One DTO field and one page element make the once-per-rack
    rule legible to the people the rule is for.
@@ -296,6 +300,32 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 - Keyboard shortcut keys (Q/P/A/Space/N) are a first pass, not confirmed with the developer.
 
 ## Change Log
+
+### 2026-11-28 — The clock can be held, not only stopped
+
+- **PAUSE / RESUME** sits beside the live view's shot-clock readout and does one thing: a running clock freezes at
+  whatever time it had left — `0:23 · paused` in the header, dimmed numbers with a `PAUSED` badge on the overlay — and
+  a held one counts down from that same time, not from the full length. `H` does the same on the live view and
+  `Ctrl+Shift+H` from anywhere else, both unavailable while there is no clock showing, so the key cannot do what the
+  greyed button will not. The Stream Deck gets two routes, `/api/control/shotclock/pause` and `/resume`, split the way
+  start and clear already are: a button that sometimes does the opposite of what it says is worse than two buttons.
+- `GameState.ShotClockPausedRemaining` (`TimeSpan?`) is the held time, and a paused clock has no `ShotClockEndsAt` —
+  which is exactly how the page knows not to count, since it only ticks a clock with a deadline. The pause belongs
+  to the shot it froze: a point, a pocketed ball or a shooter toggle starts the next shot from the full length, and a
+  clear, a won match, the money ball or a new rack takes it off the screen with the clock. An extension called while
+  paused lands on the held time and is still spent, so the once-per-rack rule does not pause with the clock.
+- Help, the Stream Deck tables and `UAT.md` (SC-19, plus the `Ctrl+Shift+H` step in SC-18) all say what the button and
+  the key do; the Help page's endpoint list grew by the two routes, and its pinned URL count went 16 -> 18.
+- Mutation-proved, then reverted, eight ways: pausing without a running clock, resuming with nothing paused, a fresh
+  start leaving the pause behind, an extension refusing a paused clock, a clear refusing one, a shot ending over a
+  paused clock, hiding the clock keeping the pause, and the button staying live once the clock is gone. Each failed the
+  fact that covers it; the eighth only failed once the test also asserted the rule it was there to protect.
+- Checked in the window with UI Automation, driving the app's own buttons and routes: a new rack shows `0:40 · waiting`
+  with PAUSE greyed out, a started clock reads `0:39 · running` with PAUSE live, pressing it gives `0:39 · paused` and
+  **RESUME**, three seconds later it still reads `0:39 · paused`, pressing again resumes at `0:38 · running`, and a
+  clear while held takes both the readout and the button off the screen. The overlay's `PAUSED` badge itself was not
+  watched in a browser in this pass; the payload it draws from is covered by the HTTP tests.
+- 0.45.0 -> 0.46.0. 186 Core + 37 Overlay + 211 Controller, 0 warnings.
 
 ### 2026-11-28 — The archive now answers the question people actually ask
 

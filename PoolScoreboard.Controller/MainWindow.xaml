@@ -475,6 +475,14 @@
                         <TextBlock Text="{Binding ShotClockReadout}" Style="{StaticResource ValueTextBlockStyle}" VerticalAlignment="Center"
                                    AutomationProperties.AutomationId="ShotClockReadout"
                                    Visibility="{Binding ShotClockReadoutVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <!-- Beside the readout it changes: freezes a running clock, puts a held one back to counting
+                             from the time it was frozen at. Greyed while there is no clock to freeze, and the H key
+                             checks the same rule. -->
+                        <Button Content="{Binding ShotClockPauseButtonText}" Command="{Binding PauseShotClockCommand}"
+                                Style="{StaticResource InactiveButtonStyle}" Padding="12,4" Height="30" Margin="12,0,0,0"
+                                AutomationProperties.AutomationId="PauseShotClockButton"
+                                Visibility="{Binding ShotClockReadoutVisible, Converter={StaticResource BoolToVisibilityConverter}}"
+                                ToolTip="Freezes the clock where it is — a ref call, a review, a cue change — and counts down from the same time when pressed again." />
                         <!-- Who still has their extension, beside the clock: the button that spends it is the next
                              thing to the right, and a spent one is silent. -->
                         <TextBlock Text="EXTENSIONS" Style="{StaticResource LabelTextBlockStyle}" VerticalAlignment="Center" Margin="24,0,8,0" />

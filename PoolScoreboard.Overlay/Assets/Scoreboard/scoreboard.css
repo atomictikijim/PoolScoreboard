@@ -296,6 +296,28 @@ html, body {
   opacity: 0.55;
 }
 
+/* A paused clock is a third state: not counting, not waiting at its full length. It keeps its time and its colour
+   — a shot frozen with five seconds left is still nearly over — and carries a badge, because frozen numbers on
+   their own read the same as a dead stream. */
+.shot-clock.paused {
+  opacity: 0.7;
+}
+
+.shot-clock-paused {
+  display: none;
+  align-self: center;
+  font-size: 12px;
+  letter-spacing: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(240, 240, 240, 0.16);
+  color: rgba(240, 240, 240, 0.85);
+}
+
+.shot-clock.paused .shot-clock-paused {
+  display: inline-block;
+}
+
 .shot-clock-label {
   font-size: 12px;
   letter-spacing: 2px;

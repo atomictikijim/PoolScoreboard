@@ -46,6 +46,7 @@ public static class ScoreboardStateMapper
         ShotClockDisplay = state.ShotClockDisplay.ToString(),
         ShotClockEndsAt = state.ShotClockEndsAt?.ToString("o", CultureInfo.InvariantCulture),
         ShotClockArmed = state.ShotClockArmed,
+        ShotClockPausedSeconds = state.ShotClockPausedRemaining?.TotalSeconds,
         StaleCueEnabled = state.StaleCueEnabled
     };
 
