@@ -202,6 +202,24 @@ public partial class GameViewModel : ObservableObject
     [ObservableProperty]
     private bool shotClockReadoutVisible;
 
+    /// <summary>
+    /// Who still has their one extension this rack — "<c>Home: 1 left</c>" or "<c>Alice: used</c>" — beside the
+    /// readout. A second call from a player who has already spent theirs does nothing at all, silently, so the
+    /// operator has to be able to see it before pressing CALL EXTENSION rather than after.
+    /// </summary>
+    [ObservableProperty]
+    private string? homeExtensionStatus;
+
+    [ObservableProperty]
+    private string? awayExtensionStatus;
+
+    /// <summary>Whether each side has spent theirs, which is what dims their chip rather than any string matching.</summary>
+    [ObservableProperty]
+    private bool homeExtensionUsed;
+
+    [ObservableProperty]
+    private bool awayExtensionUsed;
+
     /// <summary>The clock the readout describes, kept from the last state so the tick can re-read it every quarter second.</summary>
     private DateTimeOffset? _shotClockEndsAt;
     private bool _shotClockArmed;
@@ -822,6 +840,16 @@ public partial class GameViewModel : ObservableObject
         ShotClockReadoutVisible = true;
     }
 
+    /// <summary>
+    /// One side's extension state: the name first, because that is what the operator is looking for, then what is
+    /// left of it. An unnamed player falls back to their side, as the winner banner and the overlay's name pills do.
+    /// </summary>
+    private static string ExtensionStatus(Player player, string side, bool used)
+    {
+        var name = string.IsNullOrEmpty(player.Name) ? side : player.Name;
+        return $"{name}: {(used ? "used" : "1 left")}";
+    }
+
     /// <summary>Minutes and seconds, rounded up so the readout only says 0:00 once the time really is gone.</summary>
     private static string ClockText(TimeSpan remaining)
     {
@@ -951,6 +979,11 @@ public partial class GameViewModel : ObservableObject
         _shotClockArmed = state.ShotClockArmed;
         _shotClockSeconds = state.ShotClockSeconds;
         RefreshShotClockReadout();
+
+        HomeExtensionUsed = state.HomeShotClockExtensionUsed;
+        AwayExtensionUsed = state.AwayShotClockExtensionUsed;
+        HomeExtensionStatus = ExtensionStatus(state.Player1, "Home", state.HomeShotClockExtensionUsed);
+        AwayExtensionStatus = ExtensionStatus(state.Player2, "Away", state.AwayShotClockExtensionUsed);
 
         RefreshBallLayout();
     }

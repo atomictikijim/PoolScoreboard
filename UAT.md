@@ -270,6 +270,20 @@ never started.
 *Expected:* the clock disappears as the winner banner appears, rather than restarting behind it, and neither key
 brings it back while the banner is up. RESET MATCH returns to setup with no clock.
 
+### SC-15 — The live view says who still has an extension
+
+*Precondition:* a match running, the Controller's live view in front, the header readable.
+
+1. Read the two chips after `EXTENSIONS` before anything is called.
+2. Press `T`, then CALL EXTENSION once for the current shooter.
+3. Toggle the shooter to the other player and press CALL EXTENSION.
+4. Toggle back to the first player and press CALL EXTENSION again.
+5. Press NEW RACK.
+
+*Expected:* step 1 reads `Home: 1 left  Away: 1 left`. Step 2 leaves the shooter's chip at `Home: used`, dimmed, with
+the other side still `1 left`. Step 3 spends `Away` the same way. Step 4 changes nothing on screen and adds no time
+to the clock — the dimmed chip is the only warning, and it was there. Step 5 puts both back to `1 left`.
+
 ### SC-14 — The Controller reads the clock out too
 
 *Precondition:* a match running, the Controller's live view in front.

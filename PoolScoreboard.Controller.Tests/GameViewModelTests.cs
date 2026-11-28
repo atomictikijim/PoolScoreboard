@@ -236,6 +236,34 @@ public sealed class GameViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheHeaderSaysWhoHasAnExtensionLeft_SoASecondCallIsNotASurprise()
+    {
+        var manager = new GameManager();
+        var viewModel = BuildViewModel(manager);
+        StartMatch(manager, homeTarget: 3, awayTarget: 3);
+
+        Assert.Equal("Home: 1 left", viewModel.HomeExtensionStatus);
+        Assert.Equal("Away: 1 left", viewModel.AwayExtensionStatus);
+        Assert.False(viewModel.HomeExtensionUsed);
+        Assert.False(viewModel.AwayExtensionUsed);
+
+        manager.StartShotClock();
+        viewModel.ExtendShotClockCommand.Execute(null);
+
+        // The shooter's is spent and says so; the other side is untouched, which is the whole point of showing both.
+        Assert.Equal("Home: used", viewModel.HomeExtensionStatus);
+        Assert.True(viewModel.HomeExtensionUsed);
+        Assert.Equal("Away: 1 left", viewModel.AwayExtensionStatus);
+        Assert.False(viewModel.AwayExtensionUsed);
+
+        // A new rack hands both of them one back; a header still saying "used" would stop the operator calling it.
+        manager.ResetBalls();
+
+        Assert.Equal("Home: 1 left", viewModel.HomeExtensionStatus);
+        Assert.False(viewModel.HomeExtensionUsed);
+    }
+
+    [Fact]
     public void TheDisplayToggleSwapsTheClockBetweenTimeAndALine_AndSaves()
     {
         var saves = 0;

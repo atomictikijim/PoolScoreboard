@@ -152,7 +152,9 @@ dotnet clean
   look setting, so it works mid-match and is saved with the profile.
 - The header also carries a small **shot-clock readout** — `0:32 · running`, `0:40 · waiting` after a new rack, or
   `0:00 · time up`, hidden when there is no clock — so the operator does not have to look at the overlay to know
-  where the shot stands. The deadline is one instant and no state change arrives as it passes, so the readout is
+  where the shot stands. Beside it, one chip per player says who still has their extension (`Alice: 1 left`, dimmed
+  to `Alice: used` once spent), because a second call from the same player is silently a no-op and the operator
+  needs to know that before pressing CALL EXTENSION rather than after. The deadline is one instant and no state change arrives as it passes, so the readout is
   recomputed by a 250 ms `DispatcherTimer` (the same reason the overlay page ticks itself); `GameViewModel` takes
   the "now" for it as an injected clock, the way `GameManager` does, so a test can put it at an exact second.
 - On startup, starts the Overlay's Kestrel host in-process, passing it the same
@@ -335,8 +337,8 @@ alignment, not a pixel match).
   of the saved profile, so a relaunch comes back to the defaults — the same way the game type and Race-To mode do.
   The clock itself is not part of `match.json`, so a resumed match shows no clock — a countdown from a previous
   session would be a lie — and there is no pause once it is running: it stops and hides with a reset, a won match or
-  the clear route, while a new rack leaves it waiting at the full length for a manual start. Nothing on screen says who has used their extension: the per-side flag is
-  silent, so the second call simply does nothing. The clock is either numbers or the line, never both, and the line
+  the clear route, while a new rack leaves it waiting at the full length for a manual start. The operator's screen says who has an extension left, but the overlay
+  carries nothing about extensions, so a viewer cannot see it either. The clock is either numbers or the line, never both, and the line
   carries no numerals at all — which is the point of it across a room, but means an operator who wants the exact
   time on screen has to leave the display on `Time`.
 - `controller.log` is capped by size only, never by age: at startup a log over 1 MiB becomes

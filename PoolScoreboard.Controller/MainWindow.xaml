@@ -431,6 +431,33 @@
                         <TextBlock Text="{Binding ShotClockReadout}" Style="{StaticResource ValueTextBlockStyle}" VerticalAlignment="Center"
                                    AutomationProperties.AutomationId="ShotClockReadout"
                                    Visibility="{Binding ShotClockReadoutVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <!-- Who still has their extension, beside the clock: the button that spends it is the next
+                             thing to the right, and a spent one is silent. -->
+                        <TextBlock Text="EXTENSIONS" Style="{StaticResource LabelTextBlockStyle}" VerticalAlignment="Center" Margin="24,0,8,0" />
+                        <TextBlock Text="{Binding HomeExtensionStatus}" VerticalAlignment="Center" Margin="0,0,14,0"
+                                   AutomationProperties.AutomationId="HomeExtensionStatus">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource ValueTextBlockStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HomeExtensionUsed}" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding AwayExtensionStatus}" VerticalAlignment="Center"
+                                   AutomationProperties.AutomationId="AwayExtensionStatus">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource ValueTextBlockStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding AwayExtensionUsed}" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
                     <!-- Beside the shooter toggle because it is the same kind of thing: a mid-shot button the
                          operator presses for the player at the table. -->

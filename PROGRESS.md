@@ -284,6 +284,23 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
+### 2026-11-28 — The live view says who still has an extension
+
+- A chip per player sits beside the shot-clock readout — `Alice: 1 left`, or `Alice: used` once she has called it —
+  because the extension is once per player per rack and the second call returns silently. The operator was pressing
+  a button that sometimes did nothing, with nothing on screen to explain it.
+- Both sides are shown rather than only the shooter's: the CALL EXTENSION button spends the *current shooter's*
+  extension, so knowing the other player's is what tells the operator the button will work after the toggle.
+- Built from the state's `HomeShotClockExtensionUsed`/`AwayShotClockExtensionUsed` on every push, so a new rack (which
+  hands both back) or a Stream Deck call reads the same way as a button press. A spent chip dims through a
+  `DataTrigger` on its own bool rather than by matching the text.
+- Mutation-proved, then reverted: the status strings left unset (the chips went to "1 left" for a player who had
+  spent theirs), and the used flag ignored in the text (it read "1 left" to an operator who had already called it).
+- 0.37.0 -> 0.38.0. 147 Core + 34 Overlay + 172 Controller, 0 warnings. Checked in the running window (read
+  through UI Automation, not by eye): both chips `1 left` on a fresh rack, the shooter's turning to `used` after the
+  extension route while the other stayed `1 left`, the clock gaining its 30 s at the same time, and both back to
+  `1 left` after a new rack.
+
 ### 2026-11-28 — The live view reads out the shot clock
 
 - The header now carries `0:32 · running`, `0:40 · waiting` (after a new rack) or `0:00 · time up`, and nothing at
