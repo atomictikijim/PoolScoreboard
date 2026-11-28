@@ -121,6 +121,23 @@ public class OperatorProfileTests
     }
 
     [Fact]
+    public void TheShotClockDisplayIsRememberedWithTheLook()
+    {
+        var manager = ManagerWithMatch();
+        manager.SetShotClockDisplay(ShotClockDisplay.Line);
+
+        var saved = OperatorProfile.Capture(manager.GetStateSnapshot());
+        Assert.Equal(ShotClockDisplay.Line, saved.ShotClockDisplay);
+
+        var restored = new GameManager();
+        saved.ApplyTo(restored);
+
+        // Saved with the look rather than the match, so the next launch comes back drawing the clock the way the
+        // operator left it.
+        Assert.Equal(ShotClockDisplay.Line, restored.GetStateSnapshot().ShotClockDisplay);
+    }
+
+    [Fact]
     public void ApplyTo_WithNothingSaved_LeavesTheDefaultLook()
     {
         var fresh = new GameManager();

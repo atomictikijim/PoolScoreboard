@@ -307,6 +307,26 @@ public class GameManagerTests
     }
 
     [Fact]
+    public void TheShotClockDisplay_CanBeSwitchedMidMatch_AndSurvivesTheNextState()
+    {
+        var manager = NewMatch();
+
+        manager.SetShotClockDisplay(ShotClockDisplay.Line);
+
+        // A display choice rather than a rule, so unlike the lengths it applies to the clock already on screen.
+        Assert.Equal(ShotClockDisplay.Line, manager.GetStateSnapshot().ShotClockDisplay);
+
+        manager.ResetGame();
+
+        // And it describes the show, not the match: a reset and the next match both keep it, the way the colour
+        // theme and the show/hide settings are kept.
+        Assert.Equal(ShotClockDisplay.Line, manager.GetStateSnapshot().ShotClockDisplay);
+
+        manager.InitializeGame(GameType.NineBall, RaceToMode.Single);
+        Assert.Equal(ShotClockDisplay.Line, manager.GetStateSnapshot().ShotClockDisplay);
+    }
+
+    [Fact]
     public void InitializeGame_SetsUpActiveGameWithPlayer1AsCurrentShooter()
     {
         var manager = NewMatch();

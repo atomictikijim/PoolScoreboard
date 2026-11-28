@@ -24,6 +24,12 @@ public class ScoreboardStateDto
     public int ShotClockSeconds { get; init; }
 
     /// <summary>
+    /// How to draw the countdown: <c>Time</c> for the numbers, <c>Line</c> for a line that drains and turns red as
+    /// the shot runs out. The page draws both; this is which one the operator asked for.
+    /// </summary>
+    public required string ShotClockDisplay { get; init; }
+
+    /// <summary>
     /// When the current shot's clock runs out, as an ISO 8601 instant with its offset, or null when no clock is
     /// showing. A deadline rather than a remaining-second count, because the page counts down on its own between
     /// frames — exactly one frame is sent when the clock starts, not forty.

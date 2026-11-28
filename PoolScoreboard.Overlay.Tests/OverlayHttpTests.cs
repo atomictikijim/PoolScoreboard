@@ -216,6 +216,18 @@ public sealed class OverlayHttpTests : IAsyncLifetime
             (ShotClockDeadline(await GetJson(ScoreboardState)) - restarted).TotalSeconds);
     }
 
+    [Fact]
+    public async Task TheShotClockDisplayModeReachesThePayloadThePageReads()
+    {
+        Assert.Equal("Time", (await GetJson(ScoreboardState)).GetProperty("shotClockDisplay").GetString());
+
+        _gameManager.SetShotClockDisplay(ShotClockDisplay.Line);
+
+        // The page picks which of its two drawings to show from this, so a mode that never reached the payload would
+        // leave the operator's toggle doing nothing on the overlay.
+        Assert.Equal("Line", (await GetJson(ScoreboardState)).GetProperty("shotClockDisplay").GetString());
+    }
+
     private static DateTimeOffset ShotClockDeadline(JsonElement state) =>
         DateTimeOffset.Parse(
             state.GetProperty("shotClockEndsAt").GetString()!,

@@ -28,6 +28,9 @@ public class GameState
     public ScoreboardVisibility Visibility { get; set; } = new();
     public CueBallSpin? CueBallSpin { get; set; }
 
+    /// <summary>How the countdown is drawn while a clock is showing — numbers, or a line that drains.</summary>
+    public ShotClockDisplay ShotClockDisplay { get; set; } = ShotClockDisplay.Time;
+
     /// <summary>How long a shot gets until Match Setup says otherwise.</summary>
     public const int DefaultShotClockSeconds = 40;
 
@@ -91,6 +94,7 @@ public class GameState
             PocketedBalls = new HashSet<int>(PocketedBalls),
             ScoreboardStyle = ScoreboardStyle.Copy(),
             Visibility = Visibility.Copy(),
+            ShotClockDisplay = ShotClockDisplay,
             CueBallSpin = CueBallSpin?.Copy(),
             ShotClockSeconds = ShotClockSeconds,
             ShotClockExtensionSeconds = ShotClockExtensionSeconds,

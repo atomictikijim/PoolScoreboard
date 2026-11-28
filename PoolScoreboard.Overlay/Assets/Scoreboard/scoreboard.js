@@ -44,6 +44,7 @@
   const ballTracker = document.getElementById('ballTracker');
   const shotClock = document.getElementById('shotClock');
   const shotClockValue = document.getElementById('shotClockValue');
+  const shotClockLineFill = document.getElementById('shotClockLineFill');
 
   let hasRenderedOnce = false;
 
@@ -51,6 +52,11 @@
   // between frames: one frame when the clock starts, and it ticks in the OBS capture without the host sending
   // forty of them.
   let shotClockEndsAtMs = null;
+
+  // The length the shot was given, so the line drains in proportion to it: a twenty-second shot's line runs out
+  // twice as fast as a forty-second one's, and both reach empty when the clock does. An extension pushes the time
+  // past the length, so the fraction is capped at a full line.
+  let shotClockLengthMs = 0;
 
   function applyTheme(colors) {
     root.style.setProperty('--bg-home', colors.homeBackground);
@@ -181,6 +187,11 @@
     shotClockValue.textContent = clockText(remaining);
     shotClock.classList.toggle('low', remaining > 0 && remaining <= 5000);
     shotClock.classList.toggle('expired', remaining <= 0);
+
+    // The line is the same countdown measured rather than spelled out; the colours come from the two classes
+    // above, so it turns red exactly when the numbers do, and stays red once the time is gone.
+    const fraction = shotClockLengthMs > 0 ? Math.min(1, Math.max(0, remaining / shotClockLengthMs)) : 0;
+    shotClockLineFill.style.width = (fraction * 100).toFixed(2) + '%';
   }
 
   function render(state) {
@@ -224,6 +235,8 @@
     // A clock with no deadline is not a clock showing zero: a new rack and a reset both send null, and the
     // element disappears with them rather than sitting at 0:00 for the rest of the match.
     shotClockEndsAtMs = state.shotClockEndsAt ? Date.parse(state.shotClockEndsAt) : null;
+    shotClockLengthMs = (state.shotClockSeconds || 0) * 1000;
+    shotClock.classList.toggle('line-display', state.shotClockDisplay === 'Line');
     if (shotClockEndsAtMs !== null) tickShotClock();
 
     setElementVisible(scorePill, scoreBarVisible, skipAnimation);

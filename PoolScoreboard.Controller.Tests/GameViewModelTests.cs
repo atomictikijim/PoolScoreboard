@@ -199,6 +199,32 @@ public sealed class GameViewModelTests : IDisposable
     }
 
     [Fact]
+    public void TheDisplayToggleSwapsTheClockBetweenTimeAndALine_AndSaves()
+    {
+        var saves = 0;
+        var manager = new GameManager();
+        var viewModel = new GameViewModel(
+            manager, () => saves++, overlaySession: null, new PlayerRosterStore(_root), dispatcher: null, owner: null);
+        StartMatch(manager, homeTarget: 3, awayTarget: 3);
+
+        Assert.Equal("Shot Clock: Time", viewModel.ShotClockDisplayButtonText);
+
+        viewModel.ToggleShotClockDisplayCommand.Execute(null);
+
+        // The button says which drawing is on screen, and the change is a look setting, so it is saved the moment it
+        // is made rather than waited for on exit.
+        Assert.Equal(ShotClockDisplay.Line, manager.GetStateSnapshot().ShotClockDisplay);
+        Assert.Equal(ShotClockDisplay.Line, viewModel.ShotClockDisplay);
+        Assert.Equal("Shot Clock: Line", viewModel.ShotClockDisplayButtonText);
+        Assert.Equal(1, saves);
+
+        viewModel.ToggleShotClockDisplayCommand.Execute(null);
+
+        Assert.Equal(ShotClockDisplay.Time, manager.GetStateSnapshot().ShotClockDisplay);
+        Assert.Equal("Shot Clock: Time", viewModel.ShotClockDisplayButtonText);
+    }
+
+    [Fact]
     public void AWinnerAloneWritesNothing_AndSavingFilesTheMatchOnce()
     {
         var manager = new GameManager();

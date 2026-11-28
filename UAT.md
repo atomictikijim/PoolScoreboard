@@ -269,3 +269,17 @@ never started.
 
 *Expected:* the clock disappears as the winner banner appears, rather than restarting behind it, and neither key
 brings it back while the banner is up. RESET MATCH returns to setup with no clock.
+
+### SC-11 — The countdown as a line, or as numbers
+
+*Precondition:* a match running with the overlay open in a browser.
+
+1. Press **Shot Clock: Time** in the OVERLAY row, then start the clock with `T`.
+2. Watch the shot out.
+3. Press the button again (it now reads **Shot Clock: Line**) and start another shot.
+4. Restart the Controller and read the button's label.
+
+*Expected:* step 1 swaps the pill's numbers for a green line that drains from the right and runs out as the time
+does. Step 2 turns it red for the last five seconds, staying red once the shot has expired. Step 3 brings the
+numbers back, and both drawings agree about when the clock is nearly up. Step 4 still shows **Shot Clock: Line**,
+because the choice is saved with the rest of the look.

@@ -70,16 +70,17 @@ public class GameManager
     }
 
     /// <summary>
-    /// Moves the operator's look — colour theme, scoreboard style, show/hide settings — onto a new
-    /// state, as copies. Both ways of leaving a match (starting one and resetting one) keep these,
-    /// because they describe the show rather than the score, and the HTTP control API paths have no
-    /// screen behind them to re-apply anything.
+    /// Moves the operator's look — colour theme, scoreboard style, show/hide settings and how the shot clock is
+    /// drawn — onto a new state, as copies. Both ways of leaving a match (starting one and resetting one) keep
+    /// these, because they describe the show rather than the score, and the HTTP control API paths have no screen
+    /// behind them to re-apply anything.
     /// </summary>
     private static void CarryOperatorStyling(GameState from, GameState to)
     {
         to.ColorTheme = from.ColorTheme.Copy();
         to.ScoreboardStyle = from.ScoreboardStyle.Copy();
         to.Visibility = from.Visibility.Copy();
+        to.ShotClockDisplay = from.ShotClockDisplay;
     }
 
     public void AddPoint(bool isPlayer1)
@@ -438,6 +439,20 @@ public class GameManager
                 return;
 
             _currentGame.ShotClockEndsAt = null;
+            RaiseGameStateChanged(_currentGame.Clone());
+        }
+    }
+
+    /// <summary>
+    /// Chooses how a running clock is drawn: the countdown as numbers, or as a line that drains and turns red in its
+    /// last five seconds. Deliberately allowed mid-match, unlike the lengths — it changes nothing about the shot,
+    /// only how it reads on the overlay — and it rides along with the rest of the look into the next match.
+    /// </summary>
+    public void SetShotClockDisplay(ShotClockDisplay display)
+    {
+        lock (_sync)
+        {
+            _currentGame.ShotClockDisplay = display;
             RaiseGameStateChanged(_currentGame.Clone());
         }
     }

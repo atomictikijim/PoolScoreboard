@@ -43,6 +43,7 @@ public static class ScoreboardStateMapper
         // Round-trip format with the offset, so the page's own clock reads the same instant wherever OBS and the
         // Controller sit. `Date.parse` accepts it; a bare local time would not.
         ShotClockSeconds = state.ShotClockSeconds,
+        ShotClockDisplay = state.ShotClockDisplay.ToString(),
         ShotClockEndsAt = state.ShotClockEndsAt?.ToString("o", CultureInfo.InvariantCulture)
     };
 

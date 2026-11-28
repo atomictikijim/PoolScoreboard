@@ -87,6 +87,18 @@ public partial class GameViewModel : ObservableObject
     [ObservableProperty]
     private int shotClockExtensionSeconds = GameState.DefaultShotClockExtensionSeconds;
 
+    /// <summary>
+    /// How the running clock is drawn on the overlay: numbers, or a line that drains and turns red in its last five
+    /// seconds. A display choice, so it can be flipped mid-match like the show/hide toggles beside it.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShotClockDisplayButtonText))]
+    private ShotClockDisplay shotClockDisplay = ShotClockDisplay.Time;
+
+    /// <summary>What the toggle is currently set to, so the button says which drawing is on screen.</summary>
+    public string ShotClockDisplayButtonText =>
+        ShotClockDisplay == ShotClockDisplay.Time ? "Shot Clock: Time" : "Shot Clock: Line";
+
     [ObservableProperty]
     private PlayerViewModel? homePlayer;
 
@@ -319,6 +331,7 @@ public partial class GameViewModel : ObservableObject
         // use rather than the defaults a fresh state would have offered.
         ShotClockSeconds = restored.ShotClockSeconds;
         ShotClockExtensionSeconds = restored.ShotClockExtensionSeconds;
+        ShotClockDisplay = restored.ShotClockDisplay;
     }
 
     partial void OnSelectedGameTypeChanged(GameType oldValue, GameType newValue)
@@ -687,6 +700,20 @@ public partial class GameViewModel : ObservableObject
     private void ToggleBallTrackerVisible()
     {
         _gameManager.SetBallTrackerVisible(!BallTrackerVisible);
+        _persist?.Invoke();
+    }
+
+    /// <summary>
+    /// Flips the countdown between numbers and a draining line. A display choice rather than a rule, so it works
+    /// mid-match and is saved with the rest of the look instead of with the match.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleShotClockDisplay()
+    {
+        var next = ShotClockDisplay == ShotClockDisplay.Time ? ShotClockDisplay.Line : ShotClockDisplay.Time;
+
+        _gameManager.SetShotClockDisplay(next);
+        ShotClockDisplay = next;
         _persist?.Invoke();
     }
 

@@ -83,7 +83,9 @@ dotnet clean
   what calling an extension adds — both chosen at Match Setup, 40 and 30 by default) and `ShotClockEndsAt` (when the
   current shot's countdown runs out, or null when no clock is showing), active/winner status. Two flags,
   `HomeShotClockExtensionUsed` and `AwayShotClockExtensionUsed`, say who has already called their one extension this
-  rack.
+  rack. `ShotClockDisplay` says how the running clock is drawn — `Time` for the numbers, `Line` for a line that
+  drains and turns red in its last five seconds. It is a look setting rather than a rule: it can be flipped mid-match
+  and is carried into the next state with the theme and the show/hide settings.
 - `ColorTheme` — operator-set background/accent/text colors, applied to the overlay pages.
 - `GameState.MatchId` — which match this is. Assigned when a match starts, carried into `ResumableMatch` so a
   relaunch restores the same one, and stored on each history record, which is what keeps a finished match from
@@ -138,7 +140,9 @@ dotnet clean
 - Match setup: game type, Race-To mode (single/split) and value(s), the two shot-clock lengths (shot length and
   what an extension adds), color theme picker.
 - Live view: score +/- per player, current-shooter toggle with a CALL EXTENSION button beside it, ball-group
-  assignment buttons (8-ball only) or ball display (9/10-ball), new-rack/reset-match controls.
+  assignment buttons (8-ball only) or ball display (9/10-ball), new-rack/reset-match controls. The shared OVERLAY
+  row (on both screens) ends with a **Shot Clock: Time / Line** button that swaps the countdown's drawing; it is a
+  look setting, so it works mid-match and is saved with the profile.
 - On startup, starts the Overlay's Kestrel host in-process, passing it the same
   `GameManager` instance the UI is bound to. `OverlayHostRunner.Start` returns null when the host cannot bind
   (the overlay port, 51234 by default, already taken — usually a leftover Controller) and logs the reason, so startup continues
@@ -235,7 +239,11 @@ on the port the overlay was really served on rather than the default or a value 
 - `/overlay/scoreboard` — browser-source page: scores, Race-To, shooter indicator, ball
   display, shot clock, operator colors. Read-only; polls or subscribes (SSE/WebSocket) for state. The shot clock
   is drawn only while the payload carries a deadline, reads red in its last five seconds, and ticks inside the
-  page (`Date.parse` of the ISO instant, four times a second) so an OBS capture counts down between frames.
+  page (`Date.parse` of the ISO instant, four times a second) so an OBS capture counts down between frames. The
+  payload's `shotClockDisplay` picks which of the two drawings it uses: the numbers, or a line whose width is the
+  fraction of the shot left (against `shotClockSeconds`, capped at a full line when an extension pushes the time
+  past the length) and which takes its green/red from the same `low`/`expired` classes the numbers use, so the two
+  can never disagree about when time is nearly up.
 - `/overlay/cueball` — separate browser-source page: a cue-ball graphic; clicking it places
   a red dot marking the spin/contact point. Independent of and separately positionable from
   the scoreboard overlay in the OBS scene.
@@ -302,7 +310,7 @@ alignment, not a pixel match).
 ## Known Simplifications & Future Work
 
 - Persistence covers the operator profile (`settings.json`: colour theme, scoreboard style, element visibility,
-  both players' setup fields) and the match in progress (`match.json`: scores, game type and Race-To mode, ball
+  the shot clock's drawing, both players' setup fields) and the match in progress (`match.json`: scores, game type and Race-To mode, ball
   groups, pocketed balls, shooter), which is restored automatically on the next launch — there is no prompt, so
   RESET MATCH is how an operator discards a resumed match. A finished match is filed to `history.json` only when
   SAVE TO HISTORY is pressed, and the History window lists those newest first with each name's wins and deletes one
@@ -313,7 +321,9 @@ alignment, not a pixel match).
   The clock itself is not part of `match.json`, so a resumed match shows no clock — a countdown from a previous
   session would be a lie — and there is no pause: a clock hides with a new rack, a reset, a won match or the clear
   route, and starts again at full time. Nothing on screen says who has used their extension: the per-side flag is
-  silent, so the second call simply does nothing.
+  silent, so the second call simply does nothing. The clock is either numbers or the line, never both, and the line
+  carries no numerals at all — which is the point of it across a room, but means an operator who wants the exact
+  time on screen has to leave the display on `Time`.
 - `controller.log` is capped by size only, never by age: at startup a log over 1 MiB becomes
   `controller.old.log`, so exactly one previous session survives and older ones are discarded.
 - The roster only holds players who have actually been on screen for a started match (or present

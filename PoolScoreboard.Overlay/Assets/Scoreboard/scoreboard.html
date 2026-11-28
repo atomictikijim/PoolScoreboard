@@ -44,6 +44,11 @@
     <div class="shot-clock sb-hideable" id="shotClock">
       <span class="shot-clock-label">SHOT</span>
       <span class="shot-clock-value" id="shotClockValue">0:40</span>
+      <!-- The other way the same clock can read: a line that drains to nothing and turns red in the last five
+           seconds. Only one of the two is drawn, and which one is the operator's choice. -->
+      <div class="shot-clock-line" id="shotClockLine">
+        <div class="shot-clock-line-fill" id="shotClockLineFill"></div>
+      </div>
     </div>
 
     <div class="winner-banner sb-hideable" id="winnerBanner"></div>

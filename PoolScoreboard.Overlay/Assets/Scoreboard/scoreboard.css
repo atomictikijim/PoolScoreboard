@@ -310,6 +310,40 @@ html, body {
   color: #ff3b30;
 }
 
+/* The countdown as a line rather than numbers: it drains from the right as the shot runs, so it says what the
+   digits said without needing to be read — green while there is time, red for the last five seconds. One
+   element or the other is drawn, never both: the line's own colours come from the same `low`/`expired` classes
+   the numbers use, so the two displays can never disagree about when time is nearly up. */
+.shot-clock-line {
+  display: none;
+  align-self: center;
+  width: 260px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(240, 240, 240, 0.18);
+  overflow: hidden;
+}
+
+.shot-clock.line-display .shot-clock-value {
+  display: none;
+}
+
+.shot-clock.line-display .shot-clock-line {
+  display: block;
+}
+
+.shot-clock-line-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: #35d07f;
+}
+
+.shot-clock.low .shot-clock-line-fill,
+.shot-clock.expired .shot-clock-line-fill {
+  background: #ff3b30;
+}
+
 .winner-banner {
   margin-top: 14px;
   padding: 8px 22px;

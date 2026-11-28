@@ -147,7 +147,9 @@
                             or hide each of those elements on the overlay. They appear here as well as on the
                             Live View, so you can set the overlay up before a match, and the choices carry
                             through START MATCH and RESET MATCH. Hiding the score bar also hides the other two,
-                            since they're anchored to it.
+                            since they're anchored to it. <Bold>Shot Clock: Time / Line</Bold> swaps the running
+                            clock between the numbers and a line that drains and turns red in its last five seconds;
+                            it can be pressed mid-match.
                         </TextBlock>
                         <TextBlock Style="{StaticResource HelpBodyStyle}" Margin="0,4,0,0">
                             Click <Bold>START MATCH</Bold> when you're ready to begin scoring.

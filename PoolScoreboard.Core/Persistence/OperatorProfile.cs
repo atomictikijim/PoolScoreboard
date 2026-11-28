@@ -1,3 +1,4 @@
+using PoolScoreboard.Core.Enums;
 using PoolScoreboard.Core.Models;
 
 namespace PoolScoreboard.Core.Persistence;
@@ -20,6 +21,12 @@ public class OperatorProfile
     public ColorTheme ColorTheme { get; set; } = new();
     public ScoreboardStyle ScoreboardStyle { get; set; } = new();
     public ScoreboardVisibility Visibility { get; set; } = new();
+
+    /// <summary>
+    /// How the running clock is drawn — the numbers, or a line that drains. Part of the look rather than of a match,
+    /// so it is remembered with the theme and the show/hide settings and comes back on the next launch.
+    /// </summary>
+    public ShotClockDisplay ShotClockDisplay { get; set; } = ShotClockDisplay.Time;
     public PlayerProfile HomePlayer { get; set; } = new();
     public PlayerProfile AwayPlayer { get; set; } = new();
 
@@ -46,6 +53,7 @@ public class OperatorProfile
         ColorTheme = state.ColorTheme.Copy(),
         ScoreboardStyle = state.ScoreboardStyle.Copy(),
         Visibility = state.Visibility.Copy(),
+        ShotClockDisplay = state.ShotClockDisplay,
         HomePlayer = PlayerProfile.From(state.Player1),
         AwayPlayer = PlayerProfile.From(state.Player2)
     };
@@ -62,6 +70,7 @@ public class OperatorProfile
         manager.SetScoreBarVisible(Visibility.ScoreBarVisible);
         manager.SetBallTrackerVisible(Visibility.BallTrackerVisible);
         manager.SetWinnerBannerVisible(Visibility.WinnerBannerVisible);
+        manager.SetShotClockDisplay(ShotClockDisplay);
 
         HomePlayer.ApplyTo(manager, isHome: true, homeEndCapIcon);
         AwayPlayer.ApplyTo(manager, isHome: false, awayEndCapIcon);

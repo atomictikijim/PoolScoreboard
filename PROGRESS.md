@@ -284,6 +284,29 @@ anchor silently tests unmutated code), and a presence-only text guard passes on 
 
 ## Change Log
 
+### 2026-11-28 — The countdown can be a line instead of numbers
+
+- `GameState` gained `ShotClockDisplay` (`Time` or `Line`), set through `GameManager.SetShotClockDisplay` and carried
+  by `CarryOperatorStyling` into a reset and the next match — it describes the show rather than the match, so unlike
+  the two lengths it is allowed mid-match. The profile captures and applies it, so the choice survives a relaunch
+  like the theme and the show/hide settings.
+- The Overlay draws both: `scoreboard.js` toggles `line-display` from the payload's new `shotClockDisplay`, renders
+  the line's width as the fraction of the shot left against `shotClockSeconds`, and takes its green/red from the
+  same `low`/`expired` classes the numbers use — so the line turns red at exactly five seconds, not at a second
+  threshold that could drift from the numbers'. An extension pushes the remaining time past the length, so the
+  fraction is capped at a full line rather than overflowing the track.
+- The operator swaps it with **Shot Clock: Time / Line** at the end of the shared OVERLAY row, which is on both
+  screens and persists the profile when pressed. The button names the drawing currently on screen; the Help page's
+  OVERLAY bullet explains the swap.
+- No new route, so the Stream Deck docs and the route guard are untouched by this one — the display is a look
+  setting, not a button an operator would press mid-shot from a deck.
+- Mutation-proved, then reverted: the mapper dropping the field (the payload path the page reads), `Clone` dropping
+  it, `CarryOperatorStyling` dropping it, and the profile's capture dropping it. Each failed the fact covering it.
+  The five-second colour threshold itself lives in CSS/JS and is not unit-tested: it reuses the classes the numbers
+  already had, which is the reason it cannot drift.
+- 0.33.0 -> 0.34.0. Full suite 141 Core + 32 Overlay + 170 Controller, 0 warnings. Not checked by hand: neither
+  drawing has been seen in OBS, and the line's proportions are the page's own arithmetic rather than a measurement.
+
 ### 2026-11-28 — The clock's length is the operator's, and each player gets an extension
 
 - Both lengths moved to Match Setup. `ShotClockSeconds` (40) and the new `ShotClockExtensionSeconds` (30) are still

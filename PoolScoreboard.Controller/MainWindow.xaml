@@ -32,7 +32,10 @@
                 <Button Content="Ball Tracker" Command="{Binding ToggleBallTrackerVisibleCommand}"
                         Style="{Binding BallTrackerVisible, Converter={StaticResource BoolToButtonStyleConverter}}" Padding="12,8" Margin="0,0,8,0" />
                 <Button Content="Winner Banner" Command="{Binding ToggleWinnerBannerVisibleCommand}"
-                        Style="{Binding WinnerBannerVisible, Converter={StaticResource BoolToButtonStyleConverter}}" Padding="12,8" />
+                        Style="{Binding WinnerBannerVisible, Converter={StaticResource BoolToButtonStyleConverter}}" Padding="12,8" Margin="0,0,8,0" />
+                <Button Content="{Binding ShotClockDisplayButtonText}" Command="{Binding ToggleShotClockDisplayCommand}"
+                        Style="{StaticResource InactiveButtonStyle}" Padding="12,8"
+                        ToolTip="The running shot clock: the numbers, or a line that drains and turns red in its last five seconds. Press to swap." />
             </StackPanel>
         </DataTemplate>
     </Window.Resources>
